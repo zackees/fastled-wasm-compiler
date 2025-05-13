@@ -58,7 +58,12 @@ def process_compile(
     js_dir: Path, build_mode: BuildMode, auto_clean: bool, no_platformio: bool
 ) -> None:
     print("Starting compilation...")
-    rtn = compile(js_dir, build_mode, auto_clean, no_platformio=no_platformio)
+    rtn = compile(
+        compiler_root=js_dir,
+        build_mode=build_mode,
+        auto_clean=auto_clean,
+        no_platformio=no_platformio,
+    )
     print(f"Compilation return code: {rtn}")
     if rtn != 0:
         print("Compilation failed.")
