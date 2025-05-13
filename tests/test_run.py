@@ -21,10 +21,6 @@ COMPILER_ROOT = TEST_DATA / "compiler_root"
 FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
 
 ASSETS_DIR = TEST_DATA / "assets"
-INDEX_HTML = ASSETS_DIR / "index.html"
-STYLE_CSS = ASSETS_DIR / "style.css"
-INDEX_JS = ASSETS_DIR / "index.js"
-
 
 ENABLED = False
 
