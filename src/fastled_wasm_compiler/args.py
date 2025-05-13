@@ -8,7 +8,6 @@ from pathlib import Path
 class Args:
     compiler_root: Path
     assets_dirs: Path
-    fastled_compiler_dir: Path
     mapped_dir: Path
     keep_files: bool
     only_copy: bool
@@ -28,7 +27,6 @@ class Args:
     def __post_init__(self):
         assert isinstance(self.compiler_root, Path)
         assert isinstance(self.assets_dirs, Path)
-        assert isinstance(self.fastled_compiler_dir, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
         assert isinstance(self.only_copy, bool)
@@ -52,12 +50,6 @@ def _parse_args() -> Args:
         required=True,
     )
     parser.add_argument("--assets-dirs", type=Path, required=True)
-    parser.add_argument(
-        "--fastled-compiler-dir",
-        type=Path,
-        required=True,
-        help="Path to the fastled compiler directory",
-    )
     parser.add_argument(
         "--mapped-dir",
         type=Path,
@@ -114,7 +106,6 @@ def _parse_args() -> Args:
     return Args(
         compiler_root=tmp.compiler_root,
         assets_dirs=tmp.assets_dirs,
-        fastled_compiler_dir=tmp.fastled_compiler_dir,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
         only_copy=tmp.only_copy,

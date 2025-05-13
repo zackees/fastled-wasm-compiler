@@ -89,10 +89,9 @@ def run(args: Args) -> int:
 
     COMPILER_ROOT = args.compiler_root
 
-    FASTLED_COMPILER_DIR = args.fastled_compiler_dir
     SKETCH_SRC = COMPILER_ROOT / "src"
     PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
-    _FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
+    _ASSETS_MODULES = ASSETS_DIR / "modules"
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
@@ -105,7 +104,7 @@ def run(args: Args) -> int:
         _INDEX_CSS_SRC,
         _INDEX_JS_SRC,
         _WASM_COMPILER_SETTTINGS,
-        FASTLED_COMPILER_DIR,
+        ASSETS_DIR,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
     if missing_paths:
@@ -208,9 +207,9 @@ def run(args: Args) -> int:
             Path(out_dir / "modules").mkdir(parents=True, exist_ok=True)
 
             # Recursively copy all non-hidden files and directories
-            print(f"Copying files from {_FASTLED_MODULES_DIR} to {out_dir / 'modules'}")
+            print(f"Copying files from {_ASSETS_MODULES} to {out_dir / 'modules'}")
             shutil.copytree(
-                src=_FASTLED_MODULES_DIR,
+                src=_ASSETS_MODULES,
                 dst=out_dir / "modules",
                 dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns(".*"),

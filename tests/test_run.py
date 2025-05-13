@@ -18,11 +18,10 @@ TEST_DATA = HERE / "test_data"
 COMPILER_FLAGS = TEST_DATA / "compiler_flags.py"
 MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
-FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
 
 ASSETS_DIR = TEST_DATA / "assets"
 
-ENABLED = False
+ENABLED = True
 
 
 class MainTester(unittest.TestCase):
@@ -38,7 +37,6 @@ class MainTester(unittest.TestCase):
         args: Args = Args(
             compiler_root=COMPILER_ROOT,
             assets_dirs=ASSETS_DIR,
-            fastled_compiler_dir=FASTLED_COMPILER_DIR,
             mapped_dir=MAPPED_DIR,
             keep_files=False,
             only_copy=False,
