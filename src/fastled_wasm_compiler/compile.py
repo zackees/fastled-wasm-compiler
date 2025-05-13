@@ -14,13 +14,23 @@ def _pio_compile_cmd_list(
     build_mode: BuildMode | None, disable_auto_clean: bool, verbose: bool
 ) -> list[str]:
     cmd_list = ["pio", "run"]
+
     if disable_auto_clean:
         cmd_list.append("--disable-auto-clean")
     if verbose:
         cmd_list.append("-v")
-    if build_mode and build_mode == BuildMode.DEBUG:
-        cmd_list.append("-t")
-        cmd_list.append("debug")
+
+    # Map build mode to env name
+    env_map = {
+        BuildMode.DEBUG: "wasm-debug",
+        BuildMode.QUICK: "wasm-quick",
+        BuildMode.RELEASE: "wasm-release",
+    }
+
+    if build_mode:
+        env_name = env_map.get(build_mode)
+        if env_name:
+            cmd_list += ["-e", env_name]
 
     return cmd_list
 
