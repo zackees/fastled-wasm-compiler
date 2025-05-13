@@ -11,6 +11,10 @@ from pathlib import Path
 HERE = Path(__file__).parent
 PROJECT_ROOT = HERE.parent.parent
 SKETCH_FOLDER = HERE / "sketch"
+TEST_DATA = HERE / "test_data"
+ASSETS_DIR = TEST_DATA / "assets"
+COMPILER_ROOT = TEST_DATA / "compiler_root"
+MAPPED_DIR = TEST_DATA / "mapped"
 
 
 DOCKER_FILE = PROJECT_ROOT / "Dockerfile"
@@ -123,6 +127,93 @@ class FullBuildTester(unittest.TestCase):
         run_proc.stdout.close()
         run_proc.terminate()
         self.assertEqual(run_proc.returncode, 0, "Docker run failed")
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_compile_sketch(self) -> None:
+        """Test compiling the sketch folder using the command line arguments with the full build environment."""
+
+        # Create a temporary output directory
+        output_dir = HERE / "output"
+        output_dir.mkdir(exist_ok=True)
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Mount the test data directories and output directory to the container
+        print("\nCompiling sketch with full build environment...")
+        compile_proc = subprocess.Popen(
+            [
+                "docker",
+                "run",
+                "--name",
+                "fastled-compile-container",
+                # Mount the test data directories
+                "-v",
+                f"{MAPPED_DIR.absolute()}:/mapped",
+                "-v",
+                f"{COMPILER_ROOT.absolute()}:/compiler_root",
+                "-v",
+                f"{ASSETS_DIR.absolute()}:/assets",
+                "-v",
+                f"{output_dir.absolute()}:/output",
+                IMAGE_NAME,
+                # Required arguments
+                "--compiler-root",
+                "/compiler_root",
+                "--assets-dirs",
+                "/assets",
+                "--mapped-dir",
+                "/mapped",
+                # Optional arguments
+                "--quick",
+                "--no-platformio",  # Use direct emcc calls instead of platformio
+                "--keep-files",  # Keep intermediate files for debugging
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert compile_proc.stdout is not None
+
+        # Print output in real-time
+        for line in compile_proc.stdout:
+            line_str = line.decode("utf-8")
+            print(line_str.strip())
+
+        compile_proc.wait()
+        compile_proc.stdout.close()
+        compile_proc.terminate()
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Check if compilation was successful
+        self.assertEqual(compile_proc.returncode, 0, "Sketch compilation failed")
+
+        # Check if output files were generated
+        output_files = list(output_dir.glob("**/*"))
+        self.assertTrue(len(output_files) > 0, "No output files were generated")
+
+        # Check for specific output files
+        wasm_files = list(output_dir.glob("**/*.wasm"))
+        js_files = list(output_dir.glob("**/*.js"))
+        html_files = list(output_dir.glob("**/*.html"))
+
+        self.assertTrue(len(wasm_files) > 0, "No WASM files were generated")
+        self.assertTrue(len(js_files) > 0, "No JS files were generated")
+        self.assertTrue(len(html_files) > 0, "No HTML files were generated")
+
+        # Check for manifest.json which should contain file mappings
+        manifest_file = list(output_dir.glob("**/manifest.json"))
+        self.assertTrue(len(manifest_file) > 0, "No manifest.json file was generated")
 
 
 if __name__ == "__main__":
