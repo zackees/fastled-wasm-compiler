@@ -82,28 +82,28 @@ def run(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
 
-    _INDEX_HTML_SRC = assets_dir / "index.html"
-    _INDEX_CSS_SRC = assets_dir / "index.css"
-    _INDEX_JS_SRC = assets_dir / "index.js"
-    _WASM_COMPILER_SETTTINGS = assets_dir / "wasm_compiler_flags.py"
+    index_html = assets_dir / "index.html"
+    index_css_src = assets_dir / "index.css"
+    index_js_src = assets_dir / "index.js"
+    compiler_flags_py = assets_dir / "wasm_compiler_flags.py"
 
-    COMPILER_ROOT = args.compiler_root
+    compiler_root = args.compiler_root
 
-    SKETCH_SRC = COMPILER_ROOT / "src"
-    PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
-    _ASSETS_MODULES = assets_dir / "modules"
+    sketch_tmp = compiler_root / "src"
+    pio_build_dir = compiler_root / ".pio/build"
+    assets_modules = assets_dir / "modules"
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
     # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
-    _FASTLED_OUTPUT_DIR_NAME = "fastled_js"
+    fastled_js_out = "fastled_js"
 
     check_paths: list[Path] = [
-        COMPILER_ROOT,
-        _INDEX_HTML_SRC,
-        _INDEX_CSS_SRC,
-        _INDEX_JS_SRC,
-        _WASM_COMPILER_SETTTINGS,
+        compiler_root,
+        index_html,
+        index_css_src,
+        index_js_src,
+        compiler_flags_py,
         assets_dir,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
@@ -140,18 +140,18 @@ def run(args: Args) -> int:
         do_compile = not any_only_flags or args.only_compile
 
         if not any_only_flags:
-            if SKETCH_SRC.exists():
-                shutil.rmtree(SKETCH_SRC)
+            if sketch_tmp.exists():
+                shutil.rmtree(sketch_tmp)
 
-        SKETCH_SRC.mkdir(parents=True, exist_ok=True)
+        sketch_tmp.mkdir(parents=True, exist_ok=True)
 
         if do_copy:
-            copy_files(src_dir, SKETCH_SRC)
+            copy_files(src_dir, sketch_tmp)
             if args.only_copy:
                 return 0
 
         if do_insert_header:
-            process_ino_files(SKETCH_SRC)
+            process_ino_files(sketch_tmp)
             if args.only_insert_header:
                 print("Transform to cpp and insert header operations completed.")
                 return 0
@@ -170,7 +170,7 @@ def run(args: Args) -> int:
                     build_mode = BuildMode.QUICK
 
                 process_compile(
-                    js_dir=COMPILER_ROOT,
+                    js_dir=compiler_root,
                     build_mode=build_mode,
                     auto_clean=not args.disable_auto_clean,
                     no_platformio=no_platformio,
@@ -180,15 +180,15 @@ def run(args: Args) -> int:
                 return 1
 
             def _get_build_dir_cmake() -> Path:
-                return COMPILER_ROOT / "build"
+                return compiler_root / "build"
 
             if no_platformio:
                 build_dir = _get_build_dir_cmake()
             else:
-                build_dir = _get_build_dir_platformio(PIO_BUILD_DIR)
+                build_dir = _get_build_dir_platformio(pio_build_dir)
 
             print(banner("Copying output files..."))
-            out_dir: Path = src_dir / _FASTLED_OUTPUT_DIR_NAME
+            out_dir: Path = src_dir / fastled_js_out
             out_dir.mkdir(parents=True, exist_ok=True)
 
             # Copy all fastled.* build artifacts
@@ -198,25 +198,25 @@ def run(args: Args) -> int:
                 shutil.copy2(file_path, _dst)
 
             # Copy static files.
-            print(f"Copying {_INDEX_HTML_SRC} to output directory")
-            shutil.copy2(_INDEX_HTML_SRC, out_dir / "index.html")
-            print(f"Copying {_INDEX_CSS_SRC} to output directory")
-            shutil.copy2(_INDEX_CSS_SRC, out_dir / "index.css")
+            print(f"Copying {index_html} to output directory")
+            shutil.copy2(index_html, out_dir / "index.html")
+            print(f"Copying {index_css_src} to output directory")
+            shutil.copy2(index_css_src, out_dir / "index.css")
 
             # copy all js files in _FASTLED_COMPILER_DIR to output directory
             Path(out_dir / "modules").mkdir(parents=True, exist_ok=True)
 
             # Recursively copy all non-hidden files and directories
-            print(f"Copying files from {_ASSETS_MODULES} to {out_dir / 'modules'}")
+            print(f"Copying files from {assets_modules} to {out_dir / 'modules'}")
             shutil.copytree(
-                src=_ASSETS_MODULES,
+                src=assets_modules,
                 dst=out_dir / "modules",
                 dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns(".*"),
             )  # Ignore hidden files
 
             print("Copying index.js to output directory")
-            shutil.copy2(_INDEX_JS_SRC, out_dir / "index.js")
+            shutil.copy2(index_js_src, out_dir / "index.js")
             optional_input_data_dir = src_dir / "data"
             output_data_dir = out_dir / optional_input_data_dir.name
 
@@ -269,7 +269,7 @@ def run(args: Args) -> int:
             manifest_json_str = json.dumps(manifest, indent=2, sort_keys=True)
             with open(out_dir / "files.json", "w") as f:
                 f.write(manifest_json_str)
-        cleanup(args, SKETCH_SRC)
+        cleanup(args, sketch_tmp)
 
         print(banner("Compilation process completed successfully"))
         return 0
