@@ -146,4 +146,4 @@ uv.lock
 !.aiderignore
 
 
-tests/test_data/mapped/sketch/fastled_js
+tests/test_data/mapped/sketch/fastled_js/
