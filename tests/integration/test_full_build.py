@@ -247,7 +247,7 @@ class FullBuildTester(unittest.TestCase):
         self.assertIn(
             b"fastled.wasm.dwarf",
             wasm_bytes,
-            "dwarf symbol map not referenced in the wasm file, this 
+            "dwarf symbol map not referenced in the wasm file, this will break advanced step through debugging",
         )
         print("Done")
 
