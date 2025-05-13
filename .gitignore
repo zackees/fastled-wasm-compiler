@@ -151,3 +151,5 @@ uv.lock
 **/compiler_root/.pio/build/**
 !**/compiler_root/.pio/build/readme
 **/compiler_root/.pio/libdeps/**
+
+**/*.ino.cpp
