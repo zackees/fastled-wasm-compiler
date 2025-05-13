@@ -13,8 +13,9 @@ classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "platformio==6.1.17",
 ]
-# Change this with the version number bump.
-version = "0.0.8"
+
+# ALSO CHANGE THE VERSION IN THE DOCKER TO MATCH!
+version = "0.0.9"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
