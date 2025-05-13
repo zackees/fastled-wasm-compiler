@@ -13,7 +13,6 @@
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +22,7 @@ from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.args import Args
+from fastled_wasm_compiler.insert_header import insert_headers
 from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
@@ -54,7 +54,7 @@ _PIO_VERBOSE = True
 
 _WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
 # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
-_HEADERS_TO_INSERT = ["#include <Arduino.h>", '#include "platforms/wasm/js.h"']
+
 _FILE_EXTENSIONS = [".ino", ".h", ".hpp", ".cpp"]
 # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
 _FASTLED_OUTPUT_DIR_NAME = "fastled_js"
@@ -150,29 +150,6 @@ def compile(
     return 1
 
 
-def insert_header(file: Path) -> None:
-    print(f"Inserting header in file: {file}")
-    with open(file, "r") as f:
-        content = f.read()
-
-    # Remove existing includes
-    for header in _HEADERS_TO_INSERT:
-        content = re.sub(
-            rf"^.*{re.escape(header)}.*\n", "", content, flags=re.MULTILINE
-        )
-
-    # Remove both versions of Arduino.h include
-    arduino_pattern = r'^\s*#\s*include\s*[<"]Arduino\.h[>"]\s*.*\n'
-    content = re.sub(arduino_pattern, "", content, flags=re.MULTILINE)
-
-    # Add new headers at the beginning
-    content = "\n".join(_HEADERS_TO_INSERT) + "\n" + content
-
-    with open(file, "w") as f:
-        f.write(content)
-    print(f"Processed: {file}")
-
-
 def transform_to_cpp(src_dir: Path) -> None:
     print("Transforming files to cpp...")
     ino_files = list(src_dir.glob("*.ino"))
@@ -193,19 +170,6 @@ def transform_to_cpp(src_dir: Path) -> None:
             print(f"Including main2.hpp in {new_cpp_file.name}")
             with open(new_cpp_file, "a") as f:
                 f.write('#include "main2.hpp"\n')
-
-
-def insert_headers(
-    src_dir: Path, exclusion_folders: List[Path], file_extensions: List[str]
-) -> None:
-    print(banner("Inserting headers in source files..."))
-    for file in src_dir.rglob("*"):
-        if (
-            file.suffix in file_extensions
-            and not any(folder in file.parents for folder in exclusion_folders)
-            and file.name != "Arduino.h"
-        ):
-            insert_header(file)
 
 
 def process_ino_files(src_dir: Path) -> None:
