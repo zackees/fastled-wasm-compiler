@@ -52,6 +52,12 @@ def _parse_args() -> CliArgs:
     parser.add_argument("--quick", action="store_true", help="Enable quick mode")
     parser.add_argument("--release", action="store_true", help="Enable release mode")
 
+    parser.add_argument(
+        "--no-platformio",
+        action="store_true",
+        help="Disable PlatformIO (not implemented yet)",
+    )
+
     args = parser.parse_args()
     return CliArgs(**vars(args))
 
