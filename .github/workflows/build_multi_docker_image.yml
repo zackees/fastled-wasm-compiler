@@ -34,7 +34,7 @@ jobs:
     if: needs.check-if-changed.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
-      docker_username: ${{ steps.credentials.outputs.docker_username }}
+      docker_username: niteris
       docker_password: ${{ steps.credentials.outputs.docker_password }}
       registry_image: ${{ steps.credentials.outputs.registry_image }}
     steps:
