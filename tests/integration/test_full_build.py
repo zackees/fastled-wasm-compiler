@@ -64,6 +64,8 @@ class FullBuildTester(unittest.TestCase):
                 print(line_str.strip())
 
             build_proc.wait()
+            build_proc.stdout.close()
+            build_proc.terminate()
             assert build_proc.returncode == 0, "Docker build failed"
 
     @classmethod
@@ -95,6 +97,13 @@ class FullBuildTester(unittest.TestCase):
             if src_dir.exists():
                 shutil.rmtree(src_dir, ignore_errors=True)
             print("Cleanup complete.")
+
+    # per test setup and teardown
+    def setUp(self) -> None:
+        # wipe the mapped/sketch/fastled_js directory
+        fljs = MAPPED_DIR / "sketch" / "fastled_js"
+        if fljs.exists():
+            shutil.rmtree(fljs, ignore_errors=True)
 
     def test_sanity(self) -> None:
         """Test command line interface (CLI)."""
@@ -135,7 +144,7 @@ class FullBuildTester(unittest.TestCase):
         self.assertEqual(run_proc.returncode, 0, "Docker run failed")
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
-    def test_compile_sketch(self) -> None:
+    def test_compile_sketch_in_debug(self) -> None:
         """Test compiling the sketch folder using the command line arguments with the full build environment."""
 
         # Remove any existing containers with the same name
@@ -169,7 +178,115 @@ class FullBuildTester(unittest.TestCase):
             "--mapped-dir",
             "/mapped",
             # Optional arguments
-            "--quick",
+            "--debug",
+            "--no-platformio",  # Use direct emcc calls instead of platformio
+            "--keep-files",  # Keep intermediate files for debugging
+        ]
+
+        cmdstr = subprocess.list2cmdline(cmd_list)
+        print(f"Running command: {cmdstr}")
+
+        compile_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert compile_proc.stdout is not None
+
+        # Print output in real-time
+        for line in compile_proc.stdout:
+            line_str = line.decode("utf-8")
+            print(line_str.strip())
+
+        compile_proc.wait()
+        compile_proc.stdout.close()
+        compile_proc.terminate()
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Check if compilation was successful
+        self.assertEqual(compile_proc.returncode, 0, "Sketch compilation failed")
+
+        output_dir = MAPPED_DIR / "sketch" / "fastled_js"
+
+        # Check if output files were generated
+        output_files = list(output_dir.glob("**/*"))
+        self.assertTrue(len(output_files) > 0, "No output files were generated")
+
+        # Check for specific output files
+        wasm_files = list(output_dir.glob("**/*.wasm"))
+        js_files = list(output_dir.glob("**/*.js"))
+        html_files = list(output_dir.glob("**/*.html"))
+
+        self.assertTrue(len(wasm_files) > 0, "No WASM files were generated")
+        self.assertTrue(len(js_files) > 0, "No JS files were generated")
+        self.assertTrue(len(html_files) > 0, "No HTML files were generated")
+
+        # Check for manifest.json which should contain file mappings
+        manifest_file = list(output_dir.glob("**/files.json"))
+        self.assertTrue(len(manifest_file) > 0, "No files.json file was generated")
+
+        # Extra files for debug mode
+        extra_files_in_debug: list[Path] = [
+            output_dir / "fastled.js.symbols",
+            output_dir / "fastled.wasm.dwarf",
+        ]
+
+        for file in extra_files_in_debug:
+            self.assertTrue(file.exists(), f"Debug file {file} does not exist")
+
+        fastled_wasm = output_dir / "fastled.wasm"
+        self.assertTrue(fastled_wasm.exists(), "fastled.wasm does not exist")
+        wasm_bytes = fastled_wasm.read_bytes()
+        self.assertIn(
+            b"fastled.wasm.dwarf",
+            wasm_bytes,
+            "dwarf symbol map not referenced in the wasm file, this 
+        )
+        print("Done")
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_compile_sketch_in_quick(self) -> None:
+        """Test compiling the sketch folder using the command line arguments with the full build environment."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Mount the test data directories and output directory to the container
+        print("\nCompiling sketch with full build environment...")
+
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-compile-container",
+            # Mount the test data directories
+            "-v",
+            f"{MAPPED_DIR.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:/compiler_root",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            IMAGE_NAME,
+            # Required arguments
+            "--compiler-root",
+            "/compiler_root",
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            # Optional arguments
+            "--debug",
             "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
         ]
@@ -205,21 +322,22 @@ class FullBuildTester(unittest.TestCase):
         self.assertEqual(compile_proc.returncode, 0, "Sketch compilation failed")
 
         # Check if output files were generated
-        # output_files = list(output_dir.glob("**/*"))
-        # self.assertTrue(len(output_files) > 0, "No output files were generated")
+        output_dir = MAPPED_DIR / "sketch" / "fastled_js"
+        output_files = list(output_dir.glob("**/*"))
+        self.assertTrue(len(output_files) > 0, "No output files were generated")
 
         # Check for specific output files
-        # wasm_files = list(output_dir.glob("**/*.wasm"))
-        # js_files = list(output_dir.glob("**/*.js"))
-        # html_files = list(output_dir.glob("**/*.html"))
+        wasm_files = list(output_dir.glob("**/*.wasm"))
+        js_files = list(output_dir.glob("**/*.js"))
+        html_files = list(output_dir.glob("**/*.html"))
 
-        # self.assertTrue(len(wasm_files) > 0, "No WASM files were generated")
-        # self.assertTrue(len(js_files) > 0, "No JS files were generated")
-        # self.assertTrue(len(html_files) > 0, "No HTML files were generated")
+        self.assertTrue(len(wasm_files) > 0, "No WASM files were generated")
+        self.assertTrue(len(js_files) > 0, "No JS files were generated")
+        self.assertTrue(len(html_files) > 0, "No HTML files were generated")
 
-        # # Check for manifest.json which should contain file mappings
-        # manifest_file = list(output_dir.glob("**/manifest.json"))
-        # self.assertTrue(len(manifest_file) > 0, "No manifest.json file was generated")
+        # Check for manifest.json which should contain file mappings
+        manifest_file = list(output_dir.glob("**/files.json"))
+        self.assertTrue(len(manifest_file) > 0, "No files.json file was generated")
 
 
 if __name__ == "__main__":
