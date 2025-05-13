@@ -100,6 +100,18 @@ def process_compile(
     print(banner("Compilation successful."))
 
 
+def _get_build_dir_platformio() -> Path:
+    # First assert there is only one build artifact directory.
+    # The name is dynamic: it's your sketch folder name.
+    build_dirs = [d for d in PIO_BUILD_DIR.iterdir() if d.is_dir()]
+    if len(build_dirs) != 1:
+        raise RuntimeError(
+            f"Expected exactly one build directory in {PIO_BUILD_DIR}, found {len(build_dirs)}: {build_dirs}"
+        )
+    build_dir: Path = build_dirs[0]
+    return build_dir
+
+
 def run(args: Args) -> int:
     check_paths: list[Path] = [
         COMPILER_ROOT,
@@ -181,17 +193,6 @@ def run(args: Args) -> int:
             except Exception as e:
                 print(f"Error: {str(e)}")
                 return 1
-
-            def _get_build_dir_platformio() -> Path:
-                # First assert there is only one build artifact directory.
-                # The name is dynamic: it's your sketch folder name.
-                build_dirs = [d for d in PIO_BUILD_DIR.iterdir() if d.is_dir()]
-                if len(build_dirs) != 1:
-                    raise RuntimeError(
-                        f"Expected exactly one build directory in {PIO_BUILD_DIR}, found {len(build_dirs)}: {build_dirs}"
-                    )
-                build_dir: Path = build_dirs[0]
-                return build_dir
 
             def _get_build_dir_cmake() -> Path:
                 return COMPILER_ROOT / "build"
