@@ -27,23 +27,6 @@ from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.types import BuildMode
 
-# from fastled_wasm_server.paths import (
-#     COMPILER_ROOT,
-#     FASTLED_COMPILER_DIR,
-#     PIO_BUILD_DIR,
-#     SKETCH_SRC,
-# )
-# from fastled_wasm_server.print_banner import banner
-# from fastled_wasm_server.types import BuildMode
-
-
-print("Finished imports...")
-
-# TODO: Move these to a config file
-
-
-# DateLine class removed as it's no longer needed with streaming timestamps
-
 
 def copy_files(src_dir: Path, js_src: Path) -> None:
     print("Copying files from mapped directory to container...")

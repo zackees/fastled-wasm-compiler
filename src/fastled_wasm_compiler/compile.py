@@ -10,6 +10,24 @@ from fastled_wasm_compiler.types import BuildMode
 _PIO_VERBOSE = True
 
 
+def _pio_compile_cmd_list(disable_auto_clean: bool, verbose: bool) -> list[str]:
+    cmd_list = ["pio", "run"]
+    if disable_auto_clean:
+        cmd_list.append("--disable-auto-clean")
+    if verbose:
+        cmd_list.append("-v")
+    return cmd_list
+
+
+def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
+    cmd_list = [
+        "/bin/bash",
+        "-c",
+        (compiler_root / "build_fast.sh").as_posix(),
+    ]
+    return cmd_list
+
+
 def compile(
     compiler_root: Path, build_mode: BuildMode, auto_clean: bool, no_platformio: bool
 ) -> int:
@@ -18,24 +36,16 @@ def compile(
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"WASM is building in mode: {build_mode.name}"))
-    cmd_list: list[str] = []
+    cmd_list: list[str]
     if no_platformio:
-        # execute build_archive.syh
-        cmd_list = [
-            "/bin/bash",
-            "-c",
-            (compiler_root / "build_fast.sh").as_posix(),
-        ]
+        cmd_list = _new_compile_cmd_list(compiler_root)
     else:
-        cmd_list.extend(["pio", "run"])
-        if not auto_clean:
-            cmd_list.append("--disable-auto-clean")
-        if _PIO_VERBOSE:
-            cmd_list.append("-v")
+        cmd_list = _pio_compile_cmd_list(not auto_clean, _PIO_VERBOSE)
 
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"Attempting compilation (attempt {attempt}/{max_attempts})...")
+            print(f"Command: {subprocess.list2cmdline(cmd_list)}")
             process: subprocess.Popen = open_process(
                 cmd_list=cmd_list,
                 compiler_root=compiler_root.as_posix(),
