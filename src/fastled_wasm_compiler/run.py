@@ -93,6 +93,7 @@ def run(args: Args) -> int:
     index_html = assets_dir / "index.html"
     index_css_src = assets_dir / "index.css"
     index_js_src = assets_dir / "index.js"
+    arduino_h = assets_dir / "Arduino.h"
     compiler_flags_py = assets_dir / "wasm_compiler_flags.py"
 
     compiler_root = args.compiler_root
@@ -113,6 +114,7 @@ def run(args: Args) -> int:
         index_js_src,
         compiler_flags_py,
         assets_dir,
+        arduino_h,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
     if missing_paths:
@@ -154,6 +156,9 @@ def run(args: Args) -> int:
 
         if do_copy:
             copy_files(src_dir, sketch_tmp)
+            # copy arduino.h from assets_dir to sketch_tmp
+            print(f"Copying Arduino.h from {arduino_h} to {sketch_tmp}")
+            shutil.copy2(arduino_h, sketch_tmp / "Arduino.h")
             if args.only_copy:
                 return 0
 
