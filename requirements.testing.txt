@@ -1,8 +1,6 @@
 black
 isort
-mypy
 pytest
-tox
 ruff
 pyright
 pytest-xdist
