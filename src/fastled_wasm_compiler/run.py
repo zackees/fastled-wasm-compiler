@@ -301,11 +301,8 @@ def run(args: Args) -> int:
                 print(f"Error: {str(e)}")
                 return 1
 
-            def _get_build_dir_cmake() -> Path:
-                return compiler_root / "build"
-
             if no_platformio:
-                build_dir = _get_build_dir_cmake()
+                build_dir = compiler_root / "build"
             else:
                 build_dir = _get_build_dir_platformio(pio_build_dir)
 
