@@ -23,6 +23,7 @@ from typing import List
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.cleanup import cleanup
 from fastled_wasm_compiler.hashfile import hash_file
+from fastled_wasm_compiler.open_process import open_process
 from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
@@ -102,26 +103,14 @@ def compile(
         if _PIO_VERBOSE:
             cmd_list.append("-v")
 
-    def _open_process(cmd_list: list[str] = cmd_list) -> subprocess.Popen:
-        print(
-            banner(
-                "Build started with command:\n  " + subprocess.list2cmdline(cmd_list)
-            )
-        )
-        out = subprocess.Popen(
-            cmd_list,
-            cwd=compiler_root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            env=env,
-        )
-        return out
-
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"Attempting compilation (attempt {attempt}/{max_attempts})...")
-            process = _open_process()
+            process: subprocess.Popen = open_process(
+                cmd_list=cmd_list,
+                compiler_root=compiler_root.as_posix(),
+                env=env,
+            )
             assert process.stdout is not None
 
             # Create a new timestamper for this compilation attempt
