@@ -1,0 +1,187 @@
+name: Publish Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # on button click
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      new_version: ${{ steps.current_version.outputs.current }}
+      should_release: ${{ steps.current_version.outputs.current != steps.prev_version.outputs.previous }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2  # Need previous commit to compare
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install UV
+      run: pip install uv
+
+    - name: Install dependencies
+      run: ./install
+      shell: bash
+
+    - name: Get current version
+      id: current_version
+      run: |
+        uv run fastled --version > current_version.txt
+        echo "current=$(cat current_version.txt)" >> $GITHUB_OUTPUT
+
+    - name: Get previous version
+      id: prev_version
+      run: |
+        git checkout HEAD~1
+        ./clean
+        uv run fastled --version > prev_version.txt
+        echo "previous=$(cat prev_version.txt)" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Create Tag if version changed
+      if: steps.current_version.outputs.current != steps.prev_version.outputs.previous
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "v${{ steps.current_version.outputs.current }}" -m "Release v${{ steps.current_version.outputs.current }}"
+        git push origin "v${{ steps.current_version.outputs.current }}"
+
+  build-executables:
+    needs: [create-tag]
+    if: needs.create-tag.outputs.should_release == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+          # Not available on GitHub Actions unless i run qemu
+          #- os: ubuntu-24.04
+          #  platform: ARM64
+          #  runs-on: ubuntu-24.04-arm64
+          - os: windows-latest
+            arch: X64
+          - os: macos-latest  # arm64
+            arch: ARM64
+          - os: macos-13  # x86
+            arch: X64
+    runs-on: ${{ matrix.runs-on || matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install UV
+      run: pip install uv
+
+    - name: Install dependencies  
+      run: ./install
+      shell: bash
+
+    - name: Build executable
+      run: uv run build_exe.py
+
+    # Add signing step for Windows
+    - name: Decode and Sign Executable (Windows Only)
+      if: matrix.os == 'windows-latest'
+      run: |
+            echo Decoding PFX file...
+
+            rem Write the secret directly to the file using Python
+            python -c "import os; open('fastled.pfx.b64', 'w').write(r'${{ secrets.FASTLED_PFX_B64 }}')"
+
+            rem Decode the base64 file and write the binary PFX
+            python -c "import base64; open('fastled.pfx', 'wb').write(base64.b64decode(open('fastled.pfx.b64', 'r').read()))"
+
+            dir
+
+            echo Signing executable...
+            "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f fastled.pfx /p "${{ secrets.FASTLED_PFX_PASSWORD }}" /fd sha256 ./dist/fastled.exe
+        
+            echo Verifying signature...
+            "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /pa /v ./dist/fastled.exe || (echo "Ignoring self-signed certificate verification error." && exit 0)
+      shell: cmd
+
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: fastled-${{ runner.os }}-${{ runner.arch }}
+        path: |
+          dist/fastled
+          dist/fastled.exe
+
+  create-release:
+    needs: [create-tag, build-executables]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Prepare release files
+      shell: bash
+      run: |
+        mkdir release
+        # Create zip files of the artifacts
+        # Create zip files of the artifacts
+        [ -f artifacts/fastled-Windows-X64/fastled.exe ] && zip -j release/fastled-windows-x64.zip artifacts/fastled-Windows-X64/fastled.exe
+        [ -f artifacts/fastled-Linux-X64/fastled ] && chmod +x artifacts/fastled-Linux-X64/fastled && zip -j release/fastled-linux-x64.zip artifacts/fastled-Linux-X64/fastled
+        [ -f artifacts/fastled-Linux-ARM64/fastled ] && chmod +x artifacts/fastled-Linux-ARM64/fastled && zip -j release/fastled-linux-arm64.zip artifacts/fastled-Linux-ARM64/fastled
+        [ -f artifacts/fastled-macOS-ARM64/fastled ] && chmod +x artifacts/fastled-macOS-ARM64/fastled && zip -j release/fastled-macos-arm64.zip artifacts/fastled-macOS-ARM64/fastled
+        [ -f artifacts/fastled-macOS-X64/fastled ] && chmod +x artifacts/fastled-macOS-X64/fastled && zip -j release/fastled-macos-x64.zip artifacts/fastled-macOS-X64/fastled
+
+        find release -type f -name 'fastled*' -exec chmod +x {} \;
+
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.create-tag.outputs.new_version }}
+        files: release/*.zip
+        draft: false
+        prerelease: false
+
+  publish-pypi:
+    needs: [create-tag]
+    if: needs.create-tag.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies for PyPI publishing
+      run: |
+        pip install build twine
+
+    - name: Build and Publish to PyPI
+      env:
+        TWINE_USERNAME: "__token__"
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        python -m build
+        python -m twine upload dist/*
