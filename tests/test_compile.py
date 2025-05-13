@@ -4,7 +4,7 @@ Unit test file.
 
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastled_wasm_compiler import compile
 from fastled_wasm_compiler.types import BuildMode
@@ -21,7 +21,7 @@ class MainTester(unittest.TestCase):
 
     @unittest.skipUnless(ENABLED, "CLI test marked as disabled")
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
-    def test_run(self, mock_pio_compile) -> None:
+    def test_run(self, mock_pio_compile: MagicMock) -> None:
         """Test command line interface (CLI)."""
         # Setup mocks
 
