@@ -39,6 +39,23 @@ class Args:
         assert isinstance(self.quick, bool)
         assert isinstance(self.release, bool)
 
+    def __str__(self):
+        return (
+            f"Args(compiler_root={self.compiler_root}, "
+            f"assets_dirs={self.assets_dirs}, "
+            f"mapped_dir={self.mapped_dir}, "
+            f"keep_files={self.keep_files}, "
+            f"only_copy={self.only_copy}, "
+            f"only_insert_header={self.only_insert_header}, "
+            f"only_compile={self.only_compile}, "
+            f"profile={self.profile}, "
+            f"disable_auto_clean={self.disable_auto_clean}, "
+            f"no_platformio={self.no_platformio}, "
+            f"debug={self.debug}, "
+            f"quick={self.quick}, "
+            f"release={self.release})"
+        )
+
 
 def _parse_args() -> Args:
     parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
