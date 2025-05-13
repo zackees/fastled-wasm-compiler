@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main  # Adjust this to your default branch
+    paths:
+      - 'Dockerfile'
+      - 'src/fastled_wasm_compiler/**'
+
   schedule:
     - cron: '0 12 * * *'  # Executes every day at 4:00 AM Pacific Time
 
