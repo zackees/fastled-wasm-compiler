@@ -77,7 +77,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 # Also install platformio (pio)
 ENV COMPILER_VERSION=0.0.8
 
-# sometimes pip doesn't want to take a fresh update on the first go.s
+# sometimes pip doesn't want to take a fresh update on the first go.
 RUN pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION}
 
 # Effectively disable platformio telemetry and auto-updates.
