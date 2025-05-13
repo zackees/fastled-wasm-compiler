@@ -70,7 +70,6 @@ jobs:
       tag: latest
     secrets:
         env_vars: |
-          docker_username=niteris
           docker_password=${{ needs.credentials.outputs.docker_password  }}
           docker_registry_image=${{ needs.credentials.outputs.registry_image  }}
 
