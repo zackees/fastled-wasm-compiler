@@ -10,12 +10,18 @@ from fastled_wasm_compiler.types import BuildMode
 _PIO_VERBOSE = True
 
 
-def _pio_compile_cmd_list(disable_auto_clean: bool, verbose: bool) -> list[str]:
+def _pio_compile_cmd_list(
+    build_mode: BuildMode | None, disable_auto_clean: bool, verbose: bool
+) -> list[str]:
     cmd_list = ["pio", "run"]
     if disable_auto_clean:
         cmd_list.append("--disable-auto-clean")
     if verbose:
         cmd_list.append("-v")
+    if build_mode and build_mode == BuildMode.DEBUG:
+        cmd_list.append("-t")
+        cmd_list.append("debug")
+
     return cmd_list
 
 
@@ -40,7 +46,7 @@ def compile(
     if no_platformio:
         cmd_list = _new_compile_cmd_list(compiler_root)
     else:
-        cmd_list = _pio_compile_cmd_list(not auto_clean, _PIO_VERBOSE)
+        cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
 
     for attempt in range(1, max_attempts + 1):
         try:
