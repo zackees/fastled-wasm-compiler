@@ -79,19 +79,19 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
 
 
 def run(args: Args) -> int:
-    ASSETS_DIR = args.assets_dirs
-    assert ASSETS_DIR.exists(), f"Assets directory {ASSETS_DIR} does not exist."
+    assets_dir = args.assets_dirs
+    assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
 
-    _INDEX_HTML_SRC = ASSETS_DIR / "index.html"
-    _INDEX_CSS_SRC = ASSETS_DIR / "index.css"
-    _INDEX_JS_SRC = ASSETS_DIR / "index.js"
-    _WASM_COMPILER_SETTTINGS = ASSETS_DIR / "wasm_compiler_flags.py"
+    _INDEX_HTML_SRC = assets_dir / "index.html"
+    _INDEX_CSS_SRC = assets_dir / "index.css"
+    _INDEX_JS_SRC = assets_dir / "index.js"
+    _WASM_COMPILER_SETTTINGS = assets_dir / "wasm_compiler_flags.py"
 
     COMPILER_ROOT = args.compiler_root
 
     SKETCH_SRC = COMPILER_ROOT / "src"
     PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
-    _ASSETS_MODULES = ASSETS_DIR / "modules"
+    _ASSETS_MODULES = assets_dir / "modules"
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
@@ -104,7 +104,7 @@ def run(args: Args) -> int:
         _INDEX_CSS_SRC,
         _INDEX_JS_SRC,
         _WASM_COMPILER_SETTTINGS,
-        ASSETS_DIR,
+        assets_dir,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
     if missing_paths:
