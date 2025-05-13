@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastled_wasm_compiler.print_banner import banner
 
-_HEADERS_TO_INSERT = ["#include <Arduino.h>", '#include "platforms/wasm/js.h"']
+_HEADERS_TO_INSERT = ["#include <Arduino.h>"]
 
 
 def insert_header(file: Path) -> None:
