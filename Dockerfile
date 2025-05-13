@@ -1,43 +1,3 @@
-# Overview of this docker file
-# This is a emscripten docker file that is used to compile FastLED for the web assembly platform.
-# The goals of this docker are:
-#   * Compile the inputs as quickly as possible.
-#   * Be very fast to rebuild
-# Container size is important, but not the primary goal.
-#
-# The emscripten build is based on emscripten. We create a custom `wasm_compiler_flags.py``
-# that performs the necessary transformations to make this work.
-#
-# Maximizing compiler speed
-# First let's talk about why platformio is typically slow
-#   * Network checking to see if the repo's are up to date
-#   * Unnecessary recompilation of cpp files that haven't changed.
-#
-# We address these slow compiler speeds via a few tricks
-#   * The emscripten compiler is wrapped in ccache so that identical compilations are cached.
-#   * We prewarm the ccache with a pre-compile of an example
-#     * This will generate the initial cache and also install the necessary tools.
-#
-# Pre-warming the cache
-#   * We have two pre-warm cycles. We do this for speed reasons.
-#     * The first pre-warm is done with a copy of fastled downloaded from the github repo
-#       * Docker is very relaxed on invalidating a cache layer for statements cloning a github repo. We want this.
-#       * So we clone the repo early in the docker image build cycle. Then we run a pre-warm compile.
-#         * This is the slowest pre-warm, and once built, tends to always be cached. However, it tends to go out of date
-#           quickly, which will make the cache be less effective.
-#   * The second pre-warm is done with a fresh copy of the fastled repo from the host machine that is copied over the
-#     git hub repo. We copy directories piece by piece to maximize the cache hit rate. Core files then platform files.
-#     * During developement when many files are changed, this second pre-warm will almost always be invalidated, however
-#       it is very fast to rebuild because the initial tool download of platformio has already been done with the first pre-warm.
-#     * After this second pre-warm, the ccache will have the exact state of the repo in it's cache.
-#
-# Final state
-#  * The final state of the docker image is a pre-warmed cached with the entire instance ready to compile.
-#  * The calling code is expected to provide volume mapped directory that will be inserted into the docker image when it runs.
-#  * However, this is not true when using this in server mode (see server.py) where the code to be compiled is injected into the
-#    container instance via a FastAPI route, the compilation is performed. Typically the web compiler is much better at holding
-#    on the cached files. Server.py will also periodically git pull the fastled repo to keep in sync with the latest changes.
-
 
 # This will be set to arm64 to support MacOS M1+ devices (and Linux-based arm64 devices)
 ARG PLATFORM_TAG=""
@@ -123,9 +83,9 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 
 RUN pip install uv==0.6.5
 
-# Get the compiler requirements and install them.
-COPY compiler/pyproject.toml /install/pyproject.toml
-RUN uv pip install --system -r /install/pyproject.toml
+# # Get the compiler requirements and install them.
+# COPY compiler/pyproject.toml /install/pyproject.toml
+# RUN uv pip install --system -r /install/pyproject.toml
 
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
