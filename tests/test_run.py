@@ -69,9 +69,9 @@ class MainTester(unittest.TestCase):
         output_files = [
             "files.json",
             "index.html",
-            # "fastled.wasm",  # not present in mock env
             "index.css",
             "index.js",
+            # "fastled.wasm",  # not present in mock env
         ]
 
         out_dirs = [
