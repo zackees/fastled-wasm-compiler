@@ -19,12 +19,12 @@ import subprocess
 import sys
 import traceback
 import warnings
-from datetime import datetime
 from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.print_banner import banner
+from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
 
 # from fastled_wasm_server.paths import (
@@ -215,27 +215,6 @@ def process_ino_files(src_dir: Path) -> None:
     print(banner("Transform to cpp and insert header operations completed."))
 
 
-class StreamingTimestamper:
-    """
-    A class that provides streaming relative timestamps for output lines.
-    Instead of processing all lines at the end, this timestamps each line
-    as it's received with a relative time from when the object was created.
-    """
-
-    def __init__(self):
-        self.start_time = datetime.now()
-
-    def timestamp_line(self, line: str) -> str:
-        """
-        Add a relative timestamp to a line of text.
-        The timestamp shows seconds elapsed since the StreamingTimestamper was created.
-        """
-        now = datetime.now()
-        delta = now - self.start_time
-        seconds = delta.total_seconds()
-        return f"{seconds:3.2f} {line.rstrip()}"
-
-
 def find_project_dir(mapped_dir: Path) -> Path:
     mapped_dirs: List[Path] = list(mapped_dir.iterdir())
     if len(mapped_dirs) > 1:
@@ -403,20 +382,6 @@ def run(args: Args) -> int:
                 dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns(".*"),
             )  # Ignore hidden files
-
-            # Now long needed since now we do glob copy.
-            # fastled_js_mem = build_dir / "fastled.js.mem"
-            # fastled_wasm_map = build_dir / "fastled.wasm.map"
-            # fastled_js_symbols = build_dir / "fastled.js.symbols"
-            # if fastled_js_mem.exists():
-            #     print(f"Copying {fastled_js_mem} to output directory")
-            #     shutil.copy2(fastled_js_mem, out_dir / fastled_js_mem.name)
-            # if fastled_wasm_map.exists():
-            #     print(f"Copying {fastled_wasm_map} to output directory")
-            #     shutil.copy2(fastled_wasm_map, out_dir / fastled_wasm_map.name)
-            # if fastled_js_symbols.exists():
-            #     print(f"Copying {fastled_js_symbols} to output directory")
-            # shutil.copy2(fastled_js_symbols, out_dir / fastled_js_symbols.name)
 
             print("Copying index.js to output directory")
             shutil.copy2(_INDEX_JS_SRC, out_dir / "index.js")
