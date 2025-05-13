@@ -72,10 +72,8 @@ class MainTester(unittest.TestCase):
             "index.css",
             "index.js",
             # "fastled.wasm",  # not present in mock env
-        ]
-
-        out_dirs = [
-            "modules",
+            "modules/module1.js",
+            "modules/module2.js",
         ]
 
         for file in output_files:
@@ -83,9 +81,6 @@ class MainTester(unittest.TestCase):
             self.assertTrue(
                 file_path.exists(), f"Output artifact {file} does not exist"
             )
-        for dir in out_dirs:
-            dir_path = output_artifact_dir / dir
-            self.assertTrue(dir_path.exists(), f"Output artifact {dir} does not exist")
 
 
 if __name__ == "__main__":
