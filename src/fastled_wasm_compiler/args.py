@@ -21,8 +21,49 @@ class Args:
     release: bool
 
     @staticmethod
-    def parse_args() -> "Args":
-        return _parse_args()
+    def parse_args(args: list[str] | None = None) -> "Args":
+        return _parse_args(args)
+
+    def to_cmd_args(self) -> list[str]:
+        args = [
+            "--compiler-root",
+            str(self.compiler_root),
+            "--assets-dirs",
+            str(self.assets_dirs),
+            "--mapped-dir",
+            str(self.mapped_dir),
+            "--keep-files" if self.keep_files else "",
+            "--only-copy" if self.only_copy else "",
+            "--only-insert-header" if self.only_insert_header else "",
+            "--only-compile" if self.only_compile else "",
+            "--profile" if self.profile else "",
+            "--disable-auto-clean" if self.disable_auto_clean else "",
+            "--no-platformio" if self.no_platformio else "",
+            "--debug" if self.debug else "",
+            "--quick" if self.quick else "",
+            "--release" if self.release else "",
+        ]
+        return [arg for arg in args if arg]
+
+    # equal
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Args):
+            return NotImplemented
+        return (
+            self.compiler_root == other.compiler_root
+            and self.assets_dirs == other.assets_dirs
+            and self.mapped_dir == other.mapped_dir
+            and self.keep_files == other.keep_files
+            and self.only_copy == other.only_copy
+            and self.only_insert_header == other.only_insert_header
+            and self.only_compile == other.only_compile
+            and self.profile == other.profile
+            and self.disable_auto_clean == other.disable_auto_clean
+            and self.no_platformio == other.no_platformio
+            and self.debug == other.debug
+            and self.quick == other.quick
+            and self.release == other.release
+        )
 
     def __post_init__(self):
         assert isinstance(self.compiler_root, Path)
@@ -57,15 +98,10 @@ class Args:
         )
 
 
-def _parse_args() -> Args:
+def _parse_args(args: list[str] | None = None) -> Args:
     parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
 
     parser.add_argument("--compiler-root", type=Path, required=True)
-    parser.add_argument(
-        "--index-html",
-        type=Path,
-        required=True,
-    )
     parser.add_argument("--assets-dirs", type=Path, required=True)
     parser.add_argument(
         "--mapped-dir",
@@ -119,7 +155,7 @@ def _parse_args() -> Args:
         "--release", action="store_true", help="Build in release mode"
     )
 
-    tmp = parser.parse_args()
+    tmp = parser.parse_args(args)
     return Args(
         compiler_root=tmp.compiler_root,
         assets_dirs=tmp.assets_dirs,
