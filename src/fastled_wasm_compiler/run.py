@@ -99,7 +99,7 @@ def run(args: Args) -> int:
     _INDEX_HTML_SRC = args.index_html
     COMPILER_ROOT = args.compiler_root
 
-    FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
+    FASTLED_COMPILER_DIR = args.fastled_compiler_dir
     SKETCH_SRC = COMPILER_ROOT / "src"
     PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
 

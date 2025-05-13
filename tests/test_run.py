@@ -19,9 +19,10 @@ INDEX_JS = TEST_DATA / "index.js"
 COMPILER_FLAGS = TEST_DATA / "compiler_flags.py"
 MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
+FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
 
 
-ENABLED = False
+ENABLED = True
 
 
 class MainTester(unittest.TestCase):
@@ -36,6 +37,7 @@ class MainTester(unittest.TestCase):
             style_css=STYLE_CSS,
             index_js=INDEX_JS,
             compiler_flags=COMPILER_FLAGS,
+            fastled_compiler_dir=FASTLED_COMPILER_DIR,
             mapped_dir=MAPPED_DIR,
             keep_files=False,
             only_copy=False,

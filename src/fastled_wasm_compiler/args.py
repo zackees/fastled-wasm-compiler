@@ -11,6 +11,7 @@ class Args:
     style_css: Path
     index_js: Path
     compiler_flags: Path
+    fastled_compiler_dir: Path
     mapped_dir: Path
     keep_files: bool
     only_copy: bool
@@ -33,6 +34,7 @@ class Args:
         assert isinstance(self.style_css, Path)
         assert isinstance(self.index_js, Path)
         assert isinstance(self.compiler_flags, Path)
+        assert isinstance(self.fastled_compiler_dir, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
         assert isinstance(self.only_copy, bool)
@@ -71,6 +73,12 @@ def _parse_args() -> Args:
         type=Path,
         required=True,
         help="Path to the compiler flags file",
+    )
+    parser.add_argument(
+        "--fastled-compiler-dir",
+        type=Path,
+        required=True,
+        help="Path to the fastled compiler directory",
     )
     parser.add_argument(
         "--mapped-dir",
@@ -131,6 +139,7 @@ def _parse_args() -> Args:
         style_css=tmp.style_css,
         index_js=tmp.index_js,
         compiler_flags=tmp.compiler_flags_file,
+        fastled_compiler_dir=tmp.fastled_compiler_dir,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
         only_copy=tmp.only_copy,
