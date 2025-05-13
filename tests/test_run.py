@@ -30,11 +30,12 @@ OUTPUT_ARTIFACT_DIR = TEST_DATA / "fastled_js"
 class MainTester(unittest.TestCase):
     """Main tester class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test environment."""
         fljs = OUTPUT_ARTIFACT_DIR
         if fljs.exists():
             shutil.rmtree(fljs, ignore_errors=True)
+
 
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
     def test_run(self, mock_pio_compile: MagicMock) -> None:
@@ -81,6 +82,8 @@ class MainTester(unittest.TestCase):
             self.assertTrue(
                 file_path.exists(), f"Output artifact {file} does not exist"
             )
+
+        output_file
 
 
 if __name__ == "__main__":
