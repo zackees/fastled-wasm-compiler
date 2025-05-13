@@ -18,10 +18,13 @@ MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 
 
+ENABLED = False
+
+
 class MainTester(unittest.TestCase):
     """Main tester class."""
 
-    @unittest.skip("Not implemented")
+    @unittest.skipUnless(ENABLED, "CLI test marked as disabled")
     def test_run(self) -> None:
         """Test command line interface (CLI)."""
         args: Args = Args(
