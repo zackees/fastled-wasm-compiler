@@ -10,7 +10,6 @@
 # 2. The docker container has installed compiler dependencies in the /js directory.
 
 
-import hashlib
 import json
 import os
 import shutil
@@ -23,6 +22,7 @@ from typing import List
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.cleanup import cleanup
+from fastled_wasm_compiler.hashfile import hash_file
 from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
@@ -172,14 +172,6 @@ def process_compile(
         print("Compilation failed.")
         raise RuntimeError("Compilation failed.")
     print(banner("Compilation successful."))
-
-
-def hash_file(file_path: Path) -> str:
-    hasher = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
 
 
 def run(args: Args) -> int:
