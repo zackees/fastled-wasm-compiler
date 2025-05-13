@@ -13,7 +13,6 @@ PYPROJECT_TOML = PROJECT_ROOT / "pyproject.toml"
 
 
 def _find_version_in_docker() -> str:
-    # ENV COMPILER_VERSION=0.0.8
     with open(DOCKER_FILE, "r") as file:
         for line in file:
             if "ENV COMPILER_VERSION=" in line:
@@ -22,7 +21,6 @@ def _find_version_in_docker() -> str:
 
 
 def _find_version_in_pyproject() -> str:
-    # version = "0.0.8"
     with open(PYPROJECT_TOML, "r") as file:
         for line in file:
             if "version = " in line:
