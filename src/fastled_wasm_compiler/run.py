@@ -37,8 +37,6 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
             print(f"Copying directory: {item}")
             shutil.copytree(item, js_src / item.name, dirs_exist_ok=True)
         else:
-            if item.name == "readme":  # present in the testing environment
-                continue
             print(f"Copying file: {item}")
             shutil.copy2(item, js_src / item.name)
     if not found:
