@@ -14,8 +14,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Also install apt-fast first
 RUN apt-get update
 
-RUN apt-get install -y software-properties-common
 
+# Install apt-fast to speed up apt-get installs
+RUN apt-get install -y software-properties-common
 RUN add-apt-repository ppa:apt-fast/stable -y && \
     apt-get update && \
     apt-get -y install apt-fast
@@ -73,19 +74,7 @@ ENV LC_CTYPE=UTF-8
 RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
-# This is disabled code to try and use the arduino-cli to transform an *.ino file into a cpp file
-# to enable the auto-predeclaration of missing functions. However, Arduino-cli is absolutely gigantic
-# and requires that we compile it against one of the platforms. This doesn't work for us because
-# we don't want a compile failure because of something weird in the platform we are compiling against, which
-# isn't wasm.
-#COPY compiler/install-arduino-cli.sh /install-arduino-cli.sh
-#RUN chmod +x /install-arduino-cli.sh && /install-arduino-cli.sh || echo "Failed to install Arduino CLI"
-
 RUN pip install platformio==6.1.17
-
-# # Get the compiler requirements and install them.
-# COPY compiler/pyproject.toml /install/pyproject.toml
-# RUN uv pip install --system -r /install/pyproject.toml
 
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
