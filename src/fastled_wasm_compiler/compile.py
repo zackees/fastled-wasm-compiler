@@ -22,10 +22,9 @@ from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.insert_header import insert_headers
 from fastled_wasm_compiler.print_banner import banner
+from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
-from fastled_wasm_compiler.transform_to_cpp import transform_to_cpp
 from fastled_wasm_compiler.types import BuildMode
 
 # from fastled_wasm_server.paths import (
@@ -56,7 +55,7 @@ _PIO_VERBOSE = True
 _WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
 # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
-_FILE_EXTENSIONS = [".ino", ".h", ".hpp", ".cpp"]
+
 # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
 _FASTLED_OUTPUT_DIR_NAME = "fastled_js"
 
@@ -149,13 +148,6 @@ def compile(
                 return 1
             print("Retrying...")
     return 1
-
-
-def process_ino_files(src_dir: Path) -> None:
-    transform_to_cpp(src_dir)
-    exclusion_folders: List[Path] = []
-    insert_headers(src_dir, exclusion_folders, _FILE_EXTENSIONS)
-    print(banner("Transform to cpp and insert header operations completed."))
 
 
 def find_project_dir(mapped_dir: Path) -> Path:
