@@ -105,9 +105,9 @@ def run(args: Args) -> int:
 
     _FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
     _INDEX_CSS_SRC = args.style_css
-    _INDEX_JS_SRC = FASTLED_COMPILER_DIR / "index.js"
+    _INDEX_JS_SRC = args.index_js
 
-    _WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
+    _WASM_COMPILER_SETTTINGS = args.compiler_flags
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
     # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.

@@ -9,6 +9,8 @@ class Args:
     compiler_root: Path
     index_html: Path
     style_css: Path
+    index_js: Path
+    compiler_flags: Path
     mapped_dir: Path
     keep_files: bool
     only_copy: bool
@@ -29,6 +31,8 @@ class Args:
         assert isinstance(self.compiler_root, Path)
         assert isinstance(self.index_html, Path)
         assert isinstance(self.style_css, Path)
+        assert isinstance(self.index_js, Path)
+        assert isinstance(self.compiler_flags, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
         assert isinstance(self.only_copy, bool)
@@ -55,6 +59,18 @@ def _parse_args() -> Args:
         "--style-css",
         type=Path,
         required=True,
+    )
+    parser.add_argument(
+        "--index-js",
+        type=Path,
+        required=True,
+        help="Path to the index.js file",
+    )
+    parser.add_argument(
+        "--compiler-flags-file",
+        type=Path,
+        required=True,
+        help="Path to the compiler flags file",
     )
     parser.add_argument(
         "--mapped-dir",
@@ -113,6 +129,8 @@ def _parse_args() -> Args:
         compiler_root=tmp.compiler_root,
         index_html=tmp.index_html,
         style_css=tmp.style_css,
+        index_js=tmp.index_js,
+        compiler_flags=tmp.compiler_flags_file,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
         only_copy=tmp.only_copy,

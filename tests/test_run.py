@@ -15,6 +15,8 @@ TEST_DATA = HERE / "test_data"
 
 INDEX_HTML = TEST_DATA / "index.html"
 STYLE_CSS = TEST_DATA / "style.css"
+INDEX_JS = TEST_DATA / "index.js"
+COMPILER_FLAGS = TEST_DATA / "compiler_flags.py"
 MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 
@@ -32,6 +34,8 @@ class MainTester(unittest.TestCase):
             compiler_root=COMPILER_ROOT,
             index_html=INDEX_HTML,
             style_css=STYLE_CSS,
+            index_js=INDEX_JS,
+            compiler_flags=COMPILER_FLAGS,
             mapped_dir=MAPPED_DIR,
             keep_files=False,
             only_copy=False,
