@@ -36,7 +36,6 @@ class MainTester(unittest.TestCase):
         if fljs.exists():
             shutil.rmtree(fljs, ignore_errors=True)
 
-
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
     def test_run(self, mock_pio_compile: MagicMock) -> None:
         """Test command line interface (CLI)."""
@@ -82,8 +81,6 @@ class MainTester(unittest.TestCase):
             self.assertTrue(
                 file_path.exists(), f"Output artifact {file} does not exist"
             )
-
-        output_file
 
 
 if __name__ == "__main__":
