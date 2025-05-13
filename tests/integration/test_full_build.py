@@ -10,6 +10,8 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 PROJECT_ROOT = HERE.parent.parent
+SKETCH_FOLDER = HERE / "sketch"
+
 
 DOCKER_FILE = PROJECT_ROOT / "Dockerfile"
 IMAGE_NAME = "niteris/fastled-wasm-compiler:test"
@@ -87,6 +89,7 @@ class FullBuildTester(unittest.TestCase):
     def test_sanity(self) -> None:
         """Test command line interface (CLI)."""
         self.assertTrue(DOCKER_FILE.exists(), "Dockerfile does not exist")
+        self.assertTrue(SKETCH_FOLDER.exists(), "Sketch folder does not exist")
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_full(self) -> None:
