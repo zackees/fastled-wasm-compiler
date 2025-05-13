@@ -1,0 +1,46 @@
+"""
+Unit test file.
+"""
+
+import unittest
+from pathlib import Path
+
+from fastled_wasm_compiler.args import Args
+from fastled_wasm_compiler.run import run
+
+COMMAND = "fastled-wasm-compiler --help"
+
+HERE = Path(__file__).parent
+TEST_DATA = HERE / "test_data"
+
+INDEX_HTML = TEST_DATA / "index.html"
+MAPPED_DIR = TEST_DATA / "mapped"
+COMPILER_ROOT = TEST_DATA / "compiler_root"
+
+
+class MainTester(unittest.TestCase):
+    """Main tester class."""
+
+    @unittest.skip("Not implemented")
+    def test_run(self) -> None:
+        """Test command line interface (CLI)."""
+        args: Args = Args(
+            compiler_root=COMPILER_ROOT,
+            index_html=INDEX_HTML,
+            mapped_dir=MAPPED_DIR,
+            keep_files=False,
+            only_copy=False,
+            only_insert_header=False,
+            only_compile=False,
+            profile=False,
+            disable_auto_clean=False,
+            no_platformio=False,
+            debug=False,
+            quick=False,
+            release=False,
+        )
+        run(args)
+
+
+if __name__ == "__main__":
+    unittest.main()

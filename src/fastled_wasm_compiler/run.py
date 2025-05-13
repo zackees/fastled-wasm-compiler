@@ -40,23 +40,6 @@ from fastled_wasm_compiler.types import BuildMode
 print("Finished imports...")
 
 # TODO: Move these to a config file
-COMPILER_ROOT = Path("/js")
-FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
-SKETCH_SRC = COMPILER_ROOT / "src"
-PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
-
-_FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
-_INDEX_HTML_SRC = FASTLED_COMPILER_DIR / "index.html"
-_INDEX_CSS_SRC = FASTLED_COMPILER_DIR / "index.css"
-_INDEX_JS_SRC = FASTLED_COMPILER_DIR / "index.js"
-
-
-_WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
-# _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
-
-
-# _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
-_FASTLED_OUTPUT_DIR_NAME = "fastled_js"
 
 
 # DateLine class removed as it's no longer needed with streaming timestamps
@@ -100,19 +83,36 @@ def process_compile(
     print(banner("Compilation successful."))
 
 
-def _get_build_dir_platformio() -> Path:
+def _get_build_dir_platformio(pio_dir: Path) -> Path:
     # First assert there is only one build artifact directory.
     # The name is dynamic: it's your sketch folder name.
-    build_dirs = [d for d in PIO_BUILD_DIR.iterdir() if d.is_dir()]
+    build_dirs = [d for d in pio_dir.iterdir() if d.is_dir()]
     if len(build_dirs) != 1:
         raise RuntimeError(
-            f"Expected exactly one build directory in {PIO_BUILD_DIR}, found {len(build_dirs)}: {build_dirs}"
+            f"Expected exactly one build directory in {pio_dir}, found {len(build_dirs)}: {build_dirs}"
         )
     build_dir: Path = build_dirs[0]
     return build_dir
 
 
 def run(args: Args) -> int:
+    _INDEX_HTML_SRC = args.index_html
+    COMPILER_ROOT = args.compiler_root
+
+    FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
+    SKETCH_SRC = COMPILER_ROOT / "src"
+    PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
+
+    _FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
+    _INDEX_CSS_SRC = FASTLED_COMPILER_DIR / "index.css"
+    _INDEX_JS_SRC = FASTLED_COMPILER_DIR / "index.js"
+
+    _WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
+    # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
+
+    # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
+    _FASTLED_OUTPUT_DIR_NAME = "fastled_js"
+
     check_paths: list[Path] = [
         COMPILER_ROOT,
         _INDEX_HTML_SRC,
@@ -200,7 +200,7 @@ def run(args: Args) -> int:
             if no_platformio:
                 build_dir = _get_build_dir_cmake()
             else:
-                build_dir = _get_build_dir_platformio()
+                build_dir = _get_build_dir_platformio(PIO_BUILD_DIR)
 
             print(banner("Copying output files..."))
             out_dir: Path = src_dir / _FASTLED_OUTPUT_DIR_NAME

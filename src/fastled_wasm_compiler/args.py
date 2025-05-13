@@ -6,6 +6,7 @@ from pathlib import Path
 
 @dataclass
 class Args:
+    compiler_root: Path
     index_html: Path
     mapped_dir: Path
     keep_files: bool
@@ -24,6 +25,7 @@ class Args:
         return _parse_args()
 
     def __post_init__(self):
+        assert isinstance(self.compiler_root, Path)
         assert isinstance(self.index_html, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
@@ -40,6 +42,8 @@ class Args:
 
 def _parse_args() -> Args:
     parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
+
+    parser.add_argument("--compiler-root", type=Path, required=True)
     parser.add_argument(
         "--index-html",
         type=Path,
@@ -99,6 +103,7 @@ def _parse_args() -> Args:
 
     tmp = parser.parse_args()
     return Args(
+        compiler_root=tmp.compiler_root,
         index_html=tmp.index_html,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
