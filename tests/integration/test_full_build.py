@@ -4,6 +4,7 @@ Unit test file.
 
 import os
 import platform
+import shutil
 import subprocess
 import unittest
 from pathlib import Path
@@ -88,6 +89,11 @@ class FullBuildTester(unittest.TestCase):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            # compiler_root/src may have garbage if the build failed
+            # Remove the compiler_root/src directory
+            src_dir = COMPILER_ROOT / "src"
+            if src_dir.exists():
+                shutil.rmtree(src_dir, ignore_errors=True)
             print("Cleanup complete.")
 
     def test_sanity(self) -> None:

@@ -147,3 +147,7 @@ uv.lock
 
 
 **/fastled_js/
+**/comnpiler_root/src/
+**/compiler_root/.pio/build/**
+!**/compiler_root/.pio/build/readme
+**/compiler_root/.pio/libdeps/**
