@@ -83,7 +83,7 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
     return build_dir
 
 
-def copy_output_files(
+def copy_output_files_and_create_manifest(
     build_dir: Path,
     src_dir: Path,
     fastled_js_out: str,
@@ -259,9 +259,8 @@ def run(args: Args) -> int:
     try:
 
         src_dir = find_project_dir(args.mapped_dir)
-
+        # TODO: replace these flags with something better.
         any_only_flags = args.only_copy or args.only_insert_header or args.only_compile
-
         do_copy = not any_only_flags or args.only_copy
         do_insert_header = not any_only_flags or args.only_insert_header
         do_compile = not any_only_flags or args.only_compile
@@ -312,7 +311,7 @@ def run(args: Args) -> int:
                 build_dir = _get_build_dir_platformio(pio_build_dir)
 
             # Copy output files and create manifest
-            copy_output_files(
+            copy_output_files_and_create_manifest(
                 build_dir=build_dir,
                 src_dir=src_dir,
                 fastled_js_out=fastled_js_out,
