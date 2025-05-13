@@ -86,6 +86,23 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
     return build_dir
 
 
+def _get_workspace_from_platformio(platformio_ini_content: str) -> str | None:
+    """
+    Extract the workspace directory from the PlatformIO configuration file.
+
+    Args:
+        platformio_ini_content (str): The content of the PlatformIO configuration file.
+
+    Returns:
+        str | None: The workspace directory if found, otherwise None.
+    """
+    lines = platformio_ini_content.splitlines()
+    for line in lines:
+        if line.startswith("workspace_dir"):
+            return line.split("=")[1].strip()
+    return None
+
+
 def run(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
@@ -123,6 +140,17 @@ def run(args: Args) -> int:
             print(p)
         missing_paths_str = ",".join(str(p.as_posix()) for p in missing_paths)
         raise FileNotFoundError(f"Missing required paths: {missing_paths_str}")
+
+    workspace_dir = _get_workspace_from_platformio(compiler_flags_py.read_text())
+    if workspace_dir:
+        print(f"Found workspace_dir: {workspace_dir} in {compiler_flags_py}")
+        # pio_build_dir = compiler_root / f".pio/{workspace_dir}"
+        # assert pio_build_dir.exists(), f"PlatformIO build directory {pio_build_dir} as specified in {compiler_flags_py} does not exist."
+        expected_pio_dir = compiler_root / ".pio" / workspace_dir
+        if not expected_pio_dir.exists():
+            warnings.warn(
+                f"Expected PlatformIO build directory {expected_pio_dir} does not exist."
+            )
 
     print("Starting FastLED WASM compilation script...")
     print(f"Keep files flag: {args.keep_files}")
