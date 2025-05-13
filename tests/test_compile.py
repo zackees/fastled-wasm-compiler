@@ -13,13 +13,10 @@ HERE = Path(__file__).parent
 TEST_DATA = HERE / "test_data"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 
-ENABLED = True
-
 
 class MainTester(unittest.TestCase):
     """Main tester class."""
 
-    @unittest.skipUnless(ENABLED, "CLI test marked as disabled")
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
     def test_run(self, mock_pio_compile: MagicMock) -> None:
         """Test command line interface (CLI)."""
