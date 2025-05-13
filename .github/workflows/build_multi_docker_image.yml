@@ -8,7 +8,7 @@ on:
     - cron: '0 12 * * *'  # Executes every day at 4:00 AM Pacific Time
 
 env:
-  REGISTRY_IMAGE: niteris/fastled-wasm  # Replace with your Docker Hub username and repository
+  REGISTRY_IMAGE: niteris/fastled-wasm-compiler  # Replace with your Docker Hub username and repository
 
 jobs:
   check-if-changed:
@@ -45,7 +45,6 @@ jobs:
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
           registry_image: ${{ env.REGISTRY_IMAGE }}
         run: |
-          echo "docker_username=$(echo $docker_username | base64 -w0 | base64 -w0)" >> $GITHUB_OUTPUT
           echo "docker_password=$(echo $docker_password | base64 -w0 | base64 -w0)" >> $GITHUB_OUTPUT
           echo "registry_image=$(echo $registry_image | base64 -w0 | base64 -w0)" >> $GITHUB_OUTPUT
 
