@@ -20,6 +20,7 @@ class CliArgs:
     debug: bool
     quick: bool
     release: bool
+    no_platformio: bool
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -59,7 +60,18 @@ def _parse_args() -> CliArgs:
     )
 
     args = parser.parse_args()
-    return CliArgs(**vars(args))
+    out: CliArgs = CliArgs(
+        compiler_root=args.compiler_root,
+        assets_dirs=args.assets_dirs,
+        mapped_dir=args.mapped_dir,
+        keep_files=args.keep_files,
+        profile=args.profile,
+        debug=args.debug,
+        quick=args.quick,
+        release=args.release,
+        no_platformio=args.no_platformio,
+    )
+    return out
 
 
 def main() -> int:
