@@ -5,7 +5,7 @@ Unit test file.
 import os
 import unittest
 
-COMMAND = "fastled_wasm_compiler"
+COMMAND = "fastled-wasm-compiler"
 
 
 class MainTester(unittest.TestCase):
