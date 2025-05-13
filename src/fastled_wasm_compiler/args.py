@@ -7,10 +7,7 @@ from pathlib import Path
 @dataclass
 class Args:
     compiler_root: Path
-    index_html: Path
-    style_css: Path
-    index_js: Path
-    compiler_flags: Path
+    assets_dirs: Path
     fastled_compiler_dir: Path
     mapped_dir: Path
     keep_files: bool
@@ -30,10 +27,7 @@ class Args:
 
     def __post_init__(self):
         assert isinstance(self.compiler_root, Path)
-        assert isinstance(self.index_html, Path)
-        assert isinstance(self.style_css, Path)
-        assert isinstance(self.index_js, Path)
-        assert isinstance(self.compiler_flags, Path)
+        assert isinstance(self.assets_dirs, Path)
         assert isinstance(self.fastled_compiler_dir, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
@@ -57,23 +51,7 @@ def _parse_args() -> Args:
         type=Path,
         required=True,
     )
-    parser.add_argument(
-        "--style-css",
-        type=Path,
-        required=True,
-    )
-    parser.add_argument(
-        "--index-js",
-        type=Path,
-        required=True,
-        help="Path to the index.js file",
-    )
-    parser.add_argument(
-        "--compiler-flags-file",
-        type=Path,
-        required=True,
-        help="Path to the compiler flags file",
-    )
+    parser.add_argument("--assets-dirs", type=Path, required=True)
     parser.add_argument(
         "--fastled-compiler-dir",
         type=Path,
@@ -135,10 +113,7 @@ def _parse_args() -> Args:
     tmp = parser.parse_args()
     return Args(
         compiler_root=tmp.compiler_root,
-        index_html=tmp.index_html,
-        style_css=tmp.style_css,
-        index_js=tmp.index_js,
-        compiler_flags=tmp.compiler_flags_file,
+        assets_dirs=tmp.assets_dirs,
         fastled_compiler_dir=tmp.fastled_compiler_dir,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,

@@ -37,6 +37,8 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
             print(f"Copying directory: {item}")
             shutil.copytree(item, js_src / item.name, dirs_exist_ok=True)
         else:
+            if item.name == "readme":  # present in the testing environment
+                continue
             print(f"Copying file: {item}")
             shutil.copy2(item, js_src / item.name)
     if not found:
@@ -79,18 +81,21 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
 
 
 def run(args: Args) -> int:
-    _INDEX_HTML_SRC = args.index_html
+    ASSETS_DIR = args.assets_dirs
+    assert ASSETS_DIR.exists(), f"Assets directory {ASSETS_DIR} does not exist."
+
+    _INDEX_HTML_SRC = ASSETS_DIR / "index.html"
+    _INDEX_CSS_SRC = ASSETS_DIR / "index.css"
+    _INDEX_JS_SRC = ASSETS_DIR / "index.js"
+    _WASM_COMPILER_SETTTINGS = ASSETS_DIR / "wasm_compiler_flags.py"
+
     COMPILER_ROOT = args.compiler_root
 
     FASTLED_COMPILER_DIR = args.fastled_compiler_dir
     SKETCH_SRC = COMPILER_ROOT / "src"
     PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
-
     _FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
-    _INDEX_CSS_SRC = args.style_css
-    _INDEX_JS_SRC = args.index_js
 
-    _WASM_COMPILER_SETTTINGS = args.compiler_flags
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
     # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.

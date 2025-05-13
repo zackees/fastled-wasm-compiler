@@ -13,13 +13,16 @@ COMMAND = "fastled-wasm-compiler --help"
 HERE = Path(__file__).parent
 TEST_DATA = HERE / "test_data"
 
-INDEX_HTML = TEST_DATA / "index.html"
-STYLE_CSS = TEST_DATA / "style.css"
-INDEX_JS = TEST_DATA / "index.js"
+
 COMPILER_FLAGS = TEST_DATA / "compiler_flags.py"
 MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
+
+ASSETS_DIR = TEST_DATA / "assets"
+INDEX_HTML = ASSETS_DIR / "index.html"
+STYLE_CSS = ASSETS_DIR / "style.css"
+INDEX_JS = ASSETS_DIR / "index.js"
 
 
 ENABLED = False
@@ -33,10 +36,7 @@ class MainTester(unittest.TestCase):
         """Test command line interface (CLI)."""
         args: Args = Args(
             compiler_root=COMPILER_ROOT,
-            index_html=INDEX_HTML,
-            style_css=STYLE_CSS,
-            index_js=INDEX_JS,
-            compiler_flags=COMPILER_FLAGS,
+            assets_dirs=ASSETS_DIR,
             fastled_compiler_dir=FASTLED_COMPILER_DIR,
             mapped_dir=MAPPED_DIR,
             keep_files=False,
