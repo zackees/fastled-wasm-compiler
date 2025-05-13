@@ -91,6 +91,22 @@ class FullBuildTester(unittest.TestCase):
         run_proc.terminate()
         self.assertEqual(run_proc.returncode, 0, "Docker run failed")
 
+        # Cleanup: Remove the container and image
+        print("\nCleaning up Docker resources...")
+        # Remove the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-test-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # Remove the image
+        subprocess.run(
+            ["docker", "rmi", "-f", IMAGE_NAME],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print("Cleanup complete.")
+
 
 if __name__ == "__main__":
     unittest.main()
