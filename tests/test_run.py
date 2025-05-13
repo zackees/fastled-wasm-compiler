@@ -2,6 +2,7 @@
 Unit test file.
 """
 
+import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,17 +18,24 @@ TEST_DATA = HERE / "test_data"
 
 COMPILER_FLAGS = TEST_DATA / "compiler_flags.py"
 MAPPED_DIR = TEST_DATA / "mapped"
+SKETCH_DIR = MAPPED_DIR / "sketch"
+
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 
 ASSETS_DIR = TEST_DATA / "assets"
 
-ENABLED = True
+OUTPUT_ARTIFACT_DIR = TEST_DATA / "fastled_js"
 
 
 class MainTester(unittest.TestCase):
     """Main tester class."""
 
-    @unittest.skipUnless(ENABLED, "CLI test marked as disabled")
+    def setUp(self):
+        """Set up test environment."""
+        fljs = OUTPUT_ARTIFACT_DIR
+        if fljs.exists():
+            shutil.rmtree(fljs, ignore_errors=True)
+
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
     def test_run(self, mock_pio_compile: MagicMock) -> None:
         """Test command line interface (CLI)."""
@@ -51,6 +59,33 @@ class MainTester(unittest.TestCase):
         )
         rtn = run(args)
         self.assertEqual(0, rtn)
+
+        # verify that the expected output artifacts exist
+        output_artifact_dir = SKETCH_DIR / "fastled_js"
+        self.assertTrue(
+            output_artifact_dir.exists(), "Output artifact directory does not exist"
+        )
+        # known artifacts are
+        output_files = [
+            "files.json",
+            "index.html",
+            # "fastled.wasm",  # not present in mock env
+            "index.css",
+            "index.js",
+        ]
+
+        out_dirs = [
+            "modules",
+        ]
+
+        for file in output_files:
+            file_path = output_artifact_dir / file
+            self.assertTrue(
+                file_path.exists(), f"Output artifact {file} does not exist"
+            )
+        for dir in out_dirs:
+            dir_path = output_artifact_dir / dir
+            self.assertTrue(dir_path.exists(), f"Output artifact {dir} does not exist")
 
 
 if __name__ == "__main__":

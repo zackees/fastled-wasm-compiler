@@ -144,3 +144,6 @@ uv.lock
 .aider*
 !.aider.conf.yml
 !.aiderignore
+
+
+tests/test_data/mapped/sketch/fastled_js
