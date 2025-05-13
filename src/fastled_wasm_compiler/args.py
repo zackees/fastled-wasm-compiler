@@ -19,6 +19,7 @@ class Args:
     debug: bool
     quick: bool
     release: bool
+    clear_ccache: bool
 
     @staticmethod
     def parse_args(args: list[str] | None = None) -> "Args":
@@ -42,6 +43,7 @@ class Args:
             "--debug" if self.debug else "",
             "--quick" if self.quick else "",
             "--release" if self.release else "",
+            "--clear-ccache" if self.clear_ccache else "",
         ]
         return [arg for arg in args if arg]
 
@@ -63,6 +65,7 @@ class Args:
             and self.debug == other.debug
             and self.quick == other.quick
             and self.release == other.release
+            and self.clear_ccache == other.clear_ccache
         )
 
     def __post_init__(self):
@@ -142,6 +145,11 @@ def _parse_args(args: list[str] | None = None) -> Args:
         action="store_true",
         help="Don't use platformio to compile the project, use the new system of direct emcc calls.",
     )
+    parser.add_argument(
+        "--clear-ccache",
+        action="store_true",
+        help="Clear the ccache before compilation.",
+    )
     # Add mutually exclusive build mode group
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
@@ -170,4 +178,5 @@ def _parse_args(args: list[str] | None = None) -> Args:
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,
+        clear_ccache=tmp.clear_ccache,
     )

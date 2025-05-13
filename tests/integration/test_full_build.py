@@ -181,6 +181,7 @@ class FullBuildTester(unittest.TestCase):
             "--debug",
             "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
+            "--clear-ccache",  # Clear the ccache before compilation
         ]
 
         cmdstr = subprocess.list2cmdline(cmd_list)

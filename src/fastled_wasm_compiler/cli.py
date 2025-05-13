@@ -21,6 +21,7 @@ class CliArgs:
     quick: bool
     release: bool
     no_platformio: bool
+    clear_ccache: bool
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -58,6 +59,11 @@ def _parse_args() -> CliArgs:
         action="store_true",
         help="Disable PlatformIO (not implemented yet)",
     )
+    parser.add_argument(
+        "--clear-ccache",
+        action="store_true",
+        help="Clear the ccache before compilation",
+    )
 
     args = parser.parse_args()
     out: CliArgs = CliArgs(
@@ -70,6 +76,7 @@ def _parse_args() -> CliArgs:
         quick=args.quick,
         release=args.release,
         no_platformio=args.no_platformio,
+        clear_ccache=args.clear_ccache,
     )
     return out
 
@@ -91,6 +98,7 @@ def main() -> int:
         debug=cli_args.debug,
         quick=cli_args.quick,
         release=cli_args.release,
+        clear_ccache=cli_args.clear_ccache,
     )
     rtn = run(full_args)
     return rtn

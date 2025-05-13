@@ -118,6 +118,7 @@ def run(args: Args) -> int:
     sketch_tmp = compiler_root / "src"
     pio_build_dir = compiler_root / ".pio/build"
     assets_modules = assets_dir / "modules"
+    clear_ccache = args.clear_ccache
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
@@ -209,6 +210,9 @@ def run(args: Args) -> int:
                     # Default to QUICK mode if neither debug nor release specified
                     build_mode = BuildMode.QUICK
 
+                if clear_ccache:
+                    print("Clearing ccache...")
+                    os.system("ccache -C")
                 process_compile(
                     js_dir=compiler_root,
                     build_mode=build_mode,

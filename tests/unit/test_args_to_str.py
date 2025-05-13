@@ -51,6 +51,7 @@ class ArgConverstionTester(unittest.TestCase):
             debug=False,
             quick=True,
             release=False,
+            clear_ccache=False,
         )
 
         cmd_args = args.to_cmd_args()

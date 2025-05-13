@@ -15,6 +15,7 @@ def run_compiler(
     debug: bool,
     quick: bool,
     release: bool,
+    clear_ccache: bool = False,
 ) -> int:
     """
     Run the FastLED WASM compiler with the provided arguments.
@@ -52,6 +53,7 @@ def run_compiler(
         debug=debug,
         quick=quick,
         release=release,
+        clear_ccache=clear_ccache,
     )
     rtn: int = run_compiler_with_args(args)
     return rtn

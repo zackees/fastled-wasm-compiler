@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 # ALSO CHANGE THE VERSION IN THE DOCKER TO MATCH!
-version = "1.0.0"
+version = "1.0.1"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

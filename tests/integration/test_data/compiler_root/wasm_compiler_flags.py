@@ -205,10 +205,9 @@ print_banner("C++/C Compiler Flags:")
 print("CC/CXX flags:")
 for f in compile_flags:
     print(f"  {f}")
-print("FastLED Library CC flags:")
+print("\nFastLED Library CC flags:")
 for f in fastled_compile_cc_flags:
     print(f"  {f}")
-print("Sketch CC flags:")
 
 print_banner("Linker Flags:")
 for f in link_flags:
