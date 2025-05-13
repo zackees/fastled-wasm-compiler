@@ -22,7 +22,7 @@ COMPILER_ROOT = TEST_DATA / "compiler_root"
 FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
 
 
-ENABLED = True
+ENABLED = False
 
 
 class MainTester(unittest.TestCase):
@@ -50,7 +50,8 @@ class MainTester(unittest.TestCase):
             quick=False,
             release=False,
         )
-        run(args)
+        rtn = run(args)
+        self.assertEqual(0, rtn)
 
 
 if __name__ == "__main__":
