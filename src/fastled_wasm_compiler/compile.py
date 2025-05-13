@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.args import Args
+from fastled_wasm_compiler.cleanup import cleanup
 from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
@@ -171,14 +172,6 @@ def process_compile(
         print("Compilation failed.")
         raise RuntimeError("Compilation failed.")
     print(banner("Compilation successful."))
-
-
-def cleanup(args: Args, js_src: Path) -> None:
-    if not args.keep_files and not (args.only_copy or args.only_insert_header):
-        print("Removing temporary source files")
-        shutil.rmtree(js_src)
-    else:
-        print("Keeping temporary source files")
 
 
 def hash_file(file_path: Path) -> str:
