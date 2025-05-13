@@ -1,0 +1,10 @@
+
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8234:80"
+    environment:
+      - ENVIRONMENT=dev
+    image: niteris/fastled-wasm-compiler:local
