@@ -14,7 +14,7 @@ __pycache__/
 .Python
 prod_env/
 ./data/
-build/
+./build/
 develop-eggs/
 dist/
 downloads/
