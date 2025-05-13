@@ -60,7 +60,7 @@ jobs:
       uses: docker/build-push-action@v6
       with:
         platforms: ${{ inputs.platform }}
-        context: https://github.com/zackees/fastled-wasm.git
+        context: https://github.com/zackees/fastled-wasm-compiler.git
         file: Dockerfile
         labels: ${{ steps.meta.outputs.labels }}
         outputs: type=image,name=${{ env.docker_registry_image }},push-by-digest=true,name-canonical=true,push=true
