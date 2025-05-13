@@ -7,7 +7,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-PROJECT_ROOT = HERE.parent
+PROJECT_ROOT = HERE.parent.parent
 DOCKER_FILE = PROJECT_ROOT / "Dockerfile"
 PYPROJECT_TOML = PROJECT_ROOT / "pyproject.toml"
 
