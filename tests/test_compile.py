@@ -5,7 +5,7 @@ Unit test file.
 import unittest
 from pathlib import Path
 
-from fastled_wasm_compiler.compile import compile
+from fastled_wasm_compiler import compile
 from fastled_wasm_compiler.types import BuildMode
 
 HERE = Path(__file__).parent
@@ -20,7 +20,15 @@ COMPILER_ROOT = TEST_DATA / "compiler_root"
 # FASTLED_COMPILER_DIR = TEST_DATA / "fastled_compiler_dir"
 
 
-ENABLED = False
+ENABLED = True
+
+
+def _fake_pio_compile(*args, **kwargs) -> list[str]:
+    """Fake PlatformIO compile command list."""
+    return ["echo", "fake compile"]
+
+
+compile._pio_compile_cmd_list = _fake_pio_compile  # type: ignore[assignment]
 
 
 class MainTester(unittest.TestCase):
@@ -33,7 +41,7 @@ class MainTester(unittest.TestCase):
         build_mode = BuildMode.QUICK
         auto_clean = True
         no_platformio = False
-        rtn = compile(compiler_root, build_mode, auto_clean, no_platformio)
+        rtn = compile.compile(compiler_root, build_mode, auto_clean, no_platformio)
         self.assertEqual(0, rtn)
 
 
