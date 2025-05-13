@@ -147,32 +147,38 @@ class FullBuildTester(unittest.TestCase):
 
         # Mount the test data directories and output directory to the container
         print("\nCompiling sketch with full build environment...")
+
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-compile-container",
+            # Mount the test data directories
+            "-v",
+            f"{MAPPED_DIR.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:/compiler_root",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            IMAGE_NAME,
+            # Required arguments
+            "--compiler-root",
+            "/compiler_root",
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            # Optional arguments
+            "--quick",
+            "--no-platformio",  # Use direct emcc calls instead of platformio
+            "--keep-files",  # Keep intermediate files for debugging
+        ]
+
+        cmdstr = subprocess.list2cmdline(cmd_list)
+        print(f"Running command: {cmdstr}")
+
         compile_proc = subprocess.Popen(
-            [
-                "docker",
-                "run",
-                "--name",
-                "fastled-compile-container",
-                # Mount the test data directories
-                "-v",
-                f"{MAPPED_DIR.absolute()}:/mapped",
-                "-v",
-                f"{COMPILER_ROOT.absolute()}:/compiler_root",
-                "-v",
-                f"{ASSETS_DIR.absolute()}:/assets",
-                IMAGE_NAME,
-                # Required arguments
-                "--compiler-root",
-                "/compiler_root",
-                "--assets-dirs",
-                "/assets",
-                "--mapped-dir",
-                "/mapped",
-                # Optional arguments
-                "--quick",
-                "--no-platformio",  # Use direct emcc calls instead of platformio
-                "--keep-files",  # Keep intermediate files for debugging
-            ],
+            cmd_list,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
