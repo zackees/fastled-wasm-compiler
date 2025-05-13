@@ -78,6 +78,62 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
     return build_dir
 
 
+def process_data_directory(input_data_dir: Path, output_data_dir: Path) -> list[dict]:
+    """
+    Process the optional data directory, copying files and creating manifest entries.
+
+    Args:
+        input_data_dir: Path to the input data directory
+        output_data_dir: Path to the output data directory
+
+    Returns:
+        List of manifest entries for the data files
+    """
+    manifest: list[dict] = []
+
+    if input_data_dir.exists():
+        # Clean up existing output data directory
+        if output_data_dir.exists():
+            for _file in output_data_dir.iterdir():
+                _file.unlink()
+
+        # Create output data directory and copy files
+        output_data_dir.mkdir(parents=True, exist_ok=True)
+        for _file in input_data_dir.iterdir():
+            if _file.is_file():  # Only copy files, not directories
+                filename: str = _file.name
+                if filename.endswith(".embedded.json"):
+                    print(banner("Embedding data file"))
+                    filename_no_embedded = filename.replace(".embedded.json", "")
+                    # read json file
+                    with open(_file, "r") as f:
+                        data = json.load(f)
+                    hash_value = data["hash"]
+                    size = data["size"]
+                    manifest.append(
+                        {
+                            "name": filename_no_embedded,
+                            "path": f"data/{filename_no_embedded}",
+                            "size": size,
+                            "hash": hash_value,
+                        }
+                    )
+                else:
+                    print(f"Copying {_file.name} -> {output_data_dir}")
+                    shutil.copy2(_file, output_data_dir / _file.name)
+                    hash = hash_file(_file)
+                    manifest.append(
+                        {
+                            "name": _file.name,
+                            "path": f"data/{_file.name}",
+                            "size": _file.stat().st_size,
+                            "hash": hash,
+                        }
+                    )
+
+    return manifest
+
+
 def run(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
@@ -220,49 +276,8 @@ def run(args: Args) -> int:
             optional_input_data_dir = src_dir / "data"
             output_data_dir = out_dir / optional_input_data_dir.name
 
-            # Handle data directory if it exists
-            manifest: list[dict] = []
-            if optional_input_data_dir.exists():
-                # Clean up existing output data directory
-                if output_data_dir.exists():
-                    for _file in output_data_dir.iterdir():
-                        _file.unlink()
-
-                # Create output data directory and copy files
-                output_data_dir.mkdir(parents=True, exist_ok=True)
-                for _file in optional_input_data_dir.iterdir():
-                    if _file.is_file():  # Only copy files, not directories
-                        filename: str = _file.name
-                        if filename.endswith(".embedded.json"):
-                            print(banner("Embedding data file"))
-                            filename_no_embedded = filename.replace(
-                                ".embedded.json", ""
-                            )
-                            # read json file
-                            with open(_file, "r") as f:
-                                data = json.load(f)
-                            hash_value = data["hash"]
-                            size = data["size"]
-                            manifest.append(
-                                {
-                                    "name": filename_no_embedded,
-                                    "path": f"data/{filename_no_embedded}",
-                                    "size": size,
-                                    "hash": hash_value,
-                                }
-                            )
-                        else:
-                            print(f"Copying {_file.name} -> {output_data_dir}")
-                            shutil.copy2(_file, output_data_dir / _file.name)
-                            hash = hash_file(_file)
-                            manifest.append(
-                                {
-                                    "name": _file.name,
-                                    "path": f"data/{_file.name}",
-                                    "size": _file.stat().st_size,
-                                    "hash": hash,
-                                }
-                            )
+            # Process data directory and create manifest
+            manifest = process_data_directory(optional_input_data_dir, output_data_dir)
 
             # Write manifest file even if empty
             print(banner("Writing manifest files.json"))
