@@ -78,6 +78,70 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
     return build_dir
 
 
+def copy_output_files(
+    build_dir: Path,
+    src_dir: Path,
+    fastled_js_out: str,
+    index_html: Path,
+    index_css_src: Path,
+    index_js_src: Path,
+    assets_modules: Path,
+) -> None:
+    """
+    Copy all output files to the destination directory and create manifest.
+
+    Args:
+        build_dir: Path to the build directory containing compiled artifacts
+        src_dir: Path to the source directory
+        fastled_js_out: Name of the output directory
+        index_html: Path to the index.html file
+        index_css_src: Path to the index.css file
+        index_js_src: Path to the index.js file
+        assets_modules: Path to the modules directory
+    """
+    print(banner("Copying output files..."))
+    out_dir: Path = src_dir / fastled_js_out
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy all fastled.* build artifacts
+    for file_path in build_dir.glob("fastled.*"):
+        _dst = out_dir / file_path.name
+        print(f"Copying {file_path} to {_dst}")
+        shutil.copy2(file_path, _dst)
+
+    # Copy static files.
+    print(f"Copying {index_html} to output directory")
+    shutil.copy2(index_html, out_dir / "index.html")
+    print(f"Copying {index_css_src} to output directory")
+    shutil.copy2(index_css_src, out_dir / "index.css")
+
+    # copy all js files in _FASTLED_COMPILER_DIR to output directory
+    Path(out_dir / "modules").mkdir(parents=True, exist_ok=True)
+
+    # Recursively copy all non-hidden files and directories
+    print(f"Copying files from {assets_modules} to {out_dir / 'modules'}")
+    shutil.copytree(
+        src=assets_modules,
+        dst=out_dir / "modules",
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns(".*"),
+    )  # Ignore hidden files
+
+    print("Copying index.js to output directory")
+    shutil.copy2(index_js_src, out_dir / "index.js")
+    optional_input_data_dir = src_dir / "data"
+    output_data_dir = out_dir / optional_input_data_dir.name
+
+    # Process data directory and create manifest
+    manifest = process_embedded_data_directory(optional_input_data_dir, output_data_dir)
+
+    # Write manifest file even if empty
+    print(banner("Writing manifest files.json"))
+    manifest_json_str = json.dumps(manifest, indent=2, sort_keys=True)
+    with open(out_dir / "files.json", "w") as f:
+        f.write(manifest_json_str)
+
+
 def process_embedded_data_directory(
     input_data_dir: Path, output_data_dir: Path
 ) -> list[dict]:
@@ -245,49 +309,16 @@ def run(args: Args) -> int:
             else:
                 build_dir = _get_build_dir_platformio(pio_build_dir)
 
-            print(banner("Copying output files..."))
-            out_dir: Path = src_dir / fastled_js_out
-            out_dir.mkdir(parents=True, exist_ok=True)
-
-            # Copy all fastled.* build artifacts
-            for file_path in build_dir.glob("fastled.*"):
-                _dst = out_dir / file_path.name
-                print(f"Copying {file_path} to {_dst}")
-                shutil.copy2(file_path, _dst)
-
-            # Copy static files.
-            print(f"Copying {index_html} to output directory")
-            shutil.copy2(index_html, out_dir / "index.html")
-            print(f"Copying {index_css_src} to output directory")
-            shutil.copy2(index_css_src, out_dir / "index.css")
-
-            # copy all js files in _FASTLED_COMPILER_DIR to output directory
-            Path(out_dir / "modules").mkdir(parents=True, exist_ok=True)
-
-            # Recursively copy all non-hidden files and directories
-            print(f"Copying files from {assets_modules} to {out_dir / 'modules'}")
-            shutil.copytree(
-                src=assets_modules,
-                dst=out_dir / "modules",
-                dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns(".*"),
-            )  # Ignore hidden files
-
-            print("Copying index.js to output directory")
-            shutil.copy2(index_js_src, out_dir / "index.js")
-            optional_input_data_dir = src_dir / "data"
-            output_data_dir = out_dir / optional_input_data_dir.name
-
-            # Process data directory and create manifest
-            manifest = process_embedded_data_directory(
-                optional_input_data_dir, output_data_dir
+            # Copy output files and create manifest
+            copy_output_files(
+                build_dir=build_dir,
+                src_dir=src_dir,
+                fastled_js_out=fastled_js_out,
+                index_html=index_html,
+                index_css_src=index_css_src,
+                index_js_src=index_js_src,
+                assets_modules=assets_modules,
             )
-
-            # Write manifest file even if empty
-            print(banner("Writing manifest files.json"))
-            manifest_json_str = json.dumps(manifest, indent=2, sort_keys=True)
-            with open(out_dir / "files.json", "w") as f:
-                f.write(manifest_json_str)
         cleanup(args, sketch_tmp)
 
         print(banner("Compilation process completed successfully"))
