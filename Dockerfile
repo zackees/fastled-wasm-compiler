@@ -83,3 +83,5 @@ RUN pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastle
 # Effectively disable platformio telemetry and auto-updates.
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
+
+ENTRYPOINT ["fastled-wasm-compiler"]
