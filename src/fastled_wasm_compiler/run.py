@@ -78,7 +78,9 @@ def _get_build_dir_platformio(pio_dir: Path) -> Path:
     return build_dir
 
 
-def process_data_directory(input_data_dir: Path, output_data_dir: Path) -> list[dict]:
+def process_embedded_data_directory(
+    input_data_dir: Path, output_data_dir: Path
+) -> list[dict]:
     """
     Process the optional data directory, copying files and creating manifest entries.
 
@@ -277,7 +279,9 @@ def run(args: Args) -> int:
             output_data_dir = out_dir / optional_input_data_dir.name
 
             # Process data directory and create manifest
-            manifest = process_data_directory(optional_input_data_dir, output_data_dir)
+            manifest = process_embedded_data_directory(
+                optional_input_data_dir, output_data_dir
+            )
 
             # Write manifest file even if empty
             print(banner("Writing manifest files.json"))
