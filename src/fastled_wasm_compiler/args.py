@@ -8,6 +8,7 @@ from pathlib import Path
 class Args:
     compiler_root: Path
     index_html: Path
+    style_css: Path
     mapped_dir: Path
     keep_files: bool
     only_copy: bool
@@ -27,6 +28,7 @@ class Args:
     def __post_init__(self):
         assert isinstance(self.compiler_root, Path)
         assert isinstance(self.index_html, Path)
+        assert isinstance(self.style_css, Path)
         assert isinstance(self.mapped_dir, Path)
         assert isinstance(self.keep_files, bool)
         assert isinstance(self.only_copy, bool)
@@ -46,6 +48,11 @@ def _parse_args() -> Args:
     parser.add_argument("--compiler-root", type=Path, required=True)
     parser.add_argument(
         "--index-html",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--style-css",
         type=Path,
         required=True,
     )
@@ -105,6 +112,7 @@ def _parse_args() -> Args:
     return Args(
         compiler_root=tmp.compiler_root,
         index_html=tmp.index_html,
+        style_css=tmp.style_css,
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
         only_copy=tmp.only_copy,

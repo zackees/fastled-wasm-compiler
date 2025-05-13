@@ -14,6 +14,7 @@ HERE = Path(__file__).parent
 TEST_DATA = HERE / "test_data"
 
 INDEX_HTML = TEST_DATA / "index.html"
+STYLE_CSS = TEST_DATA / "style.css"
 MAPPED_DIR = TEST_DATA / "mapped"
 COMPILER_ROOT = TEST_DATA / "compiler_root"
 
@@ -30,6 +31,7 @@ class MainTester(unittest.TestCase):
         args: Args = Args(
             compiler_root=COMPILER_ROOT,
             index_html=INDEX_HTML,
+            style_css=STYLE_CSS,
             mapped_dir=MAPPED_DIR,
             keep_files=False,
             only_copy=False,

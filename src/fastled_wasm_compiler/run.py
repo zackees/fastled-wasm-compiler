@@ -104,7 +104,7 @@ def run(args: Args) -> int:
     PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
 
     _FASTLED_MODULES_DIR = FASTLED_COMPILER_DIR / "modules"
-    _INDEX_CSS_SRC = FASTLED_COMPILER_DIR / "index.css"
+    _INDEX_CSS_SRC = args.style_css
     _INDEX_JS_SRC = FASTLED_COMPILER_DIR / "index.js"
 
     _WASM_COMPILER_SETTTINGS = FASTLED_COMPILER_DIR / "wasm_compiler_flags.py"
