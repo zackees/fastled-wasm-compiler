@@ -30,7 +30,7 @@ BASE_CXX_FLAGS = [
 DEBUG_CXX_FLAGS = [
     "-g3",
     "-gsource-map",
-    "-ffile-prefix-map=/=drawfsource/",
+    "-ffile-prefix-map=/=fastledsource/",
     "-fsanitize=address",
     "-fsanitize=undefined",
     "-fno-inline",

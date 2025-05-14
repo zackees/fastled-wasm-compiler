@@ -19,7 +19,7 @@ CXX_FLAGS = [
     "-Werror=cast-function-type",
     "-g3",
     "-gsource-map",
-    "-ffile-prefix-map=/=drawfsource/",
+    "-ffile-prefix-map=/=sketchsource/",
     "-fsanitize=address",
     "-fsanitize=undefined",
     "-fno-inline",
