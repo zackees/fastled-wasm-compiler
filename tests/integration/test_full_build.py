@@ -86,11 +86,11 @@ class FullBuildTester(unittest.TestCase):
                 stderr=subprocess.DEVNULL,
             )
             # Prune any dangling build artifacts
-            subprocess.run(
-                ["docker", "system", "prune", "-f"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            # subprocess.run(
+            #     ["docker", "system", "prune", "-f"],
+            #     stdout=subprocess.DEVNULL,
+            #     stderr=subprocess.DEVNULL,
+            # )
             # compiler_root/src may have garbage if the build failed
             # Remove the compiler_root/src directory
             src_dir = COMPILER_ROOT / "src"
