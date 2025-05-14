@@ -35,11 +35,22 @@ def _pio_compile_cmd_list(
     return cmd_list
 
 
+# RUN python /misc/compile_sketch.py \
+#   --example /examples/Blink/Blink.cpp \
+#   --lib /build/debug/libfastled.a \
+#   --out /build_examples/blink
+
+
 def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
     cmd_list = [
-        "/bin/bash",
-        "-c",
-        (compiler_root / "build_fast.sh").as_posix(),
+        "python" "-m",
+        "fastled_wasm_compiler.compile_sketch",
+        "--example",
+        "/examples/Blink/Blink.cpp",
+        "--lib",
+        "/build/debug/libfastled.a",
+        "--out",
+        "/build_examples/blink",
     ]
     return cmd_list
 

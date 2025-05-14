@@ -74,6 +74,46 @@ ENV LC_CTYPE=UTF-8
 RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
+
+
+
+ARG FASTLED_VERSION=master
+ENV FASTLED_VERSION=${FASTLED_VERSION}
+ENV FASTLED_GIT_DIR=/git/fastled
+RUN git clone -b ${FASTLED_VERSION} https://github.com/fastled/FastLED.git --depth 1 /git/fastled && \
+    mkdir -p ${FASTLED_GIT_DIR}
+
+RUN echo "force update8"
+
+# now update the git repo to the latest version
+RUN cd ${FASTLED_GIT_DIR} && \
+    git fetch origin && \
+    git reset --hard origin/${FASTLED_VERSION}
+
+
+COPY ./src/fastled_wasm_compiler/copy_headers.py /misc/copy_headers.py
+
+
+# Copy the headers only from fastled
+RUN mkdir -p /headers
+RUN python3 /misc/copy_headers.py ${FASTLED_GIT_DIR}/src /headers
+
+COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
+
+
+# compile the fastled library
+RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/debug
+
+# COPY BLINK
+COPY ./Blink /examples/Blink
+
+COPY ./src/fastled_wasm_compiler/compile_sketch.py /misc/compile_sketch.py
+
+RUN python /misc/compile_sketch.py \
+  --example /examples/Blink \
+  --lib /build/debug/libfastled.a \
+  --out /build_examples/blink
+
 # Also install platformio (pio)
 ENV COMPILER_VERSION=1.0.5
 
@@ -84,4 +124,10 @@ RUN pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastle
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
 
+COPY ./entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+RUN dos2unix /entrypoint.sh
+
 ENTRYPOINT ["fastled-wasm-compiler"]
+
+# CMD ["/bin/bash", "/entrypoint.sh"]

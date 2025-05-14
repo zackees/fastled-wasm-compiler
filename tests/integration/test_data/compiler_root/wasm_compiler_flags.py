@@ -156,6 +156,7 @@ env.Append(CCFLAGS=compile_flags)
 env.Append(CXXFLAGS=compile_flags)
 env.Append(LINKFLAGS=link_flags)
 
+
 # FastLED library compile flags
 fastled_compile_cc_flags = [
     "-Werror=bad-function-cast",
@@ -205,9 +206,10 @@ print_banner("C++/C Compiler Flags:")
 print("CC/CXX flags:")
 for f in compile_flags:
     print(f"  {f}")
-print("\nFastLED Library CC flags:")
+print("FastLED Library CC flags:")
 for f in fastled_compile_cc_flags:
     print(f"  {f}")
+print("Sketch CC flags:")
 
 print_banner("Linker Flags:")
 for f in link_flags:
