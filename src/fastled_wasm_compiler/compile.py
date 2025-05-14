@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 
 from fastled_wasm_compiler.open_process import open_process
@@ -65,16 +66,23 @@ def compile(
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"WASM is building in mode: {build_mode.name}"))
 
-    if not (compiler_root / "platformio.ini").exists():
-        print("No platformio.ini found, copying")
-        shutil.copy2("/platformio/platformio.ini", compiler_root / "platformio.ini")
+    import platform
 
-    if not (compiler_root / "wasm_compiler_flags.py").exists():
-        print("No wasm_compiler_flags.py found, copying")
-        shutil.copy2(
-            "/platformio/wasm_compiler_flags.py",
-            compiler_root / "wasm_compiler_flags.py",
-        )
+    is_linux = platform.system() == "Linux"
+
+    if is_linux:
+        if not (compiler_root / "platformio.ini").exists():
+            print("No platformio.ini found, copying")
+            shutil.copy2("/platformio/platformio.ini", compiler_root / "platformio.ini")
+
+        if not (compiler_root / "wasm_compiler_flags.py").exists():
+            print("No wasm_compiler_flags.py found, copying")
+            shutil.copy2(
+                "/platformio/wasm_compiler_flags.py",
+                compiler_root / "wasm_compiler_flags.py",
+            )
+    else:
+        warnings.warn("Linux platform not detected. Skipping file copy.")
 
     # copy platformio files here:
     cmd_list: list[str]
