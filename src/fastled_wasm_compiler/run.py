@@ -80,15 +80,31 @@ def process_compile(
     print(banner("Compilation successful."))
 
 
-def _get_build_dir_platformio(pio_dir: Path) -> Path:
+def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
     # First assert there is only one build artifact directory.
     # The name is dynamic: it's your sketch folder name.
-    build_dirs = [d for d in pio_dir.iterdir() if d.is_dir()]
-    if len(build_dirs) != 1:
+    # build_dirs = [d for d in pio_dir.iterdir() if d.is_dir()]
+    # if len(build_dirs) != 1:
+    #     raise RuntimeError(
+    #         f"Expected exactly one build directory in {pio_dir}, found {len(build_dirs)}: {build_dirs}"
+    #     )
+    # build_dir: Path = build_dirs[0]
+    # return build_dir
+    if build_mode == BuildMode.DEBUG:
+        build_dir = pio_dir / "wasm-debug"
+    elif build_mode == BuildMode.RELEASE:
+        build_dir = pio_dir / "wasm-release"
+    else:
+        build_dir = pio_dir / "wasm-quick"
+    if not build_dir.exists():
         raise RuntimeError(
-            f"Expected exactly one build directory in {pio_dir}, found {len(build_dirs)}: {build_dirs}"
+            f"Expected build directory {build_dir} to exist, but it does not."
         )
-    build_dir: Path = build_dirs[0]
+    sub_dirs = [d for d in build_dir.iterdir() if d.is_dir()]
+    if len(sub_dirs) != 1:
+        raise RuntimeError(
+            f"Expected exactly one subdirectory in {build_dir}, found {len(sub_dirs)}: {sub_dirs}"
+        )
     return build_dir
 
 
@@ -201,6 +217,16 @@ def run(args: Args) -> int:
                 if clear_ccache:
                     print("Clearing ccache...")
                     os.system("ccache -C")
+
+                # # Clear out the build directory if it exists
+                # if pio_build_dir.iterdir():
+                #     print(f"Removing existing build directory: {pio_build_dir}")
+                #     for item in pio_build_dir.iterdir():
+                #         if item.is_dir():
+                #             print(f"Removing directory: {item}")
+                #             shutil.rmtree(item)
+                #         else:
+                #             item.unlink()
                 process_compile(
                     js_dir=compiler_root,
                     build_mode=build_mode,
@@ -214,7 +240,9 @@ def run(args: Args) -> int:
             if no_platformio:
                 build_dir = compiler_root / "build"
             else:
-                build_dir = _get_build_dir_platformio(pio_build_dir)
+                build_dir = _get_build_dir_platformio(
+                    build_mode=build_mode, pio_dir=pio_build_dir
+                )
 
             # Copy output files and create manifest
             copy_output_files_and_create_manifest(
@@ -226,6 +254,9 @@ def run(args: Args) -> int:
                 index_js_src=index_js_src,
                 assets_modules=assets_modules,
             )
+            # # remove the pio_build_dir
+            # if pio_build_dir.exists():
+            #     shutil.rmtree(pio_build_dir)
         cleanup(args, sketch_tmp)
 
         print(banner("Compilation process completed successfully"))

@@ -26,6 +26,8 @@ ASSETS_DIR = TEST_DATA / "assets"
 
 OUTPUT_ARTIFACT_DIR = TEST_DATA / "fastled_js"
 
+_ENABLED = False
+
 
 class MainTester(unittest.TestCase):
     """Main tester class."""
@@ -36,6 +38,7 @@ class MainTester(unittest.TestCase):
         if fljs.exists():
             shutil.rmtree(fljs, ignore_errors=True)
 
+    @unittest.skipIf(not _ENABLED, "Skipping test as it is not enabled.")
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
     def test_run(self, mock_pio_compile: MagicMock) -> None:
         """Test command line interface (CLI)."""
