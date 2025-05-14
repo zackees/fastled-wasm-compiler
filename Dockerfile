@@ -75,7 +75,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 COPY ./tests/integration/test_data/assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
-COPY ./tests/integration/test_data/compiler_root?platformio.ini /platformio/platformio.ini
+COPY ./tests/integration/test_data/compiler_root/platformio.ini /platformio/platformio.ini
 
 ARG FASTLED_VERSION=master
 ENV FASTLED_VERSION=${FASTLED_VERSION}

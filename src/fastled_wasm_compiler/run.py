@@ -41,6 +41,12 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
             shutil.copytree(item, js_src / item.name, dirs_exist_ok=True)
         else:
             print(f"Copying file: {item}")
+            if "platformio.ini" in item.name:
+                print(f"Skipping {item} as it is a PlatformIO configuration file.")
+                continue
+            if "wasm_compiler_flags.py" in item.name:
+                print(f"Skipping {item} as it is a compiler flags file.")
+                continue
             shutil.copy2(item, js_src / item.name)
     if not found:
         warnings.warn(f"No files found in the mapped directory: {src_dir.absolute()}")

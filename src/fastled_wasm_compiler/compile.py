@@ -63,6 +63,8 @@ def compile(
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"WASM is building in mode: {build_mode.name}"))
+
+    # copy platformio files here:
     cmd_list: list[str]
     if no_platformio:
         cmd_list = _new_compile_cmd_list(compiler_root)
