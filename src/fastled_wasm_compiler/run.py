@@ -110,7 +110,6 @@ def run(args: Args) -> int:
     index_html = assets_dir / "index.html"
     index_css_src = assets_dir / "index.css"
     index_js_src = assets_dir / "index.js"
-    compiler_flags_py = assets_dir / "wasm_compiler_flags.py"
 
     compiler_root = args.compiler_root
 
