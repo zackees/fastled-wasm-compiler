@@ -14,8 +14,7 @@ SRC_SERVER_HOST = f"http://localhost:{SRC_SERVER_PORT}"
 SOURCE_MAP_BASE = f"--source-map-base={SRC_SERVER_HOST}"
 
 
-# Determine whether to use ccache
-# USE_CCACHE = "NO_CCACHE" not in os.environ
+# Determine whether to use ccache (recommended).
 USE_CCACHE = True
 
 # Get build mode from environment variable, default to QUICK if not set
