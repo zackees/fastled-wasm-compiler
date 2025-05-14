@@ -1,12 +1,16 @@
 import argparse
 import os
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum, auto
 from pathlib import Path
 
 CC = "em++"
 AR = "emar"
+
+# Define which directories to include when compiling
+_INCLUSION_DIRS = ["platforms/wasm", "platforms/stub"]
 
 # Base configuration flags common to all build modes
 BASE_CXX_FLAGS = [
@@ -100,15 +104,48 @@ def _get_cpu_count() -> int:
         return 1
 
 
+def filter_sources(src_dir: Path) -> list[Path]:
+    """
+    Filter source files based on inclusion directories.
+    Only include files from the root directory and specified inclusion directories.
+    """
+    sources = []
+
+    for ext in ["*.cpp", "*.ino"]:
+        for file_path in src_dir.rglob(ext):
+            rel_path = file_path.relative_to(src_dir)
+            rel_path_str = str(rel_path)
+
+            # Check if we're in a platforms subdirectory
+            parts = rel_path.parts
+            in_platforms = len(parts) >= 1 and parts[0] == "platforms"
+
+            # Check if we're in an inclusion directory
+            in_inclusion = any(incl in rel_path_str for incl in _INCLUSION_DIRS)
+
+            # Include file if it's not in platforms or if it's in an inclusion directory
+            if not in_platforms or in_inclusion:
+                sources.append(file_path)
+                print(f"Including source: {rel_path}")
+            else:
+                print(f"Skipping source: {rel_path}")
+
+    return sources
+
+
 def build_static_lib(
     src_dir: Path,
     build_dir: Path,
     build_mode: BuildMode = BuildMode.QUICK,
     max_workers: int | None = None,
 ) -> None:
+    if not src_dir.is_dir():
+        print(f"Error: '{src_dir}' is not a directory.", file=sys.stderr)
+        sys.exit(1)
+
     max_workers = max_workers or _get_cpu_count()
     lib_path = build_dir / "libfastled.a"
-    sources = list(src_dir.rglob("*.cpp")) + list(src_dir.rglob("*.ino"))
+    sources = filter_sources(src_dir)
 
     include_flags = [f"-I{src_dir.resolve()}", "-I."]
 
@@ -177,4 +214,5 @@ if __name__ == "__main__":
         build_mode = BuildMode.DEBUG
 
     print(f"Building with mode: {build_mode.name}")
+    print(f"Including directories: {_INCLUSION_DIRS}")
     build_static_lib(args.src, args.out, build_mode)

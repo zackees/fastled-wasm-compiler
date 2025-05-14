@@ -83,8 +83,8 @@ RUN git clone -b ${FASTLED_VERSION} https://github.com/fastled/FastLED.git --dep
 
 RUN echo "force update9"
 
-COPY ./tests/integration/test_data/assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
-COPY ./tests/integration/test_data/compiler_root/platformio.ini /platformio/platformio.ini
+COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
+COPY ./assets/platformio.ini /platformio/platformio.ini
 
 
 # now update the git repo to the latest version

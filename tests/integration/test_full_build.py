@@ -26,6 +26,8 @@ _IS_LINUX = platform.system() == "Linux"
 
 _ENABLE = _IS_LINUX or not _IS_GITHUB
 
+_FULL_PURGE = False
+
 
 class FullBuildTester(unittest.TestCase):
     """Main tester class."""
@@ -85,12 +87,13 @@ class FullBuildTester(unittest.TestCase):
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            # Prune any dangling build artifacts
-            # subprocess.run(
-            #     ["docker", "system", "prune", "-f"],
-            #     stdout=subprocess.DEVNULL,
-            #     stderr=subprocess.DEVNULL,
-            # )
+            if _FULL_PURGE:
+                # Prune any dangling build artifacts
+                subprocess.run(
+                    ["docker", "system", "prune", "-f"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             # compiler_root/src may have garbage if the build failed
             # Remove the compiler_root/src directory
             src_dir = COMPILER_ROOT / "src"
