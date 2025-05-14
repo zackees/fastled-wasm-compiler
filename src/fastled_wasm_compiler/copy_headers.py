@@ -1,8 +1,11 @@
 import argparse
+import os
 import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+_INCLUSION_DIRS = ["platforms/wasm", "platforms/stub"]
 
 
 def copy_headers(start_dir: Path, out_dir: Path) -> None:
@@ -11,13 +14,34 @@ def copy_headers(start_dir: Path, out_dir: Path) -> None:
         sys.exit(1)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    for header in start_dir.rglob("*"):
-        if header.suffix.lower() in {".h", ".hpp"}:
-            rel_path = header.relative_to(start_dir)
-            dest = out_dir / rel_path
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(header, dest)
-            print(f"Copied: {header} → {dest}")
+    for root, dirs, files in os.walk(start_dir, topdown=True):
+        root_path = Path(root)
+        rel_root = root_path.relative_to(start_dir)
+        rel_root_str = str(rel_root)
+
+        # Check if we're in a platforms subdirectory
+        parts = rel_root.parts
+        in_platforms = len(parts) >= 1 and parts[0] == "platforms"
+
+        # Check if we're in an inclusion directory
+        in_inclusion = any(incl in rel_root_str for incl in _INCLUSION_DIRS)
+
+        # Skip traversing this directory if it's in platforms but not in inclusion
+        if in_platforms and not in_inclusion and rel_root_str != "platforms":
+            print(f"Skipping directory: {rel_root}")
+            dirs.clear()  # This prevents os.walk from recursing into subdirectories
+            continue
+
+        # Process header files in this directory
+        for file in files:
+            if file.lower().endswith((".h", ".hpp")):
+                src_file = root_path / file
+                rel_path = src_file.relative_to(start_dir)
+                dest_file = out_dir / rel_path
+
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dest_file)
+                print(f"Copied: {src_file} → {dest_file}")
 
 
 @dataclass

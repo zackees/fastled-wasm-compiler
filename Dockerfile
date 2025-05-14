@@ -134,4 +134,4 @@ RUN dos2unix /entrypoint.sh
 
 ENTRYPOINT ["fastled-wasm-compiler"]
 
-# CMD ["/bin/bash", "/entrypoint.sh"]
+CMD ["--help"]
