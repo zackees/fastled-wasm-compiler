@@ -15,7 +15,8 @@ class SourceFileResolver(unittest.TestCase):
         """Test command line interface (CLI)."""
 
         out: Path | Exception = dwarf_path_to_file_path(
-            "fastledsource/js/src/fastledsource/git/fastled/src/FastLED.h"
+            "fastledsource/js/src/fastledsource/git/fastled/src/FastLED.h",
+            check_exists=False,
         )
         self.assertIsInstance(out, Path)
         self.assertEqual(
@@ -23,13 +24,17 @@ class SourceFileResolver(unittest.TestCase):
             Path("/git/fastled/src/FastLED.h"),
         )
 
-        out = dwarf_path_to_file_path("sketchsource/js/sketchsource/headers/FastLED.h")
+        out = dwarf_path_to_file_path(
+            "sketchsource/js/sketchsource/headers/FastLED.h", check_exists=False
+        )
         self.assertIsInstance(out, Path)
         self.assertEqual(
             out,
             Path("/headers/FastLED.h"),
         )
-        out = dwarf_path_to_file_path("sketchsource/js/src/direct.h")
+        out = dwarf_path_to_file_path(
+            "sketchsource/js/src/direct.h", check_exists=False
+        )
         self.assertIsInstance(out, str)
         self.assertEqual(
             out,
