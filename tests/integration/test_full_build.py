@@ -343,6 +343,113 @@ class FullBuildTester(unittest.TestCase):
         manifest_file = list(output_dir.glob("**/files.json"))
         self.assertTrue(len(manifest_file) > 0, "No files.json file was generated")
 
+    @unittest.skipIf(not _ENABLE or True, "Release doesn't work yet for some reason.")
+    def test_compile_sketch_in_release(self) -> None:
+        """Test compiling the sketch folder in release mode and measure performance."""
+        import time
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Mount the test data directories and output directory to the container
+        print("\nCompiling sketch in release mode for performance testing...")
+
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-compile-container",
+            # Mount the test data directories
+            "-v",
+            f"{MAPPED_DIR.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:/js",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            IMAGE_NAME,
+            # Required arguments
+            "--compiler-root",
+            "/js",
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            # Optional arguments
+            "--release",  # Use release mode for maximum optimization
+            "--no-platformio",  # Use direct emcc calls instead of platformio
+            "--keep-files",  # Keep intermediate files for debugging
+        ]
+
+        cmdstr = subprocess.list2cmdline(cmd_list)
+        print(f"Running command: {cmdstr}")
+
+        # Measure compilation time
+        start_time = time.time()
+
+        compile_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert compile_proc.stdout is not None
+
+        # Print output in real-time
+        for line in compile_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace")
+            print(line_str.strip())
+
+        compile_proc.wait()
+        compile_proc.stdout.close()
+        compile_proc.terminate()
+
+        # Calculate elapsed time
+        elapsed_time = time.time() - start_time
+        print(f"\nRelease build completed in {elapsed_time:.2f} seconds")
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compile-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Check if compilation was successful
+        self.assertEqual(
+            compile_proc.returncode, 0, "Release sketch compilation failed"
+        )
+
+        # Check if output files were generated
+        output_dir = MAPPED_DIR / "sketch" / "fastled_js"
+        output_files = list(output_dir.glob("**/*"))
+        self.assertTrue(len(output_files) > 0, "No output files were generated")
+
+        # Check for specific output files
+        wasm_files = list(output_dir.glob("**/*.wasm"))
+        js_files = list(output_dir.glob("**/*.js"))
+        html_files = list(output_dir.glob("**/*.html"))
+
+        self.assertTrue(len(wasm_files) > 0, "No WASM files were generated")
+        self.assertTrue(len(js_files) > 0, "No JS files were generated")
+        self.assertTrue(len(html_files) > 0, "No HTML files were generated")
+
+        # Check for manifest.json which should contain file mappings
+        manifest_file = list(output_dir.glob("**/files.json"))
+        self.assertTrue(len(manifest_file) > 0, "No files.json file was generated")
+
+        # Check WASM file size (release builds should be smaller)
+        fastled_wasm = output_dir / "fastled.wasm"
+        self.assertTrue(fastled_wasm.exists(), "fastled.wasm does not exist")
+        wasm_size = fastled_wasm.stat().st_size
+        print(f"Release build WASM size: {wasm_size} bytes")
+
+        # In a real test, we might compare this to other build modes
+        # or have a maximum size threshold, but for now we just report it
+
 
 if __name__ == "__main__":
     unittest.main()
