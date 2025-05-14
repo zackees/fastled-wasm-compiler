@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 CC = "em++"
@@ -36,14 +37,40 @@ def compile_cpp_to_obj(src_file: Path, out_dir: Path, include_flags: list[str]) 
     return obj_file
 
 
-def build_static_lib(src_dir: Path, build_dir: Path):
+def _get_cpu_count() -> int:
+    """
+    Get the number of CPU cores available on the system.
+    Returns:
+        int: Number of CPU cores.
+    """
+    try:
+        return os.cpu_count() or 1
+    except NotImplementedError:
+        return 1
+
+
+def build_static_lib(
+    src_dir: Path, build_dir: Path, max_workers: int | None = None
+) -> None:
+    max_workers = max_workers or _get_cpu_count()
     lib_path = build_dir / "libfastled.a"
     sources = list(src_dir.rglob("*.cpp")) + list(src_dir.rglob("*.ino"))
 
-    # include flags
     include_flags = [f"-I{src_dir.resolve()}", "-I."]
 
-    obj_files = [compile_cpp_to_obj(f, build_dir, include_flags) for f in sources]
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_src = {
+            executor.submit(compile_cpp_to_obj, f, build_dir, include_flags): f
+            for f in sources
+        }
+
+        obj_files = []
+        for future in as_completed(future_to_src):
+            try:
+                obj_files.append(future.result())
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Failed to compile {future_to_src[future]}: {e}")
+                raise
 
     if lib_path.exists():
         lib_path.unlink()
@@ -68,6 +95,5 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out", type=Path, required=True, help="Output directory for .o and .a files"
     )
-
     args = parser.parse_args()
     build_static_lib(args.src, args.out)
