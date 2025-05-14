@@ -8,6 +8,10 @@ on:
       - 'Dockerfile'
       - 'src/fastled_wasm_compiler/**'
       - 'tests/integration/compiler_root/platformio.ini'  # special.
+      #  this script
+      - '.github/workflows/build_multi_docker_image.yml'
+      # template too
+      - '.github/workflows/template_build_docker_image.yml'
 
   schedule:
     # fastled-wasm builds at 4am so we want to trigger this an hour before.
