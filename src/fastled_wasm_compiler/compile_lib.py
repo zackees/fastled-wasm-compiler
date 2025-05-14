@@ -2,12 +2,14 @@ import argparse
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from enum import Enum, auto
 from pathlib import Path
 
 CC = "em++"
 AR = "emar"
 
-CXX_FLAGS = [
+# Base configuration flags common to all build modes
+BASE_CXX_FLAGS = [
     "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
     "-DFASTLED_FORCE_NAMESPACE=1",
     "-DFASTLED_USE_PROGMEM=0",
@@ -18,6 +20,10 @@ CXX_FLAGS = [
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+]
+
+# Debug-specific flags
+DEBUG_CXX_FLAGS = [
     "-g3",
     "-gsource-map",
     "-ffile-prefix-map=/=drawfsource/",
@@ -27,11 +33,56 @@ CXX_FLAGS = [
     "-O0",
 ]
 
+# Quick build flags (light optimization)
+QUICK_CXX_FLAGS = [
+    "-O1",
+]
 
-def compile_cpp_to_obj(src_file: Path, out_dir: Path, include_flags: list[str]) -> Path:
+# Release/optimized build flags
+RELEASE_CXX_FLAGS = [
+    "-Oz",  # Aggressive size optimization
+]
+
+
+class BuildMode(Enum):
+    DEBUG = auto()
+    QUICK = auto()
+    RELEASE = auto()
+
+    @classmethod
+    def from_string(cls, mode_str: str) -> "BuildMode":
+        mode_str = mode_str.upper()
+        if mode_str == "DEBUG":
+            return cls.DEBUG
+        elif mode_str == "QUICK":
+            return cls.QUICK
+        elif mode_str == "RELEASE":
+            return cls.RELEASE
+        else:
+            raise ValueError(f"Unknown build mode: {mode_str}")
+
+
+def get_cxx_flags(build_mode: BuildMode) -> list[str]:
+    """Get the appropriate CXX flags for the specified build mode."""
+    flags = BASE_CXX_FLAGS.copy()
+
+    if build_mode == BuildMode.DEBUG:
+        flags.extend(DEBUG_CXX_FLAGS)
+    elif build_mode == BuildMode.QUICK:
+        flags.extend(QUICK_CXX_FLAGS)
+    elif build_mode == BuildMode.RELEASE:
+        flags.extend(RELEASE_CXX_FLAGS)
+
+    return flags
+
+
+def compile_cpp_to_obj(
+    src_file: Path, out_dir: Path, include_flags: list[str], build_mode: BuildMode
+) -> Path:
     obj_file = out_dir / (src_file.stem + ".o")
     os.makedirs(out_dir, exist_ok=True)
-    cmd = [CC, "-o", str(obj_file), "-c", *CXX_FLAGS, *include_flags, str(src_file)]
+    cxx_flags = get_cxx_flags(build_mode)
+    cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
     print("Compiling:", " ".join(cmd))
     subprocess.check_call(cmd)
     return obj_file
@@ -50,7 +101,10 @@ def _get_cpu_count() -> int:
 
 
 def build_static_lib(
-    src_dir: Path, build_dir: Path, max_workers: int | None = None
+    src_dir: Path,
+    build_dir: Path,
+    build_mode: BuildMode = BuildMode.QUICK,
+    max_workers: int | None = None,
 ) -> None:
     max_workers = max_workers or _get_cpu_count()
     lib_path = build_dir / "libfastled.a"
@@ -60,7 +114,9 @@ def build_static_lib(
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_src = {
-            executor.submit(compile_cpp_to_obj, f, build_dir, include_flags): f
+            executor.submit(
+                compile_cpp_to_obj, f, build_dir, include_flags, build_mode
+            ): f
             for f in sources
         }
 
@@ -95,5 +151,30 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out", type=Path, required=True, help="Output directory for .o and .a files"
     )
+
+    # Build mode arguments (mutually exclusive)
+    build_mode_group = parser.add_mutually_exclusive_group()
+    build_mode_group.add_argument(
+        "--debug", action="store_true", help="Build with debug flags (default)"
+    )
+    build_mode_group.add_argument(
+        "--quick", action="store_true", help="Build with light optimization (O1)"
+    )
+    build_mode_group.add_argument(
+        "--release", action="store_true", help="Build with aggressive optimization (Oz)"
+    )
+
+    # Parse arguments
     args = parser.parse_args()
-    build_static_lib(args.src, args.out)
+
+    # Determine build mode
+    if args.release:
+        build_mode = BuildMode.RELEASE
+    elif args.quick:
+        build_mode = BuildMode.QUICK
+    else:
+        # Default to debug if no mode specified
+        build_mode = BuildMode.DEBUG
+
+    print(f"Building with mode: {build_mode.name}")
+    build_static_lib(args.src, args.out, build_mode)

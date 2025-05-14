@@ -103,17 +103,20 @@ RUN python3 /misc/copy_headers.py ${FASTLED_GIT_DIR}/src /headers
 COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
 
 
-# compile the fastled library
-RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/debug
+# compile the fastled library in all three modes
+RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/debug --debug
+RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/quick --quick
+RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/release --release
 
 # COPY BLINK
 COPY ./Blink /examples/Blink
 
 COPY ./src/fastled_wasm_compiler/compile_sketch.py /misc/compile_sketch.py
 
+# Use the quick build for the example by default
 RUN python /misc/compile_sketch.py \
   --example /examples/Blink \
-  --lib /build/debug/libfastled.a \
+  --lib /build/quick/libfastled.a \
   --out /build_examples/blink
 
 
