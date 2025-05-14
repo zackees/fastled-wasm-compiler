@@ -83,7 +83,7 @@ ENV FASTLED_GIT_DIR=/git/fastled
 RUN git clone -b ${FASTLED_VERSION} https://github.com/fastled/FastLED.git --depth 1 /git/fastled && \
     mkdir -p ${FASTLED_GIT_DIR}
 
-RUN echo "force update8"
+RUN echo "force update9"
 
 # now update the git repo to the latest version
 RUN cd ${FASTLED_GIT_DIR} && \
