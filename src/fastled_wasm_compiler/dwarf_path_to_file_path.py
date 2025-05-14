@@ -13,6 +13,7 @@ SKETCH_PREFIX = "sketchsource"
 
 def dwarf_path_to_file_path(
     request_path: str,
+    check_exists=True,
 ) -> Path | Exception:
     """Resolve the path for drawfsource."""
     path_or_error = _dwarf_path_to_file_path_inner(request_path)
@@ -22,7 +23,10 @@ def dwarf_path_to_file_path(
     if "//" in path:
         # this is a security check.
         path = path.replace("//", "/")
-    return Path(path)
+    out = Path(path)
+    if check_exists and not out.exists():
+        return FileNotFoundError(f"Could not find path {out}")
+    return out
 
 
 def _dwarf_path_to_file_path_inner(
