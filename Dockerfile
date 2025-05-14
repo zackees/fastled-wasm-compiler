@@ -114,11 +114,13 @@ RUN python /misc/compile_sketch.py \
   --lib /build/debug/libfastled.a \
   --out /build_examples/blink
 
-# Also install platformio (pio)
-ENV COMPILER_VERSION=1.0.9
 
-# sometimes pip doesn't want to take a fresh update on the first go.
-RUN pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION}
+RUN pip install uv==0.7.3
+
+COPY . /tmp/fastled-wasm-compiler-install/
+# Use uv to install globally
+RUN uv pip install --system /tmp/fastled-wasm-compiler-install
+
 
 # Effectively disable platformio telemetry and auto-updates.
 RUN pio settings set check_platformio_interval 9999
