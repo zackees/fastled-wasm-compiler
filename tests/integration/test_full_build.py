@@ -290,7 +290,7 @@ class FullBuildTester(unittest.TestCase):
             "--mapped-dir",
             "/mapped",
             # Optional arguments
-            "--debug",
+            "--quick",
             "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
         ]
