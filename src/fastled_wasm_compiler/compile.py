@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -63,6 +64,17 @@ def compile(
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"WASM is building in mode: {build_mode.name}"))
+
+    if not (compiler_root / "platformio.ini").exists():
+        print("No platformio.ini found, copying")
+        shutil.copy2("/platformio/platformio.ini", compiler_root / "platformio.ini")
+
+    if not (compiler_root / "wasm_compiler_flags.py").exists():
+        print("No wasm_compiler_flags.py found, copying")
+        shutil.copy2(
+            "/platformio/wasm_compiler_flags.py",
+            compiler_root / "wasm_compiler_flags.py",
+        )
 
     # copy platformio files here:
     cmd_list: list[str]
