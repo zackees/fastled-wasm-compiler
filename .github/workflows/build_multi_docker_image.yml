@@ -7,6 +7,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'src/fastled_wasm_compiler/**'
+      - 'tests/integration/compiler_root/platformio.ini'  # special.
 
   schedule:
     # fastled-wasm builds at 4am so we want to trigger this an hour before.
