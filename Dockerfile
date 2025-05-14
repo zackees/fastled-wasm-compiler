@@ -115,7 +115,7 @@ RUN python /misc/compile_sketch.py \
   --out /build_examples/blink
 
 # Also install platformio (pio)
-ENV COMPILER_VERSION=1.0.6
+ENV COMPILER_VERSION=1.0.7
 
 # sometimes pip doesn't want to take a fresh update on the first go.
 RUN pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION} || pip install fastled-wasm-compiler==${COMPILER_VERSION}
