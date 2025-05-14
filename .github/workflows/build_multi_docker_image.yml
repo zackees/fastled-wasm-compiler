@@ -9,7 +9,8 @@ on:
       - 'src/fastled_wasm_compiler/**'
 
   schedule:
-    - cron: '0 12 * * *'  # Executes every day at 4:00 AM Pacific Time
+    # fastled-wasm builds at 4am so we want to trigger this an hour before.
+    - cron: '0 11 * * *'  # Executes every day at 3:00 AM Pacific Time
 
 env:
   REGISTRY_IMAGE: niteris/fastled-wasm-compiler  # Replace with your Docker Hub username and repository

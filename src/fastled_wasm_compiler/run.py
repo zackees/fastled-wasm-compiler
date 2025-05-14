@@ -110,7 +110,6 @@ def run(args: Args) -> int:
     index_html = assets_dir / "index.html"
     index_css_src = assets_dir / "index.css"
     index_js_src = assets_dir / "index.js"
-    arduino_h = assets_dir / "Arduino.h"
     compiler_flags_py = assets_dir / "wasm_compiler_flags.py"
 
     compiler_root = args.compiler_root
@@ -130,9 +129,7 @@ def run(args: Args) -> int:
         index_html,
         index_css_src,
         index_js_src,
-        compiler_flags_py,
         assets_dir,
-        arduino_h,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
     if missing_paths:
@@ -141,17 +138,6 @@ def run(args: Args) -> int:
             print(p)
         missing_paths_str = ",".join(str(p.as_posix()) for p in missing_paths)
         raise FileNotFoundError(f"Missing required paths: {missing_paths_str}")
-
-    workspace_dir = _get_workspace_from_platformio(compiler_flags_py.read_text())
-    if workspace_dir:
-        print(f"Found workspace_dir: {workspace_dir} in {compiler_flags_py}")
-        # pio_build_dir = compiler_root / f".pio/{workspace_dir}"
-        # assert pio_build_dir.exists(), f"PlatformIO build directory {pio_build_dir} as specified in {compiler_flags_py} does not exist."
-        expected_pio_dir = compiler_root / ".pio" / workspace_dir
-        if not expected_pio_dir.exists():
-            warnings.warn(
-                f"Expected PlatformIO build directory {expected_pio_dir} does not exist."
-            )
 
     print("Starting FastLED WASM compilation script...")
     print(f"Keep files flag: {args.keep_files}")
@@ -185,9 +171,6 @@ def run(args: Args) -> int:
 
         if do_copy:
             copy_files(src_dir, sketch_tmp)
-            # copy arduino.h from assets_dir to sketch_tmp
-            print(f"Copying Arduino.h from {arduino_h} to {sketch_tmp}")
-            shutil.copy2(arduino_h, sketch_tmp / "Arduino.h")
             if args.only_copy:
                 return 0
 

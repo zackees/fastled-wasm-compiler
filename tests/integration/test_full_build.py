@@ -60,7 +60,7 @@ class FullBuildTester(unittest.TestCase):
             assert build_proc.stdout is not None
 
             for line in build_proc.stdout:
-                line_str = line.decode("utf-8")
+                line_str = line.decode("utf-8", errors="replace")
                 print(line_str.strip())
 
             build_proc.wait()
@@ -135,7 +135,7 @@ class FullBuildTester(unittest.TestCase):
         assert run_proc.stdout is not None
 
         for line in run_proc.stdout:
-            line_str = line.decode("utf-8")
+            line_str = line.decode("utf-8", errors="replace")
             print(line_str.strip())
 
         run_proc.wait()
@@ -197,7 +197,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Print output in real-time
         for line in compile_proc.stdout:
-            line_str = line.decode("utf-8")
+            line_str = line.decode("utf-8", errors="replace")
             print(line_str.strip())
 
         compile_proc.wait()
@@ -305,7 +305,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Print output in real-time
         for line in compile_proc.stdout:
-            line_str = line.decode("utf-8")
+            line_str = line.decode("utf-8", errors="replace")
             print(line_str.strip())
 
         compile_proc.wait()

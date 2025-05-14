@@ -75,6 +75,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 
+COPY 
 
 
 ARG FASTLED_VERSION=master
