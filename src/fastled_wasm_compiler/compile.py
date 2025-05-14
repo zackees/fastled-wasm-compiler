@@ -72,17 +72,36 @@ def compile(
 
     if is_linux:
         if not (compiler_root / "platformio.ini").exists():
-            print("No platformio.ini found, copying")
-            shutil.copy2("/platformio/platformio.ini", compiler_root / "platformio.ini")
+            dst = compiler_root / "platformio.ini"
+            print(
+                f"No platformio.ini found, copying /platformio/platformio.ini to {dst}"
+            )
+            shutil.copy2("/platformio/platformio.ini", dst)
 
         if not (compiler_root / "wasm_compiler_flags.py").exists():
-            print("No wasm_compiler_flags.py found, copying")
+            dst_file = compiler_root / "wasm_compiler_flags.py"
+            print(
+                f"No wasm_compiler_flags.py found, copying '/platformio/wasm_compiler_flags.py' to {dst_file}"
+            )
             shutil.copy2(
                 "/platformio/wasm_compiler_flags.py",
-                compiler_root / "wasm_compiler_flags.py",
+                dst_file,
             )
     else:
         warnings.warn("Linux platform not detected. Skipping file copy.")
+
+    print(f"Directory structure {compiler_root} is now:")
+    # os walk two levels down:
+    count = 0
+    for root, dirs, files in os.walk(compiler_root, topdown=True):
+        for name in dirs:
+            print(f"Directory: {os.path.join(root, name)}")
+            count += 1
+        for name in files:
+            print(f"File: {os.path.join(root, name)}")
+            count += 1
+
+    print(f"Total directories and files: {count}")
 
     # copy platformio files here:
     cmd_list: list[str]
@@ -95,6 +114,7 @@ def compile(
         try:
             print(f"Attempting compilation (attempt {attempt}/{max_attempts})...")
             print(f"Command: {subprocess.list2cmdline(cmd_list)}")
+            print(f"Command cwd: {compiler_root.as_posix()}")
             process: subprocess.Popen = open_process(
                 cmd_list=cmd_list,
                 compiler_root=compiler_root.as_posix(),

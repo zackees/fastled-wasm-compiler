@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.cleanup import cleanup
 from fastled_wasm_compiler.compile import compile
 
 # copy_output_files_and_create_manifest
@@ -40,7 +39,7 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
             print(f"Copying directory: {item}")
             shutil.copytree(item, js_src / item.name, dirs_exist_ok=True)
         else:
-            print(f"Copying file: {item}")
+            print(f"Copying file: {item} -> {js_src / item.name}")
             if "platformio.ini" in item.name:
                 print(f"Skipping {item} as it is a PlatformIO configuration file.")
                 continue
@@ -186,6 +185,7 @@ def run(args: Args) -> int:
 
         if not any_only_flags:
             if sketch_tmp.exists():
+                print(f"Normal build, so removing {sketch_tmp}")
                 shutil.rmtree(sketch_tmp)
 
         sketch_tmp.mkdir(parents=True, exist_ok=True)
@@ -257,7 +257,7 @@ def run(args: Args) -> int:
             # # remove the pio_build_dir
             # if pio_build_dir.exists():
             #     shutil.rmtree(pio_build_dir)
-        cleanup(args, sketch_tmp)
+        # cleanup(args, sketch_tmp)
 
         print(banner("Compilation process completed successfully"))
         return 0

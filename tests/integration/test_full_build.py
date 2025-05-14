@@ -9,6 +9,9 @@ import subprocess
 import unittest
 from pathlib import Path
 
+# Enable Docker BuildKit for faster builds
+os.environ["DOCKER_BUILDKIT"] = "1"
+
 HERE = Path(__file__).parent
 PROJECT_ROOT = HERE.parent.parent
 SKETCH_FOLDER = HERE / "sketch"
