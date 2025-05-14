@@ -1,5 +1,9 @@
 """
-Main entry point.
+CLI Entry point.
+
+The full arguments to specify a build are huge!
+
+This cli simplifies it with a layer of abstraction.
 """
 
 import argparse
@@ -38,6 +42,8 @@ def _parse_args() -> CliArgs:
         required=True,
         help="directory where index.html, index.js, etc are kept",
     )
+    # Important: This directory structure weird.
+    # It needs two levels. See examples in the code of how this is set.
     parser.add_argument(
         "--mapped-dir",
         type=Path,

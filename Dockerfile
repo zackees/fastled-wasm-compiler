@@ -122,7 +122,7 @@ COPY ./src/fastled_wasm_compiler/compile_sketch.py /misc/compile_sketch.py
 RUN python /misc/compile_sketch.py \
   --example /examples/Blink \
   --lib /build/quick/libfastled.a \
-  --out /build_examples/blink
+  --out /build_examples/Blink
 
 
 RUN pip install uv==0.7.3
@@ -135,6 +135,46 @@ RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 # Effectively disable platformio telemetry and auto-updates.
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
+
+
+# now pre-warm the cache.
+# RUN pio pkg update
+# Copy /examples/Blink to /build_examples/Blink
+RUN mkdir -p /build_examples && \
+    cp -r /examples/Blink /build_examples/Blink
+
+# Create the build directory which for historical reasons is
+# at /js
+RUN mkdir -p /js
+
+# Pre-warm the cache for the compiler, takes off a whopping 6 seconds.
+# For legacy reasons the sketch has to be two levels up. This produces
+# multiple build artifacts so that patch is just to delete the folder.
+# Also, there was something about this that was important. But it could
+# just be legacy logic. The compiler pipeline relies on this.
+#
+# Counter intuintively, even though we've copied /examples/Blink to /build_examples/Blink
+# we actually have to select /build_examples as the target directory.
+RUN fastled-wasm-compiler \
+  --compiler-root=/js \
+  --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+  --mapped-dir=/build_examples \
+  --debug && \
+  rm -rf /build_examples/Blink && \
+  cp -r /examples/Blink /build_examples 
+
+RUN fastled-wasm-compiler \
+  --compiler-root=/js \
+  --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+  --mapped-dir=/build_examples \
+  --quick && \
+  rm -rf /build_examples/Blink && \
+  cp -r /examples/Blink /build_examples/Blink 
+
+## TODO: Release.
+# Now remove the builds
+RUN rm -rf /build_examples
+
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
