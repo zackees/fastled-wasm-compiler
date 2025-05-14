@@ -74,8 +74,6 @@ ENV LC_CTYPE=UTF-8
 RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
-COPY ./tests/integration/test_data/assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
-COPY ./tests/integration/test_data/compiler_root/platformio.ini /platformio/platformio.ini
 
 ARG FASTLED_VERSION=master
 ENV FASTLED_VERSION=${FASTLED_VERSION}
@@ -84,6 +82,10 @@ RUN git clone -b ${FASTLED_VERSION} https://github.com/fastled/FastLED.git --dep
     mkdir -p ${FASTLED_GIT_DIR}
 
 RUN echo "force update9"
+
+COPY ./tests/integration/test_data/assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
+COPY ./tests/integration/test_data/compiler_root/platformio.ini /platformio/platformio.ini
+
 
 # now update the git repo to the latest version
 RUN cd ${FASTLED_GIT_DIR} && \
