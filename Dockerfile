@@ -108,7 +108,12 @@ RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/debug
 RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/quick --quick
 RUN python3 /misc/compile_lib.py --src ${FASTLED_GIT_DIR}/src --out /build/release --release
 
-# COPY BLINK
+
+# COPY examples from /git/fastled/examples to /examples
+# COPY /git/fastled/examples /examples
+RUN mkdir -p /examples && cp -r ${FASTLED_GIT_DIR}/examples /examples
+
+# COPY BLINK for test compile, we should get rid of this and use a real example, like above.
 COPY ./Blink /examples/Blink
 
 COPY ./src/fastled_wasm_compiler/compile_sketch.py /misc/compile_sketch.py
