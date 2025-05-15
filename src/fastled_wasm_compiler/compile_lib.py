@@ -12,10 +12,6 @@ AR = "emar"
 # Define which directories to include when compiling
 _INCLUSION_DIRS = ["platforms/wasm", "platforms/stub"]
 
-
--sNO_FILESYSTEM=1 \
--sFORCE_FILESYSTEM=0
-
 # Base configuration flags common to all build modes
 BASE_CXX_FLAGS = [
     "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
