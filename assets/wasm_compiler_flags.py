@@ -8,6 +8,7 @@ from SCons.Script import Import
 
 _IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
+# Use thin archive. Much faster.
 AR = "/build_tools/emar-thin.sh"
 
 # For drawf support it needs a file server running at this point.
