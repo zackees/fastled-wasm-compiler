@@ -45,6 +45,11 @@ RUN apt-fast install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
+# xdelta can make patches out of the binary blobs.
+# apt update
+# apt install -y --no-install-recommends xdelta3
+
+
 # /container/bin contains symbolic links to python3 and pip3 as python and pip that we use for the compiler.
 RUN mkdir -p /container/bin && \
     ln -s /usr/bin/python3 /container/bin/python && \
