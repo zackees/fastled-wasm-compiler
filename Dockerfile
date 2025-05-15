@@ -86,8 +86,7 @@ RUN git clone -b ${FASTLED_VERSION} https://github.com/fastled/FastLED.git --dep
 
 RUN echo "force update10"
 
-COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
-COPY ./assets/platformio.ini /platformio/platformio.ini
+
 COPY ./build_tools /build_tools
 
 RUN cd /git/fastled/examples && ls -al || false
@@ -165,52 +164,19 @@ RUN pio settings set enable_telemetry 0
 # at /js
 RUN mkdir -p /js
 
-# Pre-warm the cache for the compiler, takes off a whopping 6 seconds.
-# For legacy reasons the sketch has to be two levels up. This produces
-# multiple build artifacts so that patch is just to delete the folder.
-# Also, there was something about this that was important. But it could
-# just be legacy logic. The compiler pipeline relies on this.
-#
-# Counter intuintively, even though we've copied /examples/Blink to /build_examples/Blink
-# we actually have to select /build_examples as the target directory.
-# RUN fastled-wasm-compiler \
-#   --compiler-root=/js \
-#   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
-#   --mapped-dir=/build_examples \
-#   --debug && \
-#   rm -rf /build_examples/Blink && \
-#   cp -r /examples/Blink /build_examples 
+### Final environment for sketch compilation
+COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
+COPY ./assets/platformio.ini /platformio/platformio.ini
 
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --debug
 
-
-# List all files in /build_examples
-# RUN cd /build_examples && find
-
-# Why does this happen? We need to get rid of all the manual cleaning
-# out of directories.
-# RUN cp -r /git/fastled/examples/Blink /build_examples/Blink
-
-# RUN fastled-wasm-compiler \
-#   --compiler-root=/js \
-#   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
-#   --mapped-dir=/build_examples \
-#   --quick && \
-#   rm -rf /build_examples/Blink && \
-#   cp -r /examples/Blink /build_examples/Blink 
-
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --quick
-
-# ## TODO: Release.
-# # Now remove the builds
-# RUN rm -rf /build_examples
-
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
