@@ -38,12 +38,20 @@ DEBUG_CXX_FLAGS = [
     "-fsanitize=address",
     "-fsanitize=undefined",
     "-fno-inline",
+    "-fno-strict-aliasing",
+    "-fno-inline-functions",
+    "-fno-unroll-loops",
+    "-fno-vectorize",
     "-O0",
 ]
 
 # Quick build flags (light optimization)
 QUICK_CXX_FLAGS = [
     "-O1",
+    "-fno-strict-aliasing",
+    "-fno-inline-functions",
+    "-fno-unroll-loops",
+    "-fno-vectorize",
 ]
 
 # Release/optimized build flags
@@ -91,6 +99,7 @@ def compile_cpp_to_obj(
     os.makedirs(out_dir, exist_ok=True)
     cxx_flags = get_cxx_flags(build_mode)
     cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
+    cmd_str = subprocess.list2cmdline(cmd)
     print("Compiling:", " ".join(cmd))
     subprocess.check_call(cmd)
     return obj_file
