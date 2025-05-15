@@ -5,6 +5,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum, auto
 from pathlib import Path
+from threading import Lock
 
 CC = "em++"
 AR = "emar"
@@ -78,6 +79,15 @@ class BuildMode(Enum):
             raise ValueError(f"Unknown build mode: {mode_str}")
 
 
+_PRINT_LOCK = Lock()
+
+
+def _locked_print(s: str) -> None:
+    """Thread-safe print function."""
+    with _PRINT_LOCK:
+        print(s)
+
+
 def get_cxx_flags(build_mode: BuildMode) -> list[str]:
     """Get the appropriate CXX flags for the specified build mode."""
     flags = BASE_CXX_FLAGS.copy()
@@ -100,8 +110,20 @@ def compile_cpp_to_obj(
     cxx_flags = get_cxx_flags(build_mode)
     cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
     cmd_str = subprocess.list2cmdline(cmd)
-    print("Compiling:", " ".join(cmd))
-    subprocess.check_call(cmd)
+    _locked_print(f"Compiling: {cmd_str}")
+    # subprocess.check_call(cmd)
+    cp: subprocess.CompletedProcess = subprocess.run(
+        cmd, check=False, capture_output=True
+    )
+    if cp.returncode != 0:
+        _locked_print(
+            f"❌ Compilation failed for {src_file}: {cp.stderr.decode(errors='replace')}"
+        )
+        raise subprocess.CalledProcessError(
+            returncode=cp.returncode, cmd=cmd, output=cp.stdout, stderr=cp.stderr
+        )
+    else:
+        _locked_print(f"✅ Compiled: {obj_file}:\n{cp.stdout.decode(errors='replace')}")
     return obj_file
 
 
@@ -139,9 +161,9 @@ def filter_sources(src_dir: Path) -> list[Path]:
             # Include file if it's not in platforms or if it's in an inclusion directory
             if not in_platforms or in_inclusion:
                 sources.append(file_path)
-                print(f"Including source: {rel_path}")
+                _locked_print(f"Including source: {rel_path}")
             else:
-                print(f"Skipping source: {rel_path}")
+                _locked_print(f"Skipping source: {rel_path}")
 
     return sources
 
@@ -153,7 +175,7 @@ def build_static_lib(
     max_workers: int | None = None,
 ) -> None:
     if not src_dir.is_dir():
-        print(f"Error: '{src_dir}' is not a directory.", file=sys.stderr)
+        _locked_print(f"Error: '{src_dir}' is not a directory.")
         sys.exit(1)
 
     max_workers = max_workers or _get_cpu_count()
@@ -175,17 +197,18 @@ def build_static_lib(
             try:
                 obj_files.append(future.result())
             except subprocess.CalledProcessError as e:
-                print(f"❌ Failed to compile {future_to_src[future]}: {e}")
+                _locked_print(f"❌ Failed to compile {future_to_src[future]}: {e}")
                 raise
 
     if lib_path.exists():
         lib_path.unlink()
 
     cmd = [AR, "rcT", str(lib_path)] + [str(obj) for obj in obj_files]
-    print("Archiving (thin):", " ".join(cmd))
+    cmd_str = subprocess.list2cmdline(cmd)
+    _locked_print(f"Archiving (thin): {cmd_str}")
     subprocess.check_call(cmd)
 
-    print(f"\n✅ Static library created: {lib_path}")
+    _locked_print(f"\n✅ Static library created: {lib_path}")
 
 
 if __name__ == "__main__":
@@ -226,6 +249,6 @@ if __name__ == "__main__":
         # Default to debug if no mode specified
         build_mode = BuildMode.DEBUG
 
-    print(f"Building with mode: {build_mode.name}")
-    print(f"Including directories: {_INCLUSION_DIRS}")
+    _locked_print(f"Building with mode: {build_mode.name}")
+    _locked_print(f"Including directories: {_INCLUSION_DIRS}")
     build_static_lib(args.src, args.out, build_mode)
