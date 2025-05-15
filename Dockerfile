@@ -168,6 +168,7 @@ RUN mkdir -p /js
 COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
 COPY ./assets/platformio.ini /platformio/platformio.ini
 
+### Pre-warm the cache
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
@@ -178,6 +179,7 @@ RUN fastled-wasm-compiler-prewarm \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --quick
 
+### Final entry point init.
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN dos2unix /entrypoint.sh
