@@ -52,7 +52,7 @@ class SourceFileResolver(unittest.TestCase):
         self.assertIsInstance(out, Path)
         self.assertEqual(
             out,
-            Path("/headers/FastLED.h"),
+            Path("/git/fastled/src/FastLED.h"),
         )
         out = dwarf_path_to_file_path(
             "sketchsource/js/src/direct.h", check_exists=False

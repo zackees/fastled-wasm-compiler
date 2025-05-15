@@ -75,6 +75,9 @@ def _dwarf_path_to_file_path_inner(
     request_path_pruned = prune_paths(request_path)
     if request_path_pruned is None:
         return Exception(f"Invalid path: {request_path}")
+    if request_path_pruned.startswith("headers"):
+        # Special case this one.
+        return request_path_pruned.replace("headers", FASTLED_SOURCE_PATH)
     for i, source_path in enumerate(SOURCE_PATHS_NO_LEADING_SLASH):
         if request_path_pruned.startswith(source_path):
             suffix_path = request_path_pruned[len(source_path) :]
