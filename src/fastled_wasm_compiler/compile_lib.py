@@ -110,7 +110,7 @@ def compile_cpp_to_obj(
     cxx_flags = get_cxx_flags(build_mode)
     cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
     cmd_str = subprocess.list2cmdline(cmd)
-    _locked_print(f"Compiling: {cmd_str}")
+    _locked_print(f"Compiling: {obj_file}:\n{cmd_str}")
     # subprocess.check_call(cmd)
     cp: subprocess.CompletedProcess = subprocess.run(
         cmd, check=False, capture_output=True
