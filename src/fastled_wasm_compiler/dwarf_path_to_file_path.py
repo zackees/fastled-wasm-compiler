@@ -1,10 +1,10 @@
 import warnings
 from pathlib import Path
 
-# Matches what the compiler has.
+# Matches what the compiler has: sorted from most complex to least complex.
 FASTLED_SOURCE_PATH = "/git/fastled/src"
-FASTLED_HEADERS_PATH = "/headers"
 SKETCH_PATH = "/js/src"  # todo - this will change.
+FASTLED_HEADERS_PATH = "/headers"
 EMSDK_PATH = "/emsdk"
 
 
@@ -18,6 +18,9 @@ SOURCE_PATHS = [
     SKETCH_PATH,
     EMSDK_PATH,
 ]
+
+# Sorted by longest first.
+SOURCE_PATHS_NO_LEADING_SLASH = [p.lstrip("/") for p in SOURCE_PATHS]
 
 PREFIXES = [
     FASTLED_PREFIX,
@@ -69,41 +72,13 @@ def _dwarf_path_to_file_path_inner(
     ):  # we never have .. in the path so someone is trying weird stuff.
         warnings.warn(f"Invalid path: {request_path}")
         return Exception(f"Invalid path: {request_path}")
-    if request_path.startswith("/"):
-        request_path = request_path[1:]  # Remove leading slash
-    # even easier, just find the last index of "sketchsource" and "fastledsource".
-    # Which ever one is greater, use that.
-    fastled_index = request_path.rfind(FASTLED_PREFIX)
-    sketch_index = request_path.rfind(SKETCH_PREFIX)
-    emsdk_index = request_path.rfind(EMSDK_PATH)
-    indices = [fastled_index, sketch_index, emsdk_index]
-    # if all are -1, then we have an invalid path.
-    if all(i == -1 for i in indices):
-        warnings.warn(f"Invalid path: {request_path}")
+    request_path_pruned = prune_paths(request_path)
+    if request_path_pruned is None:
         return Exception(f"Invalid path: {request_path}")
-    if fastled_index > sketch_index:
-        # fastled source
-        path: str = request_path[fastled_index + len(FASTLED_PREFIX) :]
-        # a security check.
-        if not path.startswith("/") and FASTLED_SOURCE_PATH.startswith("/"):
-            path = "/" + path
-        return path
-    if sketch_index != -1:
-        # sketch source (or one of the headers that got compiled in)
-        path: str = request_path[sketch_index + len(SKETCH_PREFIX) :]
-        # a security check.
-        if not path.startswith("/") and SKETCH_PATH.startswith("/"):
-            path = "/" + path
-        if path.startswith(FASTLED_HEADERS_PATH):
-            # this is a header file that got compiled in the sketch directory.
-            relative = path[len(FASTLED_HEADERS_PATH) :]
-            if relative.startswith("/"):
-                relative = relative[1:]
-            return f"{FASTLED_HEADERS_PATH}/{relative}"
-        if path.startswith(SKETCH_PATH):
-            # this is a sketch file.
-            path = path[len(SKETCH_PATH) :]
-            return f"{SKETCH_PATH}/{path}"
-    # this should never happen.
-    warnings.warn(f"Invalid path: {request_path}")
+    for i, source_path in enumerate(SOURCE_PATHS_NO_LEADING_SLASH):
+        if request_path_pruned.startswith(source_path):
+            suffix_path = request_path_pruned[len(source_path) :]
+            if suffix_path.startswith("/"):
+                suffix_path = "/" + suffix_path
+            return f"{SOURCE_PATHS[i]}{suffix_path}"
     return Exception(f"Invalid path: {request_path}")
