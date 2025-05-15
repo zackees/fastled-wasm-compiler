@@ -58,15 +58,30 @@ def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
 
 
 def compile(
-    compiler_root: Path, build_mode: BuildMode, auto_clean: bool, no_platformio: bool
+    compiler_root: Path,
+    build_mode: BuildMode,
+    auto_clean: bool,
+    no_platformio: bool,
+    profile_build: bool,
 ) -> int:
+    import platform
+
     print("Starting compilation process...")
     max_attempts = 1
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"WASM is building in mode: {build_mode.name}"))
+    if profile_build:
+        env["EMPROFILE"] = "2"  # Profile linking
 
-    import platform
+    if profile_build:
+        print(banner("Enabling profiling for compilation."))
+    else:
+        print(
+            banner(
+                "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
+            )
+        )
 
     is_linux = platform.system() == "Linux"
 

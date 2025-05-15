@@ -30,8 +30,9 @@ class MainTester(unittest.TestCase):
         build_mode = BuildMode.QUICK
         auto_clean = True
         no_platformio = False
-        rtn = compile.compile(compiler_root, build_mode, auto_clean, no_platformio)
-
+        rtn = compile.compile(
+            compiler_root, build_mode, auto_clean, no_platformio, profile_build=False
+        )
         # Verify results
         self.assertEqual(0, rtn)
         mock_pio_compile.assert_called_once()

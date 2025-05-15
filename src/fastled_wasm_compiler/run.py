@@ -63,7 +63,11 @@ def find_project_dir(mapped_dir: Path) -> Path:
 
 
 def process_compile(
-    js_dir: Path, build_mode: BuildMode, auto_clean: bool, no_platformio: bool
+    js_dir: Path,
+    build_mode: BuildMode,
+    auto_clean: bool,
+    no_platformio: bool,
+    profile_build: bool,
 ) -> None:
     print("Starting compilation...")
     rtn = compile(
@@ -71,6 +75,7 @@ def process_compile(
         build_mode=build_mode,
         auto_clean=auto_clean,
         no_platformio=no_platformio,
+        profile_build=profile_build,
     )
     print(f"Compilation return code: {rtn}")
     if rtn != 0:
@@ -163,17 +168,6 @@ def run(args: Args) -> int:
     print(f"Keep files flag: {args.keep_files}")
     print(f"Using mapped directory: {args.mapped_dir}")
 
-    if args.profile:
-        print(banner("Enabling profiling for compilation."))
-        # Profile linking
-        os.environ["EMPROFILE"] = "2"
-    else:
-        print(
-            banner(
-                "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
-            )
-        )
-
     try:
 
         src_dir = find_project_dir(args.mapped_dir)
@@ -232,6 +226,7 @@ def run(args: Args) -> int:
                     build_mode=build_mode,
                     auto_clean=not args.disable_auto_clean,
                     no_platformio=no_platformio,
+                    profile_build=args.profile,
                 )
             except Exception as e:
                 print(f"Error: {str(e)}")
