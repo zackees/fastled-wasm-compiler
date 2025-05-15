@@ -6,6 +6,10 @@ import os
 
 from SCons.Script import Import
 
+_IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
+
+AR = "/build_tools/emar-thin.sh"
+
 # For drawf support it needs a file server running at this point.
 # TODO: Emite this information as a src-map.json file to hold this
 # port and other information.
@@ -47,8 +51,8 @@ OUTPUT_JS = f"{BUILD_DIR}/{PROGRAM_NAME}.js"
 CC = "ccache emcc" if USE_CCACHE else "emcc"
 CXX = "ccache em++" if USE_CCACHE else "em++"
 LINK = CXX
-projenv.Replace(CC=CC, CXX=CXX, LINK=LINK, AR="emar", RANLIB="emranlib")
-env.Replace(CC=CC, CXX=CXX, LINK=LINK, AR="emar", RANLIB="emranlib")
+projenv.Replace(CC=CC, CXX=CXX, LINK=LINK, AR=AR, RANLIB="emranlib")
+env.Replace(CC=CC, CXX=CXX, LINK=LINK, AR=AR, RANLIB="emranlib")
 
 
 # Helper to strip out optimization flags
