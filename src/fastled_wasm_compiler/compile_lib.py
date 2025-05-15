@@ -24,9 +24,10 @@ BASE_CXX_FLAGS = [
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
-    "-sEXIT_RUNTIME=0",
-    "-sFILESYSTEM=0",
-    "-sUSE_PTHREADS=0",
+    # We don't do program linking so these don't matter.
+    # "-sEXIT_RUNTIME=0",
+    # "-sFILESYSTEM=0",
+    # "-sUSE_PTHREADS=0",
 ]
 
 # Debug-specific flags
