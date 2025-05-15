@@ -168,8 +168,8 @@ def build_static_lib(
     if lib_path.exists():
         lib_path.unlink()
 
-    cmd = [AR, "rcs", str(lib_path)] + [str(obj) for obj in obj_files]
-    print("Archiving:", " ".join(cmd))
+    cmd = [AR, "rcT", str(lib_path)] + [str(obj) for obj in obj_files]
+    print("Archiving (thin):", " ".join(cmd))
     subprocess.check_call(cmd)
 
     print(f"\n✅ Static library created: {lib_path}")

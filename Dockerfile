@@ -83,6 +83,7 @@ RUN echo "force update10"
 
 COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
 COPY ./assets/platformio.ini /platformio/platformio.ini
+COPY ./build_tools /build_tools
 
 RUN cd /git/fastled/examples && ls -al || false
 
