@@ -5,10 +5,24 @@ from pathlib import Path
 FASTLED_SOURCE_PATH = "/git/fastled/src"
 FASTLED_HEADERS_PATH = "/headers"
 SKETCH_PATH = "/js/src"  # todo - this will change.
+EMSDK_PATH = "/emsdk"
+
 
 # As defined in the fastled-wasm-compiler.
 FASTLED_PREFIX = "fastledsource"
 SKETCH_PREFIX = "sketchsource"
+
+SOURCE_PATHS = [
+    FASTLED_SOURCE_PATH,
+    FASTLED_HEADERS_PATH,
+    SKETCH_PATH,
+    EMSDK_PATH,
+]
+
+PREFIXES = [
+    FASTLED_PREFIX,
+    SKETCH_PREFIX,
+]
 
 
 def dwarf_path_to_file_path(
@@ -29,6 +43,23 @@ def dwarf_path_to_file_path(
     return out
 
 
+def prune_paths(path: str) -> str | None:
+    p: Path = Path(path)
+    # pop off the leaf and store it in a buffer.
+    # When you hit one of the PREFIXES, then stop
+    # and return the path that was popped.
+    parts = p.parts
+    buffer = []
+    parts_reversed = parts[::-1]
+    for part in parts_reversed:
+        if part in PREFIXES:
+            break
+        buffer.append(part)
+    if not buffer:
+        return None
+    return "/".join(buffer[::-1])
+
+
 def _dwarf_path_to_file_path_inner(
     request_path: str,
 ) -> str | Exception:
@@ -44,7 +75,10 @@ def _dwarf_path_to_file_path_inner(
     # Which ever one is greater, use that.
     fastled_index = request_path.rfind(FASTLED_PREFIX)
     sketch_index = request_path.rfind(SKETCH_PREFIX)
-    if fastled_index == -1 and sketch_index == -1:
+    emsdk_index = request_path.rfind(EMSDK_PATH)
+    indices = [fastled_index, sketch_index, emsdk_index]
+    # if all are -1, then we have an invalid path.
+    if all(i == -1 for i in indices):
         warnings.warn(f"Invalid path: {request_path}")
         return Exception(f"Invalid path: {request_path}")
     if fastled_index > sketch_index:
