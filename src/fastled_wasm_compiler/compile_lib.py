@@ -26,6 +26,7 @@ BASE_CXX_FLAGS = [
     "-Werror=cast-function-type",
     "-sEXIT_RUNTIME=0",
     "-sFILESYSTEM=0",
+    "-sUSE_PTHREADS=0",
 ]
 
 # Debug-specific flags
