@@ -5,18 +5,26 @@ from pathlib import Path
 
 CC = "em++"
 
-CXX_FLAGS = [
-    "-std=gnu++17",
-    "-fpermissive",
+# Base flags from platformio.ini [env:wasm-base]
+BASE_CXX_FLAGS = [
     "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
     "-DFASTLED_FORCE_NAMESPACE=1",
     "-DFASTLED_USE_PROGMEM=0",
-    "-DFASTLED_FORCE_USE_NAMESPACE=1",
     "-DUSE_OFFSET_CONVERTER=0",
+    "-DSKETCH_COMPILE=1",
+    "-std=gnu++17",
+    "-fpermissive",
     "-Wno-constant-logical-operand",
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+    "-Isrc",
+    "-I/headers",
+    "-I/headers/platforms/wasm/compiler",
+]
+
+# Debug flags from platformio.ini [env:wasm-debug]
+DEBUG_CXX_FLAGS = [
     "-g3",
     "-gsource-map",
     "-ffile-prefix-map=/=sketchsource/",
@@ -24,10 +32,24 @@ CXX_FLAGS = [
     "-fsanitize=undefined",
     "-fno-inline",
     "-O0",
-    "-I/headers",
 ]
 
-LINK_FLAGS = [
+# Quick build flags from platformio.ini [env:wasm-quick]
+QUICK_CXX_FLAGS = [
+    "-O0",
+    "-sASSERTIONS=0",
+    "-g0",
+    "-fno-inline-functions",
+    "-fno-vectorize",
+    "-fno-unroll-loops",
+    "-fno-strict-aliasing",
+]
+
+# Default to debug flags
+CXX_FLAGS = BASE_CXX_FLAGS + DEBUG_CXX_FLAGS
+
+# Base link flags from platformio.ini
+BASE_LINK_FLAGS = [
     "--bind",
     "-fuse-ld=lld",
     "-sWASM=1",
@@ -37,18 +59,26 @@ LINK_FLAGS = [
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
     "--no-entry",
     "--emit-symbol-map",
-    "-gseparate-dwarf=fastled.wasm.dwarf",
+    "-sMODULARIZE=1",
+    "-sEXPORT_NAME=fastled",
+    "-sUSE_PTHREADS=0",
+    "-sEXIT_RUNTIME=0",
+    "-sFILESYSTEM=0",
+    "-Wl,--whole-archive",
+    "--source-map-base=http://localhost:8000/",
+]
+
+# Debug link flags
+DEBUG_LINK_FLAGS = [
+    "-fsanitize=address",
+    "-fsanitize=undefined",
     "-sSEPARATE_DWARF_URL=fastled.wasm.dwarf",
     "-sSTACK_OVERFLOW_CHECK=2",
     "-sASSERTIONS=1",
-    "-fsanitize=address",
-    "-fsanitize=undefined",
-    "-sMODULARIZE=1",
-    "-sEXPORT_NAME=fastled",
-    "-o",
-    "fastled.js",
-    "--source-map-base=http://localhost:8000/",
 ]
+
+# Default to debug link flags
+LINK_FLAGS = BASE_LINK_FLAGS + DEBUG_LINK_FLAGS + ["-o", "fastled.js"]
 
 
 def compile_cpp_to_obj(
@@ -64,8 +94,27 @@ def compile_cpp_to_obj(
     return obj_file
 
 
-def compile_sketch(sketch_dir: Path, lib_path: Path, output_dir: Path):
+def compile_sketch(
+    sketch_dir: Path, lib_path: Path, output_dir: Path, build_mode: str = "debug"
+):
     os.makedirs(output_dir, exist_ok=True)
+
+    # Set build flags based on mode
+    global CXX_FLAGS, LINK_FLAGS
+    if build_mode.lower() == "quick":
+        CXX_FLAGS = BASE_CXX_FLAGS + QUICK_CXX_FLAGS
+        LINK_FLAGS = BASE_LINK_FLAGS + ["-sASSERTIONS=0", "-o", "fastled.js"]
+    elif build_mode.lower() == "release":
+        CXX_FLAGS = BASE_CXX_FLAGS + ["-Oz"]
+        LINK_FLAGS = BASE_LINK_FLAGS + ["-sASSERTIONS=0", "-o", "fastled.js"]
+    else:  # debug is default
+        CXX_FLAGS = BASE_CXX_FLAGS + DEBUG_CXX_FLAGS
+        LINK_FLAGS = BASE_LINK_FLAGS + DEBUG_LINK_FLAGS + ["-o", "fastled.js"]
+
+    # Add separate dwarf file for debug mode
+    if build_mode.lower() == "debug":
+        dwarf_file = output_dir / "fastled.wasm.dwarf"
+        LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
 
     # Gather all .cpp and .ino files in sketch dir
     sources = list(sketch_dir.glob("*.cpp")) + list(sketch_dir.glob("*.ino"))
@@ -101,6 +150,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out", type=Path, required=True, help="Output directory for build artifacts"
     )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["debug", "quick", "release"],
+        default="debug",
+        help="Build mode: debug, quick, or release (default: debug)",
+    )
 
     args = parser.parse_args()
-    compile_sketch(args.example, args.lib, args.out)
+    compile_sketch(args.example, args.lib, args.out, args.mode)
