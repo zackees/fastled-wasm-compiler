@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ccache emcc $@

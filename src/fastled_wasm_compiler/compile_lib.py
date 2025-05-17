@@ -7,7 +7,9 @@ from enum import Enum, auto
 from pathlib import Path
 from threading import Lock
 
-CC = "em++"
+# CC = "em++"
+CC = "/build_tools/ccache-emcxx.sh"
+
 AR = "emar"
 
 # Define which directories to include when compiling
