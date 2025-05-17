@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import time
@@ -10,7 +11,7 @@ from fastled_wasm_server.compile_lock import COMPILE_LOCK
 TIME_START = time.time()
 
 _HAS_RSYNC = shutil.which("rsync") is not None
-_ENABLED = True
+_ENABLED = os.environ.get("FASTLED_COMPILER_CODE_SYNC", "0") == "1"
 
 
 def _sync_src_to_target(
