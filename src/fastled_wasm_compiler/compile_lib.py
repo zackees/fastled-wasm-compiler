@@ -171,6 +171,21 @@ def filter_sources(src_dir: Path) -> list[Path]:
     return sources
 
 
+def _clean_obj_files(build_dir: Path) -> None:
+    """
+    Clean up object files in the build directory.
+    This function removes all .o files in the specified directory.
+    """
+    if build_dir.is_dir():
+        for obj_file in build_dir.glob("*.o"):
+            _locked_print(f"Removing object file: {obj_file}")
+            obj_file.unlink()
+    else:
+        _locked_print(
+            f"Build directory '{build_dir}' does not exist. Skipping cleanup."
+        )
+
+
 def build_static_lib(
     src_dir: Path,
     build_dir: Path,
@@ -180,6 +195,8 @@ def build_static_lib(
     if not src_dir.is_dir():
         _locked_print(f"Error: '{src_dir}' is not a directory.")
         sys.exit(1)
+
+    _clean_obj_files(build_dir)
 
     max_workers = (max_workers or _get_cpu_count()) * 2
     lib_path = build_dir / "libfastled.a"
