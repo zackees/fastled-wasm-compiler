@@ -179,7 +179,7 @@ def build_static_lib(
         _locked_print(f"Error: '{src_dir}' is not a directory.")
         sys.exit(1)
 
-    max_workers = max_workers or _get_cpu_count()
+    max_workers = (max_workers or _get_cpu_count()) * 2
     lib_path = build_dir / "libfastled.a"
     sources = filter_sources(src_dir)
 

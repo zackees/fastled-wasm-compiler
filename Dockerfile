@@ -106,19 +106,11 @@ RUN wget -O /git/fastled.zip ${URL} && \
 
 
 COPY ./build_tools /build_tools
-# COPY ./src/fastled_wasm_compiler/copy_headers.py /misc/copy_headers.py
-
-
-# Copy the headers only from fastled
-# RUN python3 /misc/copy_headers.py /git/fastled/src /git/fastled/src
 
 COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
+COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
 
-
-# compile the fastled library in all three modes
-RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/debug --debug
-RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/quick --quick
-RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/release --release
+RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
 
 
 RUN cp -r /git/fastled/examples/Blink /examples
