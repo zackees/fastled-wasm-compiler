@@ -4,7 +4,7 @@ from pathlib import Path
 # Matches what the compiler has: sorted from most complex to least complex.
 FASTLED_SOURCE_PATH = "/git/fastled/src"
 SKETCH_PATH = "/js/src"  # todo - this will change.
-FASTLED_HEADERS_PATH = "/headers"
+FASTLED_HEADERS_PATH = "/git/fastled/src"
 EMSDK_PATH = "/emsdk"
 
 

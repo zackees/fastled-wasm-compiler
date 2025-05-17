@@ -19,8 +19,8 @@ BASE_CXX_FLAGS = [
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
     "-Isrc",
-    "-I/headers",
-    "-I/headers/platforms/wasm/compiler",
+    "-I/git/fastled/src",
+    "-I/git/fastled/src/platforms/wasm/compiler",
 ]
 
 # Debug flags from platformio.ini [env:wasm-debug]
@@ -122,7 +122,7 @@ def compile_sketch(
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
     # Compile all to object files
-    include_dirs = [sketch_dir, ".", "/headers"]
+    include_dirs = [sketch_dir, ".", "/git/fastled/src"]
     obj_files = [compile_cpp_to_obj(f, output_dir, include_dirs) for f in sources]
 
     # Link everything into one JS+WASM module

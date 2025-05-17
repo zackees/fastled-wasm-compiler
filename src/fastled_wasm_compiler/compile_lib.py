@@ -25,6 +25,7 @@ BASE_CXX_FLAGS = [
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+    "-I/git/fastled/src",
     # We don't do program linking so these don't matter.
     # "-sEXIT_RUNTIME=0",
     # "-sFILESYSTEM=0",

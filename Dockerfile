@@ -58,13 +58,12 @@ RUN mkdir -p /container/bin && \
 
 # /git is the dst for the source code, but actually not git anymore
 # /misc is for tools related to building.
-# /headers is for the headers
+# /git/fastled/src is for the headers
 # /examples is for building the Blink example, needs to be cleaned up.
 # /js is the base build directory, named for historical reasons.
 RUN \
    mkdir -p /git && \
    mkdir -p /misc && \
-   mkdir -p /headers && \
    mkdir -p /examples && \
    mkdir -p /js
 
@@ -107,11 +106,11 @@ RUN wget -O /git/fastled.zip ${URL} && \
 
 
 COPY ./build_tools /build_tools
-COPY ./src/fastled_wasm_compiler/copy_headers.py /misc/copy_headers.py
+# COPY ./src/fastled_wasm_compiler/copy_headers.py /misc/copy_headers.py
 
 
 # Copy the headers only from fastled
-RUN python3 /misc/copy_headers.py /git/fastled/src /headers
+# RUN python3 /misc/copy_headers.py /git/fastled/src /git/fastled/src
 
 COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
 

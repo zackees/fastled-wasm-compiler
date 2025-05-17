@@ -47,7 +47,7 @@ class SourceFileResolver(unittest.TestCase):
         )
 
         out = dwarf_path_to_file_path(
-            "sketchsource/js/sketchsource/headers/FastLED.h", check_exists=False
+            "sketchsource/js/sketchsource/git/fastled/src/FastLED.h", check_exists=False
         )
         self.assertIsInstance(out, Path)
         self.assertEqual(
