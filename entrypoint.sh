@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # sleep forever
+source /emsdk/emsdk_env.sh
+export PATH="$PATH:/emsdk/upstream/bin"
 
-while true; do
-  sleep 1000
-done
+fastled-wasm-compiler "$@"

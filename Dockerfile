@@ -146,6 +146,6 @@ COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN dos2unix /entrypoint.sh
 
-ENTRYPOINT ["fastled-wasm-compiler"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["--help"]
