@@ -18,7 +18,7 @@ dependencies = [
 # Step one, bump this version up.
 # Submit
 # Then bump up the version in dockerfile and submit.
-version = "1.0.28"
+version = "1.0.29"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

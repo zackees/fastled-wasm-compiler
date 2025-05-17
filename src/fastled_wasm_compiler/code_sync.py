@@ -10,7 +10,7 @@ from fastled_wasm_server.compile_lock import COMPILE_LOCK
 TIME_START = time.time()
 
 _HAS_RSYNC = shutil.which("rsync") is not None
-_ENABLED = False
+_ENABLED = True
 
 
 def _sync_src_to_target(
