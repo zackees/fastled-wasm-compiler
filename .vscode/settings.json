@@ -27,6 +27,7 @@
         "."
     ],
     "files.associations": {
-        "string": "cpp"
+        "string": "cpp",
+        "xutility": "cpp"
     }
 }
