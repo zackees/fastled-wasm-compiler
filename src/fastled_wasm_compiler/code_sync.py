@@ -1,4 +1,3 @@
-import os
 import shutil
 import subprocess
 import time
@@ -14,7 +13,8 @@ from fastled_wasm_compiler.compile_all_libs import compile_all_libs
 TIME_START = time.time()
 
 _HAS_RSYNC = shutil.which("rsync") is not None
-_ENABLED = os.environ.get("FASTLED_COMPILER_CODE_SYNC", "0") == "1"
+# _ENABLED = os.environ.get("FASTLED_COMPILER_CODE_SYNC", "0") == "1"
+_ENABLED = True
 
 _DST_ROOT = Path("/git/fastled")
 _DST_SRC = _DST_ROOT / "fastled" / "src"
