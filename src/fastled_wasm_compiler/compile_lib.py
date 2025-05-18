@@ -7,8 +7,13 @@ from enum import Enum, auto
 from pathlib import Path
 from threading import Lock
 
+# C++ compiler
 # CC = "em++"
-CC = "/build_tools/ccache-emcxx.sh"
+CXX = "/build_tools/ccache-emcxx.sh"
+
+# C compiler
+# C_CC = "emcc"
+C_CC = "/build_tools/ccache-emcc.sh"
 
 AR = "emar"
 
@@ -16,6 +21,17 @@ AR = "emar"
 _INCLUSION_DIRS = ["platforms/wasm", "platforms/stub"]
 
 # Base configuration flags common to all build modes
+BASE_C_FLAGS = [
+    "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
+    "-DFASTLED_FORCE_NAMESPACE=1",
+    "-DFASTLED_USE_PROGMEM=0",
+    "-DUSE_OFFSET_CONVERTER=0",
+    "-Wno-constant-logical-operand",
+    "-Wnon-c-typedef-for-linkage",
+    "-Werror=bad-function-cast",
+    "-I/git/fastled/src",
+]
+
 BASE_CXX_FLAGS = [
     "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
     "-DFASTLED_FORCE_NAMESPACE=1",
@@ -35,6 +51,20 @@ BASE_CXX_FLAGS = [
 ]
 
 # Debug-specific flags
+DEBUG_C_FLAGS = [
+    "-g3",
+    "-gsource-map",
+    "-ffile-prefix-map=/=fastledsource/",
+    "-fsanitize=address",
+    "-fsanitize=undefined",
+    "-fno-inline",
+    "-fno-strict-aliasing",
+    "-fno-inline-functions",
+    "-fno-unroll-loops",
+    "-fno-vectorize",
+    "-O0",
+]
+
 DEBUG_CXX_FLAGS = [
     "-g3",
     "-gsource-map",
@@ -50,6 +80,14 @@ DEBUG_CXX_FLAGS = [
 ]
 
 # Quick build flags (light optimization)
+QUICK_C_FLAGS = [
+    "-O1",
+    "-fno-strict-aliasing",
+    "-fno-inline-functions",
+    "-fno-unroll-loops",
+    "-fno-vectorize",
+]
+
 QUICK_CXX_FLAGS = [
     "-O1",
     "-fno-strict-aliasing",
@@ -59,6 +97,10 @@ QUICK_CXX_FLAGS = [
 ]
 
 # Release/optimized build flags
+RELEASE_C_FLAGS = [
+    "-Oz",  # Aggressive size optimization
+]
+
 RELEASE_CXX_FLAGS = [
     "-Oz",  # Aggressive size optimization
 ]
@@ -91,6 +133,20 @@ def _locked_print(s: str) -> None:
         print(s)
 
 
+def get_c_flags(build_mode: BuildMode) -> list[str]:
+    """Get the appropriate C flags for the specified build mode."""
+    flags = BASE_C_FLAGS.copy()
+
+    if build_mode == BuildMode.DEBUG:
+        flags.extend(DEBUG_C_FLAGS)
+    elif build_mode == BuildMode.QUICK:
+        flags.extend(QUICK_C_FLAGS)
+    elif build_mode == BuildMode.RELEASE:
+        flags.extend(RELEASE_C_FLAGS)
+
+    return flags
+
+
 def get_cxx_flags(build_mode: BuildMode) -> list[str]:
     """Get the appropriate CXX flags for the specified build mode."""
     flags = BASE_CXX_FLAGS.copy()
@@ -115,20 +171,20 @@ def create_safe_obj_name(src_file: Path, src_dir: Path) -> str:
     return safe_name + ".o"
 
 
-def compile_cpp_to_obj(
+def compile_c_to_obj(
     src_file: Path,
     src_dir: Path,
     out_dir: Path,
     include_flags: list[str],
     build_mode: BuildMode,
 ) -> Path:
+    """Compile a C source file to an object file."""
     obj_file = out_dir / create_safe_obj_name(src_file, src_dir)
     os.makedirs(out_dir, exist_ok=True)
-    cxx_flags = get_cxx_flags(build_mode)
-    cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
+    c_flags = get_c_flags(build_mode)
+    cmd = [C_CC, "-o", str(obj_file), "-c", *c_flags, *include_flags, str(src_file)]
     cmd_str = subprocess.list2cmdline(cmd)
-    _locked_print(f"Compiling: {obj_file}:\n{cmd_str}")
-    # subprocess.check_call(cmd)
+    _locked_print(f"Compiling C: {obj_file}:\n{cmd_str}")
     cp: subprocess.CompletedProcess = subprocess.run(
         cmd, check=False, capture_output=True
     )
@@ -142,6 +198,50 @@ def compile_cpp_to_obj(
     else:
         _locked_print(f"✅ Compiled: {obj_file}:\n{cp.stdout.decode(errors='replace')}")
     return obj_file
+
+
+def compile_cpp_to_obj(
+    src_file: Path,
+    src_dir: Path,
+    out_dir: Path,
+    include_flags: list[str],
+    build_mode: BuildMode,
+) -> Path:
+    """Compile a C++ source file to an object file."""
+    obj_file = out_dir / create_safe_obj_name(src_file, src_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    cxx_flags = get_cxx_flags(build_mode)
+    cmd = [CXX, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
+    cmd_str = subprocess.list2cmdline(cmd)
+    _locked_print(f"Compiling C++: {obj_file}:\n{cmd_str}")
+    cp: subprocess.CompletedProcess = subprocess.run(
+        cmd, check=False, capture_output=True
+    )
+    if cp.returncode != 0:
+        _locked_print(
+            f"❌ Compilation failed for {src_file}: {cp.stderr.decode(errors='replace')}"
+        )
+        raise subprocess.CalledProcessError(
+            returncode=cp.returncode, cmd=cmd, output=cp.stdout, stderr=cp.stderr
+        )
+    else:
+        _locked_print(f"✅ Compiled: {obj_file}:\n{cp.stdout.decode(errors='replace')}")
+    return obj_file
+
+
+def compile_source_to_obj(
+    src_file: Path,
+    src_dir: Path,
+    out_dir: Path,
+    include_flags: list[str],
+    build_mode: BuildMode,
+) -> Path:
+    """Compile a source file to an object file based on its extension."""
+    suffix = src_file.suffix.lower()
+    if suffix == ".c":
+        return compile_c_to_obj(src_file, src_dir, out_dir, include_flags, build_mode)
+    else:  # .cpp, .ino, etc.
+        return compile_cpp_to_obj(src_file, src_dir, out_dir, include_flags, build_mode)
 
 
 def _get_cpu_count() -> int:
@@ -163,7 +263,7 @@ def filter_sources(src_dir: Path) -> list[Path]:
     """
     sources = []
 
-    for ext in ["*.cpp", "*.ino"]:
+    for ext in ["*.c", "*.cpp", "*.ino"]:
         for file_path in src_dir.rglob(ext):
             rel_path = file_path.relative_to(src_dir)
             rel_path_str = str(rel_path)
@@ -221,7 +321,7 @@ def build_static_lib(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_src = {
             executor.submit(
-                compile_cpp_to_obj, f, src_dir, build_dir, include_flags, build_mode
+                compile_source_to_obj, f, src_dir, build_dir, include_flags, build_mode
             ): f
             for f in sources
         }
