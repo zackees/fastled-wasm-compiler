@@ -48,12 +48,8 @@ class Args:
         return Args(src=args.src, out=args.out)
 
 
-def main() -> int:
-    """Main entry point for the template_python_cmd package."""
-    args: Args = Args.parse_args()
-    src = args.src
-    out = args.out
-    build_modes = ["debug", "quick", "release"]
+def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -> int:
+    build_modes = build_modes or ["debug", "quick", "release"]
 
     for build_mode in build_modes:
         print(f"Building {build_mode} in {out}/{build_mode}...")
@@ -80,6 +76,21 @@ def main() -> int:
             print(f"Process {proc.pid} failed with return code {proc.returncode}")
             return proc.returncode
     print("All processes finished successfully.")
+    return 0
+
+
+def main() -> int:
+    """Main entry point for the template_python_cmd package."""
+    args: Args = Args.parse_args()
+    src = args.src
+    out = args.out
+    print(f"Compiling all libraries from {src} to {out}")
+    # Compile all libraries
+    return_code = compile_all_libs(args.src, args.out)
+    if return_code != 0:
+        print(f"Compilation failed with return code {return_code}")
+        return return_code
+    print("Compilation completed successfully.")
     return 0
 
 

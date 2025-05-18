@@ -12,13 +12,14 @@ license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "platformio==6.1.18",
+    "fasteners==0.19",
 ]
 
 # ALSO CHANGE THE VERSION IN THE DOCKER TO MATCH!
 # Step one, bump this version up.
 # Submit
 # Then bump up the version in dockerfile and submit.
-version = "1.0.31"
+version = "1.0.32"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
