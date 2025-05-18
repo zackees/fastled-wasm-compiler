@@ -11,7 +11,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.run_compile import Args, run_compile
+from fastled_wasm_compiler.compiler import Compiler
+from fastled_wasm_compiler.run_compile import Args
 
 
 @dataclass
@@ -26,6 +27,7 @@ class CliArgs:
     release: bool
     no_platformio: bool
     clear_ccache: bool
+    update_fastled_src: Path | None
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -70,6 +72,12 @@ def _parse_args() -> CliArgs:
         action="store_true",
         help="Clear the ccache before compilation",
     )
+    parser.add_argument(
+        "--update-fastled-src",
+        type=Path,
+        help="Path to the FastLED source directory to update",
+        default=None,
+    )
 
     args = parser.parse_args()
     out: CliArgs = CliArgs(
@@ -83,6 +91,7 @@ def _parse_args() -> CliArgs:
         release=args.release,
         no_platformio=args.no_platformio,
         clear_ccache=args.clear_ccache,
+        update_fastled_src=args.update_fastled_src,
     )
     return out
 
@@ -90,7 +99,7 @@ def _parse_args() -> CliArgs:
 def main() -> int:
     """Main entry point for the template_python_cmd package."""
     cli_args = CliArgs.parse_args()
-    full_args: Args = Args(
+    compile_args: Args = Args(
         compiler_root=cli_args.compiler_root,
         assets_dirs=cli_args.assets_dirs,
         mapped_dir=cli_args.mapped_dir,
@@ -106,7 +115,10 @@ def main() -> int:
         release=cli_args.release,
         clear_ccache=cli_args.clear_ccache,
     )
-    rtn = run_compile(full_args)
+    compiler = Compiler(
+        volume_mapped_src=cli_args.update_fastled_src,
+    )
+    rtn = compiler.compile(compile_args)
     return rtn
 
 
