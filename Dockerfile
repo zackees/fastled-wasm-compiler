@@ -92,6 +92,16 @@ ENV LC_CTYPE=UTF-8
 RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
+RUN pip install uv==0.7.3
+
+COPY . /tmp/fastled-wasm-compiler-install/
+# Use uv to install globally
+RUN uv pip install --system /tmp/fastled-wasm-compiler-install
+
+# Effectively disable platformio telemetry and auto-updates.
+RUN pio settings set check_platformio_interval 9999
+RUN pio settings set enable_telemetry 0
+
 
 ARG FASTLED_VERSION=master
 ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
@@ -113,16 +123,6 @@ RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
 
 
 RUN cp -r /git/fastled/examples/Blink /examples
-RUN pip install uv==0.7.3
-
-COPY . /tmp/fastled-wasm-compiler-install/
-# Use uv to install globally
-RUN uv pip install --system /tmp/fastled-wasm-compiler-install
-
-
-# Effectively disable platformio telemetry and auto-updates.
-RUN pio settings set check_platformio_interval 9999
-RUN pio settings set enable_telemetry 0
 
 
 ### Final environment for sketch compilation

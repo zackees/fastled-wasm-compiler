@@ -1,3 +1,3 @@
-from fastled_wasm_compiler.api import Compiler
+from fastled_wasm_compiler.compiler import Compiler
 
 __all__ = ["Compiler"]

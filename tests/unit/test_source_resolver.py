@@ -9,6 +9,9 @@ from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
     prune_paths,
 )
+from fastled_wasm_compiler.paths import FASTLED_SRC
+
+FASTLED_SRC_STR_RELATIVE = FASTLED_SRC.as_posix().lstrip("/")
 
 
 class SourceFileResolver(unittest.TestCase):
@@ -17,7 +20,9 @@ class SourceFileResolver(unittest.TestCase):
     def test_prune_paths(self) -> None:
         """Test the path pruning function."""
 
-        path = "fastledsource/js/src/fastledsource/git/fastled/src/FastLED.h"
+        path = (
+            f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"
+        )
         out = prune_paths(path)
         self.assertIsInstance(out, str)
         self.assertEqual(
@@ -37,22 +42,23 @@ class SourceFileResolver(unittest.TestCase):
         """Test command line interface (CLI)."""
 
         out: Path | Exception = dwarf_path_to_file_path(
-            "fastledsource/js/src/fastledsource/git/fastled/src/FastLED.h",
+            f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
             check_exists=False,
         )
         self.assertIsInstance(out, Path)
         self.assertEqual(
             out,
-            Path("/git/fastled/src/FastLED.h"),
+            Path(f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"),
         )
 
         out = dwarf_path_to_file_path(
-            "sketchsource/js/sketchsource/git/fastled/src/FastLED.h", check_exists=False
+            f"sketchsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
+            check_exists=False,
         )
         self.assertIsInstance(out, Path)
         self.assertEqual(
             out,
-            Path("/git/fastled/src/FastLED.h"),
+            Path(f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"),
         )
         out = dwarf_path_to_file_path(
             "sketchsource/js/src/direct.h", check_exists=False

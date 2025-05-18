@@ -3,6 +3,10 @@ import os
 import subprocess
 from pathlib import Path
 
+from fastled_wasm_compiler.paths import FASTLED_SRC
+
+FASTLED_SRC_STR = FASTLED_SRC.as_posix()
+
 CC = "em++"
 
 # Base flags from platformio.ini [env:wasm-base]
@@ -19,8 +23,8 @@ BASE_CXX_FLAGS = [
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
     "-Isrc",
-    "-I/git/fastled/src",
-    "-I/git/fastled/src/platforms/wasm/compiler",
+    f"-I{FASTLED_SRC_STR}",
+    f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
 ]
 
 # Debug flags from platformio.ini [env:wasm-debug]
@@ -122,7 +126,7 @@ def compile_sketch(
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
     # Compile all to object files
-    include_dirs = [sketch_dir, ".", "/git/fastled/src"]
+    include_dirs = [sketch_dir, ".", FASTLED_SRC_STR]
     obj_files = [compile_cpp_to_obj(f, output_dir, include_dirs) for f in sources]
 
     # Link everything into one JS+WASM module

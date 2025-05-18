@@ -1,10 +1,14 @@
 import warnings
 from pathlib import Path
 
+from fastled_wasm_compiler.paths import (
+    FASTLED_SRC,
+)
+
 # Matches what the compiler has: sorted from most complex to least complex.
-FASTLED_SOURCE_PATH = "/git/fastled/src"
+FASTLED_SOURCE_PATH = FASTLED_SRC.as_posix()
 SKETCH_PATH = "/js/src"  # todo - this will change.
-FASTLED_HEADERS_PATH = "/git/fastled/src"
+FASTLED_HEADERS_PATH = FASTLED_SRC.as_posix()
 EMSDK_PATH = "/emsdk"
 
 

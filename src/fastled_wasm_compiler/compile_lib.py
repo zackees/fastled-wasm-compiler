@@ -7,6 +7,11 @@ from enum import Enum, auto
 from pathlib import Path
 from threading import Lock
 
+from fastled_wasm_compiler.paths import FASTLED_SRC
+
+FASTLED_SRC_STR = FASTLED_SRC.as_posix()
+
+
 # C++ compiler
 # CC = "em++"
 CXX = "/build_tools/ccache-emcxx.sh"
@@ -29,7 +34,7 @@ BASE_C_FLAGS = [
     "-Wno-constant-logical-operand",
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
-    "-I/git/fastled/src",
+    f"-I{FASTLED_SRC_STR}",
 ]
 
 BASE_CXX_FLAGS = [
@@ -43,7 +48,7 @@ BASE_CXX_FLAGS = [
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
-    "-I/git/fastled/src",
+    f"-I{FASTLED_SRC_STR}",
     # We don't do program linking so these don't matter.
     # "-sEXIT_RUNTIME=0",
     # "-sFILESYSTEM=0",
