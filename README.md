@@ -24,6 +24,7 @@ Run `./test` to run the tests.
 
 ### Compiler settings for debug
 
+```
 .39 #########################
 7.39 # C++/C Compiler Flags: #
 7.39 #########################
@@ -106,3 +107,4 @@ Run `./test` to run the tests.
 7.39   -fsanitize=address
 7.39   -fsanitize=undefined
 7.39
+```
