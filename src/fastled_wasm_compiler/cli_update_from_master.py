@@ -1,5 +1,3 @@
-
-
 # ARG FASTLED_VERSION=master
 # ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
 
@@ -9,17 +7,16 @@
 #     unzip /git/fastled.zip -d /git && \
 #     mv /git/FastLED-master /git/fastled && \
 #     rm /git/fastled.zip
-    
-URL = "https://github.com/FastLED/FastLED/archive/refs/heads/master.zip"
+
 
 import subprocess
-import sys
-from pathlib import Path
 from typing import List
 
 from fastled_wasm_compiler.paths import FASTLED_SRC
 
 FASTLED_SRC_STR = FASTLED_SRC.as_posix()
+URL = "https://github.com/FastLED/FastLED/archive/refs/heads/master.zip"
+
 
 def _run(cmd: List[str]) -> int:
     print(f"Running command: {cmd}")
@@ -32,4 +29,5 @@ def _run(cmd: List[str]) -> int:
     proc.wait()
     return proc.returncode
 
-def main() -> int:
+
+# def main() -> int:
