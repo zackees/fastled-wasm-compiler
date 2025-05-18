@@ -103,8 +103,8 @@ def _find_src_dir(src: Path) -> Path | None:
 
 class CodeSync:
 
-    def __init__(self):
-        self.rsync_dest_root_src = Path("/git/fastled/fastled/src")
+    def __init__(self, rsync_dest_root: Path | None = None) -> None:
+        self.rsync_dest_root_src = rsync_dest_root or _DST_SRC
 
     def update_and_compile_core(
         self,
@@ -117,6 +117,10 @@ class CodeSync:
             return False
         if not _HAS_RSYNC:
             warnings.warn("rsync not found, skipping sync")
+            return False
+        if not updater_src_path.exists():
+            # Volume is not mapped in so we don't rsync it.
+            print(f"Skipping rsync, as fastled src at {updater_src_path} doesn't exist")
             return False
 
         src: Path | None = _find_src_dir(updater_src_path)
