@@ -105,10 +105,24 @@ def get_cxx_flags(build_mode: BuildMode) -> list[str]:
     return flags
 
 
+def create_safe_obj_name(src_file: Path, src_dir: Path) -> str:
+    """
+    Create a safe object file name by replacing directory separators with underscores.
+    This prevents file name collisions when files from different directories have the same name.
+    """
+    rel_path = src_file.relative_to(src_dir)
+    safe_name = str(rel_path).replace("/", "_").replace("\\", "_")
+    return safe_name + ".o"
+
+
 def compile_cpp_to_obj(
-    src_file: Path, out_dir: Path, include_flags: list[str], build_mode: BuildMode
+    src_file: Path,
+    src_dir: Path,
+    out_dir: Path,
+    include_flags: list[str],
+    build_mode: BuildMode,
 ) -> Path:
-    obj_file = out_dir / (src_file.stem + ".o")
+    obj_file = out_dir / create_safe_obj_name(src_file, src_dir)
     os.makedirs(out_dir, exist_ok=True)
     cxx_flags = get_cxx_flags(build_mode)
     cmd = [CC, "-o", str(obj_file), "-c", *cxx_flags, *include_flags, str(src_file)]
@@ -207,7 +221,7 @@ def build_static_lib(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_src = {
             executor.submit(
-                compile_cpp_to_obj, f, build_dir, include_flags, build_mode
+                compile_cpp_to_obj, f, src_dir, build_dir, include_flags, build_mode
             ): f
             for f in sources
         }
