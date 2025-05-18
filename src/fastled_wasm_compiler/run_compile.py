@@ -129,7 +129,7 @@ def _get_workspace_from_platformio(platformio_ini_content: str) -> str | None:
     return None
 
 
-def run(args: Args) -> int:
+def run_compile(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
 
@@ -267,7 +267,7 @@ def run(args: Args) -> int:
 
 def main() -> int:
     args = Args.parse_args()
-    return run(args)
+    return run_compile(args)
 
 
 if __name__ == "__main__":

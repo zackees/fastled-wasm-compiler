@@ -1,13 +1,13 @@
 from pathlib import Path
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.run import run as run_compiler_with_args
+from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 
 
 def run_compiler(
     compiler_root: Path,
     assets_dirs: Path,
-    mapped_dir: Path,
+    mapped_dir: Path,  # Sketch directory, note that this is weird. Explained elsewhere in code.
     keep_files: bool,
     profile: bool,
     disable_auto_clean: bool,

@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.run import run
+from fastled_wasm_compiler.run_compile import run_compile as run
 
 COMMAND = "fastled-wasm-compiler --help"
 

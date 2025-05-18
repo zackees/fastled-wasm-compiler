@@ -14,7 +14,7 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.run import Args, run
+from fastled_wasm_compiler.run_compile import Args, run_compile
 from fastled_wasm_compiler.types import BuildMode
 
 
@@ -134,7 +134,7 @@ def main() -> int:
             release=build == BuildMode.RELEASE,
             clear_ccache=False,
         )
-        rtn = run(full_args)
+        rtn = run_compile(full_args)
         if rtn != 0:
             print("Error: Compiler failed without an exception")
             return rtn

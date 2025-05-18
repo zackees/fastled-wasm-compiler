@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.run import Args, run
+from fastled_wasm_compiler.run_compile import Args, run_compile
 
 
 @dataclass
@@ -106,7 +106,7 @@ def main() -> int:
         release=cli_args.release,
         clear_ccache=cli_args.clear_ccache,
     )
-    rtn = run(full_args)
+    rtn = run_compile(full_args)
     return rtn
 
 
