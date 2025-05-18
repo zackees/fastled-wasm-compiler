@@ -104,7 +104,6 @@ RUN wget -O /git/fastled.zip ${URL} && \
     rm /git/fastled.zip
 
 
-
 COPY ./build_tools /build_tools
 
 COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
