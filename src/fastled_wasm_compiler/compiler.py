@@ -7,6 +7,8 @@ from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.paths import VOLUME_MAPPED_SRC
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 
+_RW_LOCK = fasteners.ReaderWriterLock()
+
 
 class Compiler:
 
@@ -16,7 +18,7 @@ class Compiler:
         self.volume_mapped_src: Path = (
             volume_mapped_src if volume_mapped_src else VOLUME_MAPPED_SRC
         )
-        self.rwlock = fasteners.ReaderWriterLock()
+        self.rwlock = _RW_LOCK
 
     def compile(self, args: Args) -> int:
         err = self.update_src(self.volume_mapped_src)

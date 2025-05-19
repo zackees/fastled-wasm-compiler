@@ -94,15 +94,15 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 
 
 
-ARG FASTLED_VERSION=master
-ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
+# ARG FASTLED_VERSION=master
+# ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
 
 
-# Download latest, unzip move into position and clean up.
-RUN wget -O /git/fastled.zip ${URL} && \
-    unzip /git/fastled.zip -d /git && \
-    mv /git/FastLED-master /git/fastled && \
-    rm /git/fastled.zip
+# # Download latest, unzip move into position and clean up.
+# RUN wget -O /git/fastled.zip ${URL} && \
+#     unzip /git/fastled.zip -d /git && \
+#     mv /git/FastLED-master /git/fastled && \
+#     rm /git/fastled.zip
     
 
 
@@ -115,6 +115,9 @@ RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 # Effectively disable platformio telemetry and auto-updates.
 RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
+
+
+RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 
 
 
