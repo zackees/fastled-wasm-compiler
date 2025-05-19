@@ -1,8 +1,6 @@
 import logging
 import platform
-import shutil
 import zipfile
-from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -10,6 +8,7 @@ import httpx
 
 from fastled_wasm_compiler.compiler import Compiler
 from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.sync import sync_fastled
 
 _FASTLED_SRC_STR = FASTLED_SRC.as_posix()
 _FASTLED_SRC = Path(_FASTLED_SRC_STR)
@@ -27,7 +26,7 @@ URL = "https://github.com/FastLED/FastLED/archive/refs/heads/master.zip"
 _TIMEOUT = 60 * 5  # 5 minutes
 
 _BUILD = False
-_FORCE_LOGGING = True
+_FORCE_LOGGING = False
 
 
 # Create logger for this module
@@ -52,55 +51,6 @@ def _maybe_turn_on_logging() -> None:
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         logger.info("Starting FastLED update from master")
-
-
-def _sync(src: Path, dst: Path) -> None:
-    logger.info(f"Syncing directories from {src} to {dst}")
-    assert src.is_dir(), f"Source {src} is not a directory"
-    # assert dst.is_dir(), f"Destination {dst} is not a directory"
-    if not dst.exists():
-        logger.info(f"Creating destination directory {dst}")
-        dst.mkdir(parents=True, exist_ok=True)
-    src_list: set[Path] = set(src.rglob("*"))
-    dst_list: set[Path] = set(dst.rglob("*"))
-
-    # set of relative paths
-    src_set: set[Path] = {s.relative_to(src) for s in src_list}
-    dst_set: set[Path] = {d.relative_to(dst) for d in dst_list}
-
-    files_to_delete_on_dst: set[Path] = dst_set - src_set
-    # Do copy
-    shutil.copytree(src, dst, dirs_exist_ok=True)
-    # Now do removal
-    futures: list[Future] = []
-    with ThreadPoolExecutor(max_workers=32) as executor:
-        for file in files_to_delete_on_dst:
-
-            def task(file=file) -> None:
-                file_dst = dst / file
-                assert file_dst.exists(), f"File {file_dst} does not exist"
-                if file_dst.is_dir():
-                    shutil.rmtree(file_dst)
-                else:
-                    file_dst.unlink()
-
-            future = executor.submit(task)
-            futures.append(future)
-
-    exceptions = []
-    for future in futures:
-        try:
-            future.result()
-        except Exception as e:
-            # logger.error(f"Error deleting file: {e}")
-            # raise e
-            exceptions.append(e)
-    if exceptions:
-        logger.error(f"Errors deleting files: {exceptions}")
-        raise Exception(f"Errors deleting files: {exceptions}")
-
-    logger.info(f"Syncing directories from {src} to {dst} complete")
-    return None
 
 
 def main() -> int:
@@ -142,11 +92,7 @@ def main() -> int:
         else:
             dst = _FASTLED_SRC
             # move all files from src to dst
-            _sync(src, dst)
-            src_examples = src.parent / "examples"
-            dst_examples = dst.parent / "examples"
-            if src_examples.exists():
-                _sync(src_examples, dst_examples)
+            sync_fastled(src, dst)
         logger.info("Source update completed successfully")
     return 0
 

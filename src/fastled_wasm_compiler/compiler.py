@@ -4,8 +4,10 @@ from pathlib import Path
 import fasteners
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.paths import VOLUME_MAPPED_SRC
+from fastled_wasm_compiler.compile_all_libs import compile_all_libs
+from fastled_wasm_compiler.paths import FASTLED_SRC, VOLUME_MAPPED_SRC
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
+from fastled_wasm_compiler.sync import sync_fastled
 
 _RW_LOCK = fasteners.ReaderWriterLock()
 
@@ -42,8 +44,34 @@ class Compiler:
         if not (src_to_merge_from / "FastLED.h").exists():
             return FileNotFoundError(f"FastLED.h not found in {src_to_merge_from}")
 
-        from fastled_wasm_compiler.code_sync import CodeSync
+        files_will_change = sync_fastled(
+            src=src_to_merge_from, dst=Path("/git/fastled/src"), dryrun=True
+        )
 
-        code_sync = CodeSync()
+        if not files_will_change:
+            print("No files changed, skipping rsync")
+            return None
+
+        # Perform the actual sync, this time behind the write lock
         with self.rwlock.write_lock():
-            code_sync.update_and_compile_core(src_to_merge_from)
+            print("Performing rsync")
+            # Perform the actual sync
+            # from fastled_wasm_compiler.sync import sync_fastled
+            # sync_fastled(src=src, dst=self.rsync_dest_root_src, dryrun=False)
+
+            files_changed = sync_fastled(
+                src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
+            )
+        if not files_changed:
+            print("No files changed after rsync")
+            return None
+
+        rtn = compile_all_libs(
+            src_to_merge_from.as_posix(),
+            "/build",
+            build_modes=["debug", "quick", "release"],
+        )
+        if rtn != 0:
+            print(f"Error compiling all libs: {rtn}")
+            return Exception(f"Error compiling all libs: {rtn}")
+        return None
