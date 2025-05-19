@@ -139,12 +139,6 @@ _FILTER_EXAMPLES = FilterList(
 
 
 def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
-    # file_src = src / file
-    # file_dst = dst / file
-    # assert "arm" not in src.as_posix(), f"Source {src} is not a file"
-    if "arm" in src.as_posix():
-        logger.info(f"Skipping {src} because it is an arm file")
-        return False
     if not dst.exists():
         # logger.info(f"Copying new file {src} to {dst}")
         file_src_bytes = src.read_bytes()
@@ -152,6 +146,7 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
         if not dryrun:
             # file_dst.write_bytes(file_src_bytes)
             # open and write
+            print(f"Copying new file {src} to {dst}")
             with open(dst, "wb") as f:
                 f.write(file_src_bytes)
         return True
@@ -170,6 +165,7 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
         # overwrite the file
         logger.info(f"Overwriting {dst} with {src}")
         if not dryrun:
+            print(f"Overwriting {dst} with {src} because bytes were different")
             dst.write_bytes(file_src_bytes)
         return True
 
@@ -178,7 +174,6 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
     """Return true when source files changed. At this point we always turn true
     TODO: Check if the file is newer than the destination file
     """
-    start_time = time.time()
     logger.info(f"Syncing directories from {src} to {dst}")
     assert src.is_dir(), f"Source {src} is not a directory"
     # assert dst.is_dir(), f"Destination {dst} is not a directory"
@@ -273,8 +268,6 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
         raise Exception(f"Errors deleting files: {exceptions}")
 
     logger.info(f"Syncing directories from {src} to {dst} complete")
-    diff_time = time.time() - start_time
-    print(f"Syncing took {diff_time:.2f} seconds")
     return True
 
 
@@ -323,6 +316,7 @@ def sync_fastled(
     src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
 ) -> bool:
     """Sync the source directory to the destination directory."""
+    start = time.time()
     # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
     logger.info(f"Syncing {src} to {dst}")
     if not dst.exists():
@@ -361,5 +355,7 @@ def sync_fastled(
                         )
                         or changed
                     )
-
+    print(
+        f"Syncing (dryrun) from {src} to {dst} complete in {time.time() - start:.2f} seconds"
+    )
     return changed

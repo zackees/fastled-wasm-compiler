@@ -7,6 +7,7 @@ import fasteners
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compile_all_libs import compile_all_libs
 from fastled_wasm_compiler.paths import FASTLED_SRC, VOLUME_MAPPED_SRC
+from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 from fastled_wasm_compiler.sync import sync_fastled
 
@@ -62,9 +63,11 @@ class Compiler:
             print("No files changed, skipping rsync")
             return None
 
+        print_banner("One or more files have changed, rebuilding FastLED core lib")
+
         # Perform the actual sync, this time behind the write lock
         with self.rwlock.write_lock():
-            print("Performing rsync")
+            print("Performing code sync and rebuild")
             # Perform the actual sync
             # from fastled_wasm_compiler.sync import sync_fastled
             # sync_fastled(src=src, dst=self.rsync_dest_root_src, dryrun=False)
