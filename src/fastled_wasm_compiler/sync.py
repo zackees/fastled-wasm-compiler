@@ -94,7 +94,7 @@ class FilterList:
 
 _FILTER_SRC = FilterList(
     # Exclude "platforms/"
-    file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc"],
+    file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc", "CMakeLists.txt"],
     filter_list=[
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**"]),
     ],
@@ -123,12 +123,6 @@ _FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
     ],
 )
 
-_FILTER_JS_ASSETS = FilterList(
-    file_glob=["*.js", "*.html", "*.css", "*.json", "*.h", "*.cpp"],
-    filter_list=[
-        FilterOp(filter=FilterType.INCLUDE, glob=["**"]),
-    ],
-)
 
 _FILTER_EXAMPLES = FilterList(
     file_glob=["*.*"],
