@@ -12,7 +12,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastled_wasm_compiler.compiler import Compiler
+from fastled_wasm_compiler.paths import FASTLED_SRC
 from fastled_wasm_compiler.run_compile import Args
+
+_DEFAULT_ASSETS_DIR = FASTLED_SRC / "platforms" / "wasm" / "compiler"
+_DEFAULT_COMPILER_ROOT = Path("/js")
 
 
 @dataclass
@@ -37,11 +41,11 @@ class CliArgs:
 def _parse_args() -> CliArgs:
     parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
 
-    parser.add_argument("--compiler-root", type=Path, required=True)
+    parser.add_argument("--compiler-root", type=Path, default=_DEFAULT_COMPILER_ROOT)
     parser.add_argument(
         "--assets-dirs",
         type=Path,
-        required=True,
+        default=_DEFAULT_ASSETS_DIR,
         help="directory where index.html, index.js, etc are kept",
     )
     # Important: This directory structure weird.
