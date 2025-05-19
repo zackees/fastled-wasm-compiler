@@ -105,18 +105,18 @@ def compile(
     else:
         warnings.warn("Linux platform not detected. Skipping file copy.")
 
-    print(f"Directory structure {compiler_root} is now:")
-    # os walk two levels down:
-    count = 0
-    for root, dirs, files in os.walk(compiler_root, topdown=True):
-        for name in dirs:
-            print(f"Directory: {os.path.join(root, name)}")
-            count += 1
-        for name in files:
-            print(f"File: {os.path.join(root, name)}")
-            count += 1
+    # print(f"Directory structure {compiler_root} is now:")
+    # # os walk two levels down:
+    # count = 0
+    # for root, dirs, files in os.walk(compiler_root, topdown=True):
+    #     for name in dirs:
+    #         print(f"Directory: {os.path.join(root, name)}")
+    #         count += 1
+    #     for name in files:
+    #         print(f"File: {os.path.join(root, name)}")
+    #         count += 1
 
-    print(f"Total directories and files: {count}")
+    # print(f"Total directories and files: {count}")
 
     # copy platformio files here:
     cmd_list: list[str]
