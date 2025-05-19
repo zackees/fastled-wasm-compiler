@@ -203,9 +203,6 @@ def _sync_subdir(
     for file in src_set:
         file_dst = dst / file
         if not file_dst.parent.exists():
-            # logger.info(f"Creating directory {file_dst.parent}")
-            # if not dryrun:
-            #     file_dst.parent.mkdir(parents=True, exist_ok=True)
             if file_dst.parent not in missing_parents_set:
                 missing_parents_set.add(file_dst.parent)
     # Do it in one bulk creation.
@@ -214,8 +211,6 @@ def _sync_subdir(
             dir.mkdir(parents=True, exist_ok=True)
 
     files_to_delete_on_dst: set[Path] = dst_set - src_set
-    # Do copy
-    # shutil.copytree(src, dst, dirs_exist_ok=True)
     out_changed_files: list[Path] = []
     futures: list[Future] = []
     with ThreadPoolExecutor(max_workers=32) as executor:
@@ -282,12 +277,6 @@ def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> list[P
 
 def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     changed_src = _sync_subdir(src, dst, _FILTER_SRC, dryrun)
-    changed_platform_wasm = _sync_subdir(
-        src / "platforms" / "wasm",
-        dst / "platforms" / "wasm",
-        _FILTER_JS_ASSETS,
-        dryrun=dryrun,
-    )
     changed_wasm = _sync_subdir(
         src / "platforms" / "wasm",
         dst / "platforms" / "wasm",
@@ -308,8 +297,6 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     )
     if changed_src:
         print(f"Changed src files: {changed_src}")
-    if changed_platform_wasm:
-        print(f"Changed platform wasm files: {changed_platform_wasm}")
     if changed_wasm:
         print(f"Changed wasm files: {changed_wasm}")
     if changed_stub:
@@ -317,11 +304,7 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     if changed_platform_root_files:
         print(f"Changed platform root files: {changed_platform_root_files}")
     files_changed = (
-        changed_src
-        + changed_platform_wasm
-        + changed_wasm
-        + changed_stub
-        + changed_platform_root_files
+        changed_src + changed_wasm + changed_stub + changed_platform_root_files
     )
     return files_changed
 

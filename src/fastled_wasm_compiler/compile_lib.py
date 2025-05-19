@@ -2,22 +2,17 @@ import argparse
 import os
 import subprocess
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum, auto
 from pathlib import Path
-from threading import Lock
+from queue import Queue
 
 from fastled_wasm_compiler.paths import FASTLED_SRC
 
 FASTLED_SRC_STR = FASTLED_SRC.as_posix()
 
-
-# C++ compiler
-# CC = "em++"
 CXX = "/build_tools/ccache-emcxx.sh"
-
-# C compiler
-# C_CC = "emcc"
 C_CC = "/build_tools/ccache-emcc.sh"
 
 AR = "emar"
@@ -129,13 +124,30 @@ class BuildMode(Enum):
             raise ValueError(f"Unknown build mode: {mode_str}")
 
 
-_PRINT_LOCK = Lock()
+# _PRINT_LOCK = Lock()
+_PRINT_QUEUE = Queue()
+
+
+def _print_worker():
+    while True:
+        msg = _PRINT_QUEUE.get()
+        if msg is None:
+            break
+        print(msg)
+        _PRINT_QUEUE.task_done()
+
+
+_THREADED_PRINT = threading.Thread(
+    target=_print_worker, daemon=True, name="PrintWorker"
+)
+_THREADED_PRINT.start()
 
 
 def _locked_print(s: str) -> None:
     """Thread-safe print function."""
-    with _PRINT_LOCK:
-        print(s)
+    _PRINT_QUEUE.put(s)
+    # with _PRINT_LOCK:
+    #     print(s)
 
 
 def get_c_flags(build_mode: BuildMode) -> list[str]:
@@ -391,3 +403,6 @@ if __name__ == "__main__":
     _locked_print(f"Building with mode: {build_mode.name}")
     _locked_print(f"Including directories: {_INCLUSION_DIRS}")
     build_static_lib(args.src, args.out, build_mode)
+    _PRINT_QUEUE.put(None)  # Signal the print worker to exit
+    # _PRINT_QUEUE.join()  # Wait for all queued prints to finish
+    _THREADED_PRINT.join()  # Wait for the print worker to finish
