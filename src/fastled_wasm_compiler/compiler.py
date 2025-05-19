@@ -77,7 +77,7 @@ class Compiler:
             return None
 
         rtn = compile_all_libs(
-            src_to_merge_from.as_posix(),
+            FASTLED_SRC.as_posix(),
             "/build",
             build_modes=["debug", "quick", "release"],
         )
