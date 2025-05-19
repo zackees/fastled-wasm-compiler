@@ -138,7 +138,7 @@ _FILTER_EXAMPLES = FilterList(
 )
 
 
-def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
+def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
     if not dst.exists():
         # logger.info(f"Copying new file {src} to {dst}")
         file_src_bytes = src.read_bytes()
@@ -149,7 +149,7 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
             print(f"Copying new file {src} to {dst}")
             with open(dst, "wb") as f:
                 f.write(file_src_bytes)
-        return True
+        return dst
     else:
         logger.info(f"File {dst} already exists")
         # File already exists, but are the bytes the sames?
@@ -160,17 +160,19 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
         file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
         if file_src_bytes == file_dst_bytes:
             logger.info(f"File {dst} already exists and is no different")
-            return False
+            return None
         # replace
         # overwrite the file
         logger.info(f"Overwriting {dst} with {src}")
         if not dryrun:
             print(f"Overwriting {dst} with {src} because bytes were different")
             dst.write_bytes(file_src_bytes)
-        return True
+        return dst
 
 
-def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) -> bool:
+def _sync_subdir(
+    src: Path, dst: Path, filter_list: FilterList, dryrun: bool
+) -> list[Path]:
     """Return true when source files changed. At this point we always turn true
     TODO: Check if the file is newer than the destination file
     """
@@ -214,6 +216,7 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
     files_to_delete_on_dst: set[Path] = dst_set - src_set
     # Do copy
     # shutil.copytree(src, dst, dirs_exist_ok=True)
+    out_changed_files: list[Path] = []
     futures: list[Future] = []
     with ThreadPoolExecutor(max_workers=32) as executor:
         for file in src_set:
@@ -221,7 +224,7 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
             file_dst = dst / file
             logger.info(f"Copying {file_src} to {file_dst}")
 
-            def _task_cpy(file_src=file_src, file_dst=file_dst) -> bool:
+            def _task_cpy(file_src=file_src, file_dst=file_dst) -> Path | None:
                 return _task_copy(file_src, file_dst, dryrun=dryrun)
 
             future = executor.submit(_task_cpy)
@@ -229,12 +232,11 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
 
     exceptions = []
 
-    files_changed: bool = False
     for future in futures:
         try:
             result = future.result()
-            if result:
-                files_changed = True
+            if result is not None:
+                out_changed_files.append(result)
         except Exception as e:
             logger.error(f"Error copying file: {e}")
             exceptions.append(e)
@@ -254,7 +256,7 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
             future = executor.submit(task_remove_missing_from_dst)
             futures.append(future)
 
-    files_changed = files_changed or len(files_to_delete_on_dst) > 0
+    out_changed_files += files_to_delete_on_dst
 
     for future in futures:
         try:
@@ -268,53 +270,65 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
         raise Exception(f"Errors deleting files: {exceptions}")
 
     logger.info(f"Syncing directories from {src} to {dst} complete")
-    return True
+    return out_changed_files
 
 
-def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> bool:
-    changed = False
+def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     if src.exists():
-        changed = _sync_subdir(src, dst, _FILTER_EXAMPLES, dryrun) or changed
-    return changed
+        changed = _sync_subdir(src, dst, _FILTER_EXAMPLES, dryrun)
+        return changed
+    return []
 
 
-def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> bool:
-    changed = False
-    changed = _sync_subdir(src, dst, _FILTER_SRC, dryrun) or changed
-    changed = (
-        _sync_subdir(
-            src / "platforms" / "wasm",
-            dst / "platforms" / "wasm",
-            _FILTER_JS_ASSETS,
-            dryrun=dryrun,
-        )
-        or changed
+def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
+    changed_src = _sync_subdir(src, dst, _FILTER_SRC, dryrun)
+    changed_platform_wasm = _sync_subdir(
+        src / "platforms" / "wasm",
+        dst / "platforms" / "wasm",
+        _FILTER_JS_ASSETS,
+        dryrun=dryrun,
     )
-    changed = _sync_subdir(
+    changed_wasm = _sync_subdir(
         src / "platforms" / "wasm",
         dst / "platforms" / "wasm",
         _FILTER_INCLUDE_ALL,
         dryrun=dryrun,
     )
-
-    changed = _sync_subdir(
+    changed_stub = _sync_subdir(
         src / "platforms" / "stub",
         dst / "platforms" / "stub",
         _FILTER_INCLUDE_ALL,
         dryrun=dryrun,
     )
-    changed = _sync_subdir(
+    changed_platform_root_files = _sync_subdir(
         src / "platforms",
         dst / "platforms",
         _FILTER_INCLUDE_ONLY_ROOT_FILES,
         dryrun=dryrun,
     )
-    return changed
+    if changed_src:
+        print(f"Changed src files: {changed_src}")
+    if changed_platform_wasm:
+        print(f"Changed platform wasm files: {changed_platform_wasm}")
+    if changed_wasm:
+        print(f"Changed wasm files: {changed_wasm}")
+    if changed_stub:
+        print(f"Changed stub files: {changed_stub}")
+    if changed_platform_root_files:
+        print(f"Changed platform root files: {changed_platform_root_files}")
+    files_changed = (
+        changed_src
+        + changed_platform_wasm
+        + changed_wasm
+        + changed_stub
+        + changed_platform_root_files
+    )
+    return files_changed
 
 
 def sync_fastled(
     src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
-) -> bool:
+) -> list[Path]:
     """Sync the source directory to the destination directory."""
     start = time.time()
     # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
@@ -328,32 +342,19 @@ def sync_fastled(
         src_examples = src.parent / "examples"
         dst_examples = dst.parent / "examples"
         if src_examples.exists():
-            changed = (
-                _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
-                or changed
-            )
+            _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
         else:
             src_examples = src / "examples"
             dst_examples = dst / "examples"
             if src_examples.exists():
-                changed = (
-                    # _sync_fastled_examples(examples, dst / "examples", dryrun=dryrun)
-                    _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
-                    or changed
-                )
+                _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
             else:
                 # examples_blink = src / "Blink"
                 src_examples_blink = src / "Blink"
                 dst_examples_blink = dst / "Blink"
                 if src_examples_blink.exists():
-                    changed = (
-                        # _sync_fastled_examples(
-                        #     examples_blink, dst / "examples", dryrun=dryrun
-                        # )
-                        _sync_fastled_examples(
-                            src_examples_blink, dst_examples_blink, dryrun=dryrun
-                        )
-                        or changed
+                    _sync_fastled_examples(
+                        src_examples_blink, dst_examples_blink, dryrun=dryrun
                     )
     print(
         f"Syncing (dryrun) from {src} to {dst} complete in {time.time() - start:.2f} seconds"

@@ -55,7 +55,7 @@ class Compiler:
         if not (src_to_merge_from / "FastLED.h").exists():
             return FileNotFoundError(f"FastLED.h not found in {src_to_merge_from}")
 
-        files_will_change = sync_fastled(
+        files_will_change: list[Path] = sync_fastled(
             src=src_to_merge_from, dst=Path("/git/fastled/src"), dryrun=True
         )
 
@@ -63,7 +63,10 @@ class Compiler:
             print("No files changed, skipping rsync")
             return None
 
-        print_banner("One or more files have changed, rebuilding FastLED core lib")
+        print_banner(f"There were {len(files_will_change)} files changed")
+
+        for file in files_will_change:
+            print(f"File changed: {file.as_posix()}")
 
         # Perform the actual sync, this time behind the write lock
         with self.rwlock.write_lock():
