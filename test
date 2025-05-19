@@ -4,4 +4,4 @@ set -e
 echo "Running unittests"
 uv run pytest -n auto tests/unit -v --durations=0
 # finally run the integration tests one by one.
-uv run pytest -n 1 tests/integration -v --durations=0
+uv run pytest -s -n 1 tests/integration -v --durations=0

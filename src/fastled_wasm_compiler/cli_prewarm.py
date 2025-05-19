@@ -14,6 +14,7 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+from fastled_wasm_compiler.paths import SKETCH_ROOT
 from fastled_wasm_compiler.run_compile import Args, run_compile
 from fastled_wasm_compiler.types import BuildMode
 
@@ -89,9 +90,9 @@ def main() -> int:
             print(f"File: {full_path}")
 
     build = cli_args.build
-    compiler_root = Path("/js")  # TODO: Remove this
-    assert compiler_root.exists(), f"{compiler_root} does not exist!"
-    assert compiler_root.is_dir(), f"{compiler_root} is a file!"
+    compiler_root = SKETCH_ROOT
+    # assert compiler_root.exists(), f"{compiler_root} does not exist!"
+    # assert compiler_root.is_dir(), f"{compiler_root} is a file!"
     mapped_dir = cli_args.sketch.parent
     print(f"mapped_dir: {mapped_dir}")
     try:
