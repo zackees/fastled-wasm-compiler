@@ -10,7 +10,6 @@
 # 2. The docker container has installed compiler dependencies in the /js directory.
 
 
-import os
 import shutil
 import sys
 import traceback
@@ -85,15 +84,6 @@ def process_compile(
 
 
 def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
-    # First assert there is only one build artifact directory.
-    # The name is dynamic: it's your sketch folder name.
-    # build_dirs = [d for d in pio_dir.iterdir() if d.is_dir()]
-    # if len(build_dirs) != 1:
-    #     raise RuntimeError(
-    #         f"Expected exactly one build directory in {pio_dir}, found {len(build_dirs)}: {build_dirs}"
-    #     )
-    # build_dir: Path = build_dirs[0]
-    # return build_dir
     if build_mode == BuildMode.DEBUG:
         build_dir = pio_dir / "wasm-debug"
     elif build_mode == BuildMode.RELEASE:
@@ -111,24 +101,6 @@ def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
         )
     return build_dir
 
-
-def _get_workspace_from_platformio(platformio_ini_content: str) -> str | None:
-    """
-    Extract the workspace directory from the PlatformIO configuration file.
-
-    Args:
-        platformio_ini_content (str): The content of the PlatformIO configuration file.
-
-    Returns:
-        str | None: The workspace directory if found, otherwise None.
-    """
-    lines = platformio_ini_content.splitlines()
-    for line in lines:
-        if line.startswith("workspace_dir"):
-            return line.split("=")[1].strip()
-    return None
-
-
 def run_compile(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
@@ -142,7 +114,6 @@ def run_compile(args: Args) -> int:
     sketch_tmp = compiler_root / "src"
     pio_build_dir = compiler_root / ".pio/build"
     assets_modules = assets_dir / "modules"
-    clear_ccache = args.clear_ccache
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
 
@@ -208,19 +179,6 @@ def run_compile(args: Args) -> int:
                     # Default to QUICK mode if neither debug nor release specified
                     build_mode = BuildMode.QUICK
 
-                if clear_ccache:
-                    print("Clearing ccache...")
-                    os.system("ccache -C")
-
-                # # Clear out the build directory if it exists
-                # if pio_build_dir.iterdir():
-                #     print(f"Removing existing build directory: {pio_build_dir}")
-                #     for item in pio_build_dir.iterdir():
-                #         if item.is_dir():
-                #             print(f"Removing directory: {item}")
-                #             shutil.rmtree(item)
-                #         else:
-                #             item.unlink()
                 process_compile(
                     js_dir=compiler_root,
                     build_mode=build_mode,

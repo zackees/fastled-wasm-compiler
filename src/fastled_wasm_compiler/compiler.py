@@ -1,3 +1,4 @@
+import os
 import warnings
 from pathlib import Path
 
@@ -26,7 +27,16 @@ class Compiler:
         err = self.update_src(self.volume_mapped_src)
         if err:
             warnings.warn(f"Error updating source: {err}")
-        return run_compiler_with_args(args)
+
+        clear_cache = args.clear_ccache
+        if clear_cache:
+            with self.rwlock.write_lock():
+                # Clear the ccache
+                print("Clearing ccache...")
+                os.system("ccache -C")
+                args.clear_ccache = False
+        with self.rwlock.read_lock():
+            return run_compiler_with_args(args)
 
     def update_src(self, src_to_merge_from: Path | None = None) -> Exception | None:
         """
