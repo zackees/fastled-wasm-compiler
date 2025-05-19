@@ -39,7 +39,9 @@ class Compiler:
         with self.rwlock.read_lock():
             return run_compiler_with_args(args)
 
-    def update_src(self, src_to_merge_from: Path | None = None) -> Exception | None:
+    def update_src(
+        self, src_to_merge_from: Path | None = None
+    ) -> list[Path] | Exception:
         """
         Update the source directory.
         """
@@ -50,7 +52,7 @@ class Compiler:
         ), f"src_to_merge_from must be a Path, got {type(src_to_merge_from)}"
         if not src_to_merge_from.exists():
             print("Skipping fastled src update: no source directory")
-            return None  # Nothing to do
+            return []  # Nothing to do
 
         if not (src_to_merge_from / "FastLED.h").exists():
             return FileNotFoundError(f"FastLED.h not found in {src_to_merge_from}")
@@ -61,7 +63,7 @@ class Compiler:
 
         if not files_will_change:
             print("No files changed, skipping rsync")
-            return None
+            return []
 
         print_banner(f"There were {len(files_will_change)} files changed")
 
@@ -76,7 +78,7 @@ class Compiler:
             )
         if not files_changed:
             print("No files changed after rsync")
-            return None
+            return []
 
         rtn = compile_all_libs(
             FASTLED_SRC.as_posix(),
@@ -86,4 +88,4 @@ class Compiler:
         if rtn != 0:
             print(f"Error compiling all libs: {rtn}")
             return Exception(f"Error compiling all libs: {rtn}")
-        return None
+        return files_changed
