@@ -154,3 +154,5 @@ uv.lock
 tests/**/src/Arduino.h
 
 **/*.ino.cpp
+
+tests/unit/.sync_data

@@ -42,7 +42,7 @@ class FilterOp:
         # Check if the path matches the glob pattern
         path_str = path.as_posix()
         if not path_str.startswith("/"):
-            if not path_str.startswith("./"):
+            if not path_str.startswith("./") and path_str != path.absolute().as_posix():
                 path_str = "./" + path_str
         # return any(prefixed_path.match(g) for g in self.glob)
         for g in self.glob:
@@ -58,7 +58,7 @@ class FilterList:
     file_glob: list[str]
     filter_list: list[FilterOp]
 
-    def passes(self, path: Path) -> bool:
+    def _passes(self, path: Path) -> bool:
         """Check if a path passes the filter."""
         # assert path.is_file(), f"Path {path} is not a file"
         # firsts check that the file glob passes
@@ -78,21 +78,44 @@ class FilterList:
         # If we get here, we didn't match any filters
         return True
 
+    def passes(self, path: Path) -> bool:
+        out = self._passes(path)
+        return out
+
 
 _FILTER_SRC = FilterList(
     # Exclude "platforms/"
     file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc"],
     filter_list=[
-        FilterOp(
-            filter=FilterType.INCLUDE,
-            glob=["**/platforms/wasm/**", "**/platforms/stub/**", "**/platforms/*.*"],
-        ),
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**"]),
     ],
 )
 
+_FILTER_INCLUDE_ALL = FilterList(
+    file_glob=[
+        "*.h",
+        "*.cpp",
+        "*.hpp",
+        "*.c",
+        "*.cc",
+        "*.js",
+        "*.html",
+        "*.css",
+        "*.json",
+    ],
+    filter_list=[],
+)
+
+_FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
+    file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc"],
+    filter_list=[
+        FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**/**"]),
+        FilterOp(filter=FilterType.INCLUDE, glob=["**/platforms/*.*"]),
+    ],
+)
+
 _FILTER_JS_ASSETS = FilterList(
-    file_glob=["*.js", "*.html", "*.css", "*.json"],
+    file_glob=["*.js", "*.html", "*.css", "*.json", "*.h", "*.cpp"],
     filter_list=[
         FilterOp(filter=FilterType.INCLUDE, glob=["**"]),
     ],
@@ -101,7 +124,7 @@ _FILTER_JS_ASSETS = FilterList(
 _FILTER_EXAMPLES = FilterList(
     file_glob=["*.*"],
     filter_list=[
-        FilterOp(filter=FilterType.INCLUDE, glob=["**/fastled_js/**"]),
+        FilterOp(filter=FilterType.EXCLUDE, glob=["**/fastled_js/**"]),
     ],
 )
 
@@ -109,6 +132,10 @@ _FILTER_EXAMPLES = FilterList(
 def _task_copy(src: Path, dst: Path, dryrun: bool) -> bool:
     # file_src = src / file
     # file_dst = dst / file
+    # assert "arm" not in src.as_posix(), f"Source {src} is not a file"
+    if "arm" in src.as_posix():
+        logger.info(f"Skipping {src} because it is an arm file")
+        return False
     if not dst.exists():
         # logger.info(f"Copying new file {src} to {dst}")
         file_src_bytes = src.read_bytes()
@@ -239,33 +266,88 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
     return True
 
 
-def _sync(src: Path, dst: Path, dryrun: bool = False) -> bool:
+def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> bool:
+    changed = False
+    if src.exists():
+        changed = _sync_subdir(src, dst, _FILTER_EXAMPLES, dryrun) or changed
+    return changed
+
+
+def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> bool:
     changed = False
     changed = _sync_subdir(src, dst, _FILTER_SRC, dryrun) or changed
     changed = (
         _sync_subdir(
-            src / "platforms" / "wasm" / "compiler",
-            dst / "platforms" / "wasm" / "compiler",
+            src / "platforms" / "wasm",
+            dst / "platforms" / "wasm",
             _FILTER_JS_ASSETS,
-            dryrun,
+            dryrun=dryrun,
         )
         or changed
     )
-    src_examples = src.parent / "examples"
-    dst_examples = dst.parent / "examples"
-    if src_examples.exists():
-        changed = (
-            _sync_subdir(src_examples, dst_examples, _FILTER_EXAMPLES, dryrun)
-            or changed
-        )
+    changed = _sync_subdir(
+        src / "platforms" / "wasm",
+        dst / "platforms" / "wasm",
+        _FILTER_INCLUDE_ALL,
+        dryrun=dryrun,
+    )
+
+    changed = _sync_subdir(
+        src / "platforms" / "stub",
+        dst / "platforms" / "stub",
+        _FILTER_INCLUDE_ALL,
+        dryrun=dryrun,
+    )
+    changed = _sync_subdir(
+        src / "platforms",
+        dst / "platforms",
+        _FILTER_INCLUDE_ONLY_ROOT_FILES,
+        dryrun=dryrun,
+    )
     return changed
 
 
-def sync_fastled(src: Path, dst: Path, dryrun: bool = False) -> bool:
+def sync_fastled(
+    src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
+) -> bool:
     """Sync the source directory to the destination directory."""
+    # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
     logger.info(f"Syncing {src} to {dst}")
     if not dst.exists():
         logger.info(f"Creating destination directory {dst}")
         dst.mkdir(parents=True, exist_ok=True)
-    _sync(src, dst, dryrun=dryrun)
-    return True
+    changed = _sync_fastled_src(src, dst, dryrun=dryrun)
+
+    if sync_examples:
+        src_examples = src.parent / "examples"
+        dst_examples = dst.parent / "examples"
+        if src_examples.exists():
+            changed = (
+                _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
+                or changed
+            )
+        else:
+            src_examples = src / "examples"
+            dst_examples = dst / "examples"
+            if src_examples.exists():
+                changed = (
+                    # _sync_fastled_examples(examples, dst / "examples", dryrun=dryrun)
+                    _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
+                    or changed
+                )
+            else:
+                # examples_blink = src / "Blink"
+                src_examples_blink = src / "Blink"
+                dst_examples_blink = dst / "Blink"
+                if src_examples_blink.exists():
+                    changed = (
+                        # _sync_fastled_examples(
+                        #     examples_blink, dst / "examples", dryrun=dryrun
+                        # )
+                        _sync_fastled_examples(
+                            src_examples_blink, dst_examples_blink, dryrun=dryrun
+                        )
+                        or changed
+                    )
+
+    return changed
