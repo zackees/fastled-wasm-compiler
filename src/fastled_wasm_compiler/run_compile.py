@@ -101,6 +101,7 @@ def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
         )
     return build_dir
 
+
 def run_compile(args: Args) -> int:
     assets_dir = args.assets_dirs
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."

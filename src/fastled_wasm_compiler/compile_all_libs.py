@@ -6,6 +6,8 @@
 import argparse
 import subprocess
 import sys
+import time
+from collections import OrderedDict
 from dataclasses import dataclass
 
 
@@ -49,9 +51,12 @@ class Args:
 
 
 def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -> int:
+    start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
+    build_times: dict[str, float] = OrderedDict()
 
     for build_mode in build_modes:
+        build_start_time = time.time()
         print(f"Building {build_mode} in {out}/{build_mode}...")
         build_out = f"{out}/{build_mode}"
         cmd = _get_cmd(src=src, build=build_mode, build_dir=build_out)
@@ -75,7 +80,14 @@ def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -
         if proc.returncode != 0:
             print(f"Process {proc.pid} failed with return code {proc.returncode}")
             return proc.returncode
+        diff = time.time() - build_start_time
+        build_times[build_mode] = diff
     print("All processes finished successfully.")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Total time taken: {elapsed_time:.2f} seconds")
+    for mode, duration in build_times.items():
+        print(f"  {mode} build time: {duration:.2f} seconds")
     return 0
 
 

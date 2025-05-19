@@ -1,5 +1,6 @@
 import fnmatch
 import logging
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
@@ -177,6 +178,7 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
     """Return true when source files changed. At this point we always turn true
     TODO: Check if the file is newer than the destination file
     """
+    start_time = time.time()
     logger.info(f"Syncing directories from {src} to {dst}")
     assert src.is_dir(), f"Source {src} is not a directory"
     # assert dst.is_dir(), f"Destination {dst} is not a directory"
@@ -271,6 +273,8 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
         raise Exception(f"Errors deleting files: {exceptions}")
 
     logger.info(f"Syncing directories from {src} to {dst} complete")
+    diff_time = time.time() - start_time
+    print(f"Syncing took {diff_time:.2f} seconds")
     return True
 
 
