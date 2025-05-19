@@ -8,6 +8,8 @@ from pathlib import Path
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
+_LOGGING_ENABLED = False
+
 # Create formatter with filename and line number
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
@@ -16,6 +18,12 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+# Set logger level based on _LOGGING_ENABLED flag
+if not _LOGGING_ENABLED:
+    logger.setLevel(logging.CRITICAL)  # Effectively disables most logging
+else:
+    logger.setLevel(logging.INFO)
 
 
 class FilterType(Enum):
