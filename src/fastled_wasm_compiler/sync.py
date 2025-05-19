@@ -209,18 +209,18 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
 
     # Now do removal
     futures.clear()
-    # with ThreadPoolExecutor(max_workers=32) as executor:
-    #     for file in files_to_delete_on_dst:
+    with ThreadPoolExecutor(max_workers=32) as executor:
+        for file in files_to_delete_on_dst:
+            file_dst = dst / file
 
-    #         def task_remove_missing_from_dst(file=file) -> bool:
-    #             if not dryrun:
-    #                 file_dst = dst / file
-    #                 assert file_dst.is_file(), f"File {file_dst} does not exist"
-    #                 file_dst.unlink()
-    #             return True
+            def task_remove_missing_from_dst(file_dst=file_dst) -> bool:
+                if not dryrun:
+                    assert file_dst.is_file(), f"File {file_dst} does not exist"
+                    file_dst.unlink()
+                return True
 
-    #         future = executor.submit(task_remove_missing_from_dst)
-    #         futures.append(future)
+            future = executor.submit(task_remove_missing_from_dst)
+            futures.append(future)
 
     files_changed = files_changed or len(files_to_delete_on_dst) > 0
 
@@ -264,8 +264,6 @@ def _sync(src: Path, dst: Path, dryrun: bool = False) -> bool:
 def sync_fastled(src: Path, dst: Path, dryrun: bool = False) -> bool:
     """Sync the source directory to the destination directory."""
     logger.info(f"Syncing {src} to {dst}")
-    # assert src.is_dir(), f"Source {src} is not a directory"
-    # assert dst.is_dir(), f"Destination {dst} is not a directory"
     if not dst.exists():
         logger.info(f"Creating destination directory {dst}")
         dst.mkdir(parents=True, exist_ok=True)
