@@ -25,7 +25,7 @@ class Compiler:
         self.rwlock = _RW_LOCK
 
     def compile(self, args: Args) -> int:
-        err = self.update_src(self.volume_mapped_src)
+        err = self.update_src(src_to_merge_from=self.volume_mapped_src)
         if err:
             warnings.warn(f"Error updating source: {err}")
 
@@ -40,7 +40,7 @@ class Compiler:
             return run_compiler_with_args(args)
 
     def update_src(
-        self, src_to_merge_from: Path | None = None
+        self, builds: list[str] | None = None, src_to_merge_from: Path | None = None
     ) -> list[Path] | Exception:
         """
         Update the source directory.
@@ -80,10 +80,14 @@ class Compiler:
             print("No files changed after rsync")
             return []
 
+        build_modes = ["debug", "quick", "release"]
+        if builds is not None:
+            build_modes = builds
+
         rtn = compile_all_libs(
             FASTLED_SRC.as_posix(),
             "/build",
-            build_modes=["debug", "quick", "release"],
+            build_modes=build_modes,
         )
         if rtn != 0:
             print(f"Error compiling all libs: {rtn}")
