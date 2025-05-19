@@ -71,8 +71,9 @@ class FilterList:
         """Check if a path passes the filter."""
         # assert path.is_file(), f"Path {path} is not a file"
         # firsts check that the file glob passes
-        if not any(path.match(g) for g in self.file_glob):
-            return False
+        if self.file_glob:
+            if not any(path.match(g) for g in self.file_glob):
+                return False
         # Next, march through the filter list
         if not self.filter_list:
             return True
@@ -94,29 +95,19 @@ class FilterList:
 
 _FILTER_SRC = FilterList(
     # Exclude "platforms/"
-    file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc", "CMakeLists.txt"],
+    file_glob=[],
     filter_list=[
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**"]),
     ],
 )
 
 _FILTER_INCLUDE_ALL = FilterList(
-    file_glob=[
-        "*.h",
-        "*.cpp",
-        "*.hpp",
-        "*.c",
-        "*.cc",
-        "*.js",
-        "*.html",
-        "*.css",
-        "*.json",
-    ],
+    file_glob=[],
     filter_list=[],
 )
 
 _FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
-    file_glob=["*.h", "*.cpp", "*.hpp", "*.c", "*.cc"],
+    file_glob=[],
     filter_list=[
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**/**"]),
         FilterOp(filter=FilterType.INCLUDE, glob=["**/platforms/*.*"]),
@@ -125,7 +116,7 @@ _FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
 
 
 _FILTER_EXAMPLES = FilterList(
-    file_glob=["*.*"],
+    file_glob=[],
     filter_list=[
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/fastled_js/**"]),
     ],
