@@ -30,6 +30,7 @@ def _get_cmd(src: str, build: str, build_dir: str) -> list[str]:
 class Args:
     src: str
     out: str
+    builds: list[str]
 
     @staticmethod
     def parse_args() -> "Args":
@@ -46,8 +47,14 @@ class Args:
             required=True,
             help="Output directory for build files",
         )
+        parser.add_argument(
+            "--builds",
+            type=str,
+            default="debug,quick,release",
+        )
         args = parser.parse_args()
-        return Args(src=args.src, out=args.out)
+        args.builds = args.builds.split(",")
+        return Args(src=args.src, out=args.out, builds=args.builds)
 
 
 def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -> int:
@@ -98,7 +105,7 @@ def main() -> int:
     out = args.out
     print(f"Compiling all libraries from {src} to {out}")
     # Compile all libraries
-    return_code = compile_all_libs(args.src, args.out)
+    return_code = compile_all_libs(args.src, args.out, args.builds)
     if return_code != 0:
         print(f"Compilation failed with return code {return_code}")
         return return_code
