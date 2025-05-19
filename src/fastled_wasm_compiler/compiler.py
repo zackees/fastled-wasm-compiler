@@ -56,7 +56,7 @@ class Compiler:
             return FileNotFoundError(f"FastLED.h not found in {src_to_merge_from}")
 
         files_will_change: list[Path] = sync_fastled(
-            src=src_to_merge_from, dst=Path("/git/fastled/src"), dryrun=True
+            src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
         )
 
         if not files_will_change:
@@ -71,12 +71,8 @@ class Compiler:
         # Perform the actual sync, this time behind the write lock
         with self.rwlock.write_lock():
             print("Performing code sync and rebuild")
-            # Perform the actual sync
-            # from fastled_wasm_compiler.sync import sync_fastled
-            # sync_fastled(src=src, dst=self.rsync_dest_root_src, dryrun=False)
-
             files_changed = sync_fastled(
-                src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
+                src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
             )
         if not files_changed:
             print("No files changed after rsync")
