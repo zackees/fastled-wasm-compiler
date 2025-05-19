@@ -189,24 +189,11 @@ def _sync_subdir(src: Path, dst: Path, filter_list: FilterList, dryrun: bool) ->
             file_dst = dst / file
             logger.info(f"Copying {file_src} to {file_dst}")
 
-            def _task_cpy(file_src=file_src, file_dst=file_dst) -> bool | Exception:
-                try:
-                    return _task_copy(file_src, file_dst, dryrun=dryrun)
-                except Exception as e:
-                    logger.error(f"Error copying file: {e}")
-                    return e
+            def _task_cpy(file_src=file_src, file_dst=file_dst) -> bool:
+                return _task_copy(file_src, file_dst, dryrun=dryrun)
 
-            if False:
-                print(executor)
-
-            # future = executor.submit(_task_cpy)
-            # futures.append(future)
-
-            result = _task_cpy()
-            if isinstance(result, Exception):
-                logger.error(f"Error copying file: {result}")
-                # raise result
-                raise result
+            future = executor.submit(_task_cpy)
+            futures.append(future)
 
     exceptions = []
 
