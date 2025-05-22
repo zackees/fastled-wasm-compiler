@@ -1,4 +1,5 @@
 import os
+import time
 import warnings
 from pathlib import Path
 
@@ -25,19 +26,31 @@ class Compiler:
         self.rwlock = _RW_LOCK
 
     def compile(self, args: Args) -> Exception | None:
-
         clear_cache = args.clear_ccache
-        with self.rwlock.write_lock():
-            err = self.update_src(src_to_merge_from=self.volume_mapped_src)
-            if isinstance(err, Exception):
-                warnings.warn(f"Error updating source: {err}")
-                return err
+        volume_is_mapped_in = self.volume_mapped_src.exists()
+        system_might_be_modified = clear_cache or volume_is_mapped_in
+        if system_might_be_modified:
+            with self.rwlock.write_lock():
+                if volume_is_mapped_in:
+                    print(
+                        f"Updating source directory from {self.volume_mapped_src} if necessary"
+                    )
+                    start = time.time()
+                    err = self.update_src(src_to_merge_from=self.volume_mapped_src)
+                    if isinstance(err, Exception):
+                        warnings.warn(f"Error updating source: {err}")
+                        return err
+                    if isinstance(err, list) and len(err) > 0:
+                        diff = time.time() - start
+                        print_banner(
+                            f"Recompile of static lib(s) source took {diff:.2f} seconds"
+                        )
 
-            if clear_cache:
-                # Clear the ccache
-                print("Clearing ccache...")
-                os.system("ccache -C")
-                args.clear_ccache = False
+                if clear_cache:
+                    # Clear the ccache
+                    print("Clearing ccache...")
+                    os.system("ccache -C")
+                    args.clear_ccache = False
 
         with self.rwlock.read_lock():
             rtn: int = run_compiler_with_args(args)

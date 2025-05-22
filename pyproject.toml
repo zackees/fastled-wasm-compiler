@@ -20,7 +20,7 @@ dependencies = [
 # Step one, bump this version up.
 # Submit
 # Then bump up the version in dockerfile and submit.
-version = "1.0.55"
+version = "1.0.56"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
