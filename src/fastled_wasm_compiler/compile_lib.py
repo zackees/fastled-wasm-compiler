@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from queue import Queue
@@ -122,6 +123,32 @@ class BuildMode(Enum):
             return cls.RELEASE
         else:
             raise ValueError(f"Unknown build mode: {mode_str}")
+
+
+@dataclass
+class Args:
+    src: Path
+    out: Path
+    build_mode: BuildMode = BuildMode.DEBUG
+
+    @staticmethod
+    def parse_args(cmd_list: list[str] | None = None) -> "Args":
+        args: argparse.Namespace = _parse_args(cmd_list)
+
+        # Determine build mode
+        if args.release:
+            build_mode = BuildMode.RELEASE
+        elif args.quick:
+            build_mode = BuildMode.QUICK
+        elif args.debug:
+            build_mode = BuildMode.DEBUG
+        else:
+            # Default to debug if no mode specified
+            raise ValueError(
+                "No build mode specified. Use --debug, --quick, or --release."
+            )
+
+        return Args(src=args.src, out=args.out, build_mode=build_mode)
 
 
 # _PRINT_LOCK = Lock()
@@ -364,7 +391,7 @@ def build_static_lib(
     return rtn
 
 
-def main() -> int:
+def _parse_args(cmd_list: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build static .a library from source files."
     )
@@ -391,24 +418,20 @@ def main() -> int:
     )
 
     # Parse arguments
-    args = parser.parse_args()
+    args = parser.parse_args(cmd_list)
+    return args
 
-    # Determine build mode
-    if args.release:
-        build_mode = BuildMode.RELEASE
-    elif args.quick:
-        build_mode = BuildMode.QUICK
-    else:
-        # Default to debug if no mode specified
-        build_mode = BuildMode.DEBUG
 
-    _locked_print(f"Building with mode: {build_mode.name}")
+def main() -> int:
+    args = Args.parse_args()
+
+    _locked_print(f"Building with mode: {args.build_mode.name}")
     _locked_print(f"Including directories: {_INCLUSION_DIRS}")
-    build_static_lib(args.src, args.out, build_mode)
+    rtn = build_static_lib(args.src, args.out, args.build_mode)
     _PRINT_QUEUE.put(None)  # Signal the print worker to exit
     # _PRINT_QUEUE.join()  # Wait for all queued prints to finish
     _THREADED_PRINT.join()  # Wait for the print worker to finish
-    return 0
+    return rtn
 
 
 if __name__ == "__main__":
