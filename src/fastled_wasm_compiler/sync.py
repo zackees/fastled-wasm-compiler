@@ -142,7 +142,8 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
         file_dst_bytes = dst.read_bytes()
         # normalize line endings to \n
         file_src_bytes = file_src_bytes.replace(b"\r\n", b"\n")
-        file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
+        # source code is already guaranteed to have normalized line endings.
+        # file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
         if file_src_bytes == file_dst_bytes:
             logger.info(f"File {dst} already exists and is no different")
             return None

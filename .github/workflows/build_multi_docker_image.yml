@@ -128,3 +128,8 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
       
+      - name: Docker image niteris/fastled-wasm-compiler is uploaded, push image at github.com/zackees/fastled-wasm
+        run: |
+          echo "docker image niteris/fastled-wasm-compiler is uploaded, push image at github.com/zackees/fastled-wasm"
+          echo "Please visit https://github.com/zackees/fastled-wasm/actions/workflows/build_multi_docker_image.yml"
+          echo "This will update the second docker layer with the contents of this docker image."

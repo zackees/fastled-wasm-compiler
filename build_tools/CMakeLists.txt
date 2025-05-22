@@ -54,8 +54,7 @@ if(BUILD_MODE STREQUAL "DEBUG")
     -fsanitize=address
     -fsanitize=undefined
     -gsource-map
-    -ffile-prefix-map=/git/fastled/src=FastLED/
-    -ffile-prefix-map=/emsdk/emscripten/cache/sysroot/include=stdlib/
+    -ffile-prefix-map=/=drawfsource/
 
   )
 elseif(BUILD_MODE STREQUAL "QUICK")
