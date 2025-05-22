@@ -123,8 +123,12 @@ RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 
 COPY ./build_tools /build_tools
 
+COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
+
+
 COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
 COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
+
 
 RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
 

@@ -1,4 +1,5 @@
 Dockerfile
+docker-compose.yml
 .git
 
 dist
@@ -11,3 +12,4 @@ __pycache__
 .github
 .venv
 venv
+run_interactive.sh
