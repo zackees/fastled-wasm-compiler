@@ -322,10 +322,10 @@ def build_static_lib(
     build_dir: Path,
     build_mode: BuildMode = BuildMode.QUICK,
     max_workers: int | None = None,
-) -> None:
+) -> int:
     if not src_dir.is_dir():
         _locked_print(f"Error: '{src_dir}' is not a directory.")
-        sys.exit(1)
+        return 1
 
     _clean_obj_files(build_dir)
 
@@ -349,7 +349,8 @@ def build_static_lib(
                 obj_files.append(future.result())
             except subprocess.CalledProcessError as e:
                 _locked_print(f"❌ Failed to compile {future_to_src[future]}: {e}")
-                raise
+                executor.shutdown(wait=False, cancel_futures=True)
+                return 1
 
     if lib_path.exists():
         lib_path.unlink()
@@ -357,12 +358,13 @@ def build_static_lib(
     cmd = [AR, "rcT", str(lib_path)] + [str(obj) for obj in obj_files]
     cmd_str = subprocess.list2cmdline(cmd)
     _locked_print(f"Archiving (thin): {cmd_str}")
-    subprocess.check_call(cmd)
+    rtn: int = subprocess.call(cmd)
 
     _locked_print(f"\n✅ Static library created: {lib_path}")
+    return rtn
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build static .a library from source files."
     )
@@ -406,3 +408,8 @@ if __name__ == "__main__":
     _PRINT_QUEUE.put(None)  # Signal the print worker to exit
     # _PRINT_QUEUE.join()  # Wait for all queued prints to finish
     _THREADED_PRINT.join()  # Wait for the print worker to finish
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
