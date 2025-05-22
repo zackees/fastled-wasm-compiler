@@ -17,12 +17,12 @@ for arg in "$@"; do
   esac
 done
 
-# If no mode given, default to all
+# Default to all modes
 if [ ${#MODES[@]} -eq 0 ]; then
   MODES=("DEBUG" "QUICK" "RELEASE")
 fi
 
-# Deduplicate modes (in case --all overrides others)
+# Deduplicate
 UNIQUE_MODES=()
 for mode in "${MODES[@]}"; do
   [[ " ${UNIQUE_MODES[*]} " == *" $mode "* ]] || UNIQUE_MODES+=("$mode")
@@ -31,14 +31,15 @@ done
 for MODE in "${UNIQUE_MODES[@]}"; do
   echo ">>> Building in mode: $MODE"
 
-  BUILD_DIR="build-${MODE,,}"  # lowercase dir e.g., build-debug
+  # Build directory in /build/<mode> (absolute)
+  BUILD_DIR="/build/${MODE,,}"
 
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"
 
   export BUILD_MODE="$MODE"
-  emcmake cmake .. -G Ninja
-  ninja
+  emcmake cmake /git/fastled-wasm -G Ninja
+  ninja -v
 
-  cd ..
+  cd -
 done
