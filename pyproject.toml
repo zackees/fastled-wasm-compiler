@@ -11,7 +11,7 @@ keywords = ["template-python-cmd"]
 license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "platformio==6.1.18",
+    "platformio==6.1.10",
     "fasteners==0.19",
     "httpx>=0.28.1",
 ]
@@ -20,7 +20,7 @@ dependencies = [
 # Step one, bump this version up.
 # Submit
 # Then bump up the version in dockerfile and submit.
-version = "1.0.56"
+version = "1.0.57"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

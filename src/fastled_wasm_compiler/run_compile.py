@@ -208,10 +208,19 @@ def run_compile(args: Args) -> int:
                 index_js_src=index_js_src,
                 assets_modules=assets_modules,
             )
-            # # remove the pio_build_dir
-            # if pio_build_dir.exists():
-            #     shutil.rmtree(pio_build_dir)
-        # cleanup(args, sketch_tmp)
+
+            # remove the pio_build_dir and sketch build directory.
+            if not args.keep_files:
+                print(
+                    banner(
+                        f"Cleaning up directories:\n  build ({pio_build_dir}) and\n  sketch ({sketch_tmp})"
+                    )
+                )
+                if pio_build_dir.exists() and not args.keep_files:
+                    shutil.rmtree(pio_build_dir, ignore_errors=True)
+                if sketch_tmp.exists():
+                    shutil.rmtree(sketch_tmp, ignore_errors=True)
+                    sketch_tmp.mkdir(parents=True, exist_ok=True)
 
         print(banner("Compilation process completed successfully"))
         return 0
