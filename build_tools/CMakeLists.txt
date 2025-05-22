@@ -54,7 +54,9 @@ if(BUILD_MODE STREQUAL "DEBUG")
     -fsanitize=address
     -fsanitize=undefined
     -gsource-map
-    -ffile-prefix-map=/=fastledsource/
+    -ffile-prefix-map=/git/fastled/src=FastLED/
+    -ffile-prefix-map=/emsdk/emscripten/cache/sysroot/include=stdlib/
+
   )
 elseif(BUILD_MODE STREQUAL "QUICK")
   list(APPEND SHARED_FLAGS
