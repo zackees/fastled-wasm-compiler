@@ -94,16 +94,25 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 
 
 
-# ARG FASTLED_VERSION=master
-# ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
+ARG FASTLED_VERSION=master
+ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
 
 
-# # Download latest, unzip move into position and clean up.
-# RUN wget -O /git/fastled.zip ${URL} && \
-#     unzip /git/fastled.zip -d /git && \
-#     mv /git/FastLED-master /git/fastled && \
-#     rm /git/fastled.zip
+# Download latest, unzip move into position and clean up.
+RUN wget -O /git/fastled.zip ${URL} && \
+    unzip /git/fastled.zip -d /git && \
+    mv /git/FastLED-master /git/fastled && \
+    rm /git/fastled.zip
     
+COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
+COPY ./build_tools/build_lib.sh /build/build_lib.sh
+
+RUN chmod +x /build/build_lib.sh && \
+    dos2unix /build/build_lib.sh
+
+
+# Run the build
+RUN /build/build_lib.sh
 
 
 RUN pip install uv==0.7.3
@@ -117,7 +126,7 @@ RUN pio settings set check_platformio_interval 9999
 RUN pio settings set enable_telemetry 0
 
 
-RUN uv run -m fastled_wasm_compiler.cli_update_from_master
+# RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 
 
 
@@ -125,15 +134,11 @@ COPY ./build_tools /build_tools
 
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
 
-
-COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
-COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
-
-
-RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
-
-
-RUN cp -r /git/fastled/examples/Blink /examples
+# DISABLE FOR NOW
+# COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
+# COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
+# RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
+# RUN cp -r /git/fastled/examples/Blink /examples
 
 
 ### Final environment for sketch compilation
@@ -141,15 +146,16 @@ COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
 COPY ./assets/platformio.ini /platformio/platformio.ini
 
 ### Pre-warm the cache
-RUN fastled-wasm-compiler-prewarm \
-  --sketch=/examples/Blink \
-  --assets-dir=/git/fastled/src/platforms/wasm/compiler \
-  --debug
+# DISABLED FOR NOW
+# RUN fastled-wasm-compiler-prewarm \
+#   --sketch=/examples/Blink \
+#   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+#   --debug
 
-RUN fastled-wasm-compiler-prewarm \
-  --sketch=/examples/Blink \
-  --assets-dir=/git/fastled/src/platforms/wasm/compiler \
-  --quick
+# RUN fastled-wasm-compiler-prewarm \
+#   --sketch=/examples/Blink \
+#   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+#   --quick
 
 ### Final entry point init.
 COPY ./entrypoint.sh /entrypoint.sh

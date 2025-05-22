@@ -32,7 +32,6 @@ set(SHARED_FLAGS
   -DFASTLED_USE_PROGMEM=0
   -DUSE_OFFSET_CONVERTER=0
   -fpermissive
-  -fno-inline
   -Wno-constant-logical-operand
   -Wnon-c-typedef-for-linkage
   -Werror=bad-function-cast
@@ -47,13 +46,22 @@ if(BUILD_MODE STREQUAL "DEBUG")
   list(APPEND SHARED_FLAGS
     -g3
     -Og
+    -fno-inline
+    -fno-strict-aliasing
+    -fno-inline-functions
+    -fno-unroll-loops
+    -fno-vectorize
     -fsanitize=address
     -fsanitize=undefined
+    -gsource-map
+    -ffile-prefix-map=/=fastledsource/
   )
 elseif(BUILD_MODE STREQUAL "QUICK")
   list(APPEND SHARED_FLAGS
     -O1
+    -fno-inline
     -fno-strict-aliasing
+    -fno-inline-functions
     -fno-unroll-loops
     -fno-vectorize
   )
@@ -66,11 +74,13 @@ endif()
 add_compile_options(${SHARED_FLAGS})
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${CXX_ONLY_FLAGS}>)
 
-# ——— 5) Output Directory ————————————————————————————————————————
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+# ——— 5) Output Directory (absolute) ——————————————————————————————
+string(TOLOWER "${BUILD_MODE}" BUILD_MODE_LOWER)
+set(ABS_BUILD_OUTPUT_DIR "/build/${BUILD_MODE_LOWER}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${ABS_BUILD_OUTPUT_DIR}" CACHE PATH "" FORCE)
+message(STATUS "Archive output directory: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 
 # ——— 6) Add FastLED Library ———————————————————————————————————————
 set(FASTLED_SOURCE_DIR "/git/fastled/src")
+message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
-
-# Done — run `ninja` to build lib/libfastled.a

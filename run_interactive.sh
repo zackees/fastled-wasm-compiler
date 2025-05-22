@@ -8,6 +8,7 @@ docker build \
   .
 
 docker run --rm -it \
+  -v "$(pwd)/build_tools/build_lib.sh:/build/build_lib.sh" \
   -v "$(pwd)/build_tools/CMakeLists.txt:/build/CMakeLists.txt" \
   -v "$(pwd)/build_tools/CMakeLists.txt:/git/fastled-wasm/CMakeLists.txt" \
   --entrypoint bash \
