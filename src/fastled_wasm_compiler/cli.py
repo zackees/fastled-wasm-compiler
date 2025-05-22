@@ -121,8 +121,11 @@ def main() -> int:
     compiler = Compiler(
         volume_mapped_src=cli_args.update_fastled_src,
     )
-    rtn = compiler.compile(compile_args)
-    return rtn
+    err = compiler.compile(compile_args)
+    if isinstance(err, int):
+        print(f"Compilation error: {err}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

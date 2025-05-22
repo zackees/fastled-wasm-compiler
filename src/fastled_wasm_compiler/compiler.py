@@ -24,20 +24,27 @@ class Compiler:
         )
         self.rwlock = _RW_LOCK
 
-    def compile(self, args: Args) -> int:
-        err = self.update_src(src_to_merge_from=self.volume_mapped_src)
-        if err:
-            warnings.warn(f"Error updating source: {err}")
+    def compile(self, args: Args) -> Exception | None:
 
         clear_cache = args.clear_ccache
-        if clear_cache:
-            with self.rwlock.write_lock():
+        with self.rwlock.write_lock():
+            err = self.update_src(src_to_merge_from=self.volume_mapped_src)
+            if isinstance(err, Exception):
+                warnings.warn(f"Error updating source: {err}")
+                return err
+
+            if clear_cache:
                 # Clear the ccache
                 print("Clearing ccache...")
                 os.system("ccache -C")
                 args.clear_ccache = False
+
         with self.rwlock.read_lock():
-            return run_compiler_with_args(args)
+            rtn: int = run_compiler_with_args(args)
+            if rtn != 0:
+                msg = f"Error: Compiler failed with code {rtn}"
+                print_banner(msg)
+                return Exception(msg)
 
     def update_src(
         self, builds: list[str] | None = None, src_to_merge_from: Path | None = None

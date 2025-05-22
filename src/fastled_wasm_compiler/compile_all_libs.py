@@ -11,16 +11,11 @@ from collections import OrderedDict
 from dataclasses import dataclass
 
 
-def _get_cmd(src: str, build: str, build_dir: str) -> list[str]:
+def _get_cmd(build: str) -> list[str]:
     """Get the command to run based on the build mode."""
     assert build in ["debug", "quick", "release"], f"Invalid build mode: {build}"
     cmd_list: list[str] = [
-        "python3",
-        "/misc/compile_lib.py",
-        "--src",
-        src,
-        "--out",
-        build_dir,
+        "/build/build_lib.py",
         f"--{build}",
     ]
     return cmd_list
@@ -57,47 +52,47 @@ class Args:
         return Args(src=args.src, out=args.out, builds=args.builds)
 
 
-def compile_all_libs_old(
-    src: str, out: str, build_modes: list[str] | None = None
-) -> int:
-    start_time = time.time()
-    build_modes = build_modes or ["debug", "quick", "release"]
-    build_times: dict[str, float] = OrderedDict()
+# def compile_all_libs_old(
+#     src: str, out: str, build_modes: list[str] | None = None
+# ) -> int:
+#     start_time = time.time()
+#     build_modes = build_modes or ["debug", "quick", "release"]
+#     build_times: dict[str, float] = OrderedDict()
 
-    for build_mode in build_modes:
-        build_start_time = time.time()
-        print(f"Building {build_mode} in {out}/{build_mode}...")
-        build_out = f"{out}/{build_mode}"
-        cmd = _get_cmd(src=src, build=build_mode, build_dir=build_out)
-        cmd_str = subprocess.list2cmdline(cmd)
-        print(f"Running command: {cmd_str}")
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        assert proc is not None, f"Failed to start process for {build_mode}"
-        # stream out stdout
-        assert proc.stdout is not None
-        line: bytes
-        for line in proc.stdout:
-            linestr = line.decode(errors="replace")
-            print(linestr, end="")
-        proc.stdout.close()
-        proc.wait()
-        print(f"Process {proc.pid} finished with return code {proc.returncode}")
-        if proc.returncode != 0:
-            print(f"Process {proc.pid} failed with return code {proc.returncode}")
-            return proc.returncode
-        diff = time.time() - build_start_time
-        build_times[build_mode] = diff
-    print("All processes finished successfully.")
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Total time taken: {elapsed_time:.2f} seconds")
-    for mode, duration in build_times.items():
-        print(f"  {mode} build time: {duration:.2f} seconds")
-    return 0
+#     for build_mode in build_modes:
+#         build_start_time = time.time()
+#         print(f"Building {build_mode} in {out}/{build_mode}...")
+#         build_out = f"{out}/{build_mode}"
+#         cmd = _get_cmd(src=src, build=build_mode, build_dir=build_out)
+#         cmd_str = subprocess.list2cmdline(cmd)
+#         print(f"Running command: {cmd_str}")
+#         proc = subprocess.Popen(
+#             cmd,
+#             stdout=subprocess.PIPE,
+#             stderr=subprocess.STDOUT,
+#         )
+#         assert proc is not None, f"Failed to start process for {build_mode}"
+#         # stream out stdout
+#         assert proc.stdout is not None
+#         line: bytes
+#         for line in proc.stdout:
+#             linestr = line.decode(errors="replace")
+#             print(linestr, end="")
+#         proc.stdout.close()
+#         proc.wait()
+#         print(f"Process {proc.pid} finished with return code {proc.returncode}")
+#         if proc.returncode != 0:
+#             print(f"Process {proc.pid} failed with return code {proc.returncode}")
+#             return proc.returncode
+#         diff = time.time() - build_start_time
+#         build_times[build_mode] = diff
+#     print("All processes finished successfully.")
+#     end_time = time.time()
+#     elapsed_time = end_time - start_time
+#     print(f"Total time taken: {elapsed_time:.2f} seconds")
+#     for mode, duration in build_times.items():
+#         print(f"  {mode} build time: {duration:.2f} seconds")
+#     return 0
 
 
 def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -> int:
@@ -108,12 +103,12 @@ def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -
     for build_mode in build_modes:
         build_start_time = time.time()
         print(f"Building {build_mode} in {out}/{build_mode}...")
-        build_out = f"{out}/{build_mode}"
-        cmd = _get_cmd(src=src, build=build_mode, build_dir=build_out)
+        cmd = _get_cmd(build=build_mode)
         cmd_str = subprocess.list2cmdline(cmd)
         print(f"Running command: {cmd_str}")
         proc = subprocess.Popen(
             cmd,
+            shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
