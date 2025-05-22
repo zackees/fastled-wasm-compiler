@@ -43,7 +43,7 @@ class SyncTester(unittest.TestCase):
             zip_ref.extractall(SYNC_DATA_SRC)
 
         first_dir = next(SYNC_DATA_SRC.iterdir())
-        assert first_dir.is_dir(), "Expected a directory"
+        assert first_dir.is_dir(), f"Expected {first_dir.absolute()} to be a directory"
         assert (first_dir / "src").exists(), "Expected FastLED-master directory"
         assert (first_dir / "src" / "FastLED.h").exists(), "Expected FastLED.h file"
 
