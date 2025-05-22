@@ -19,6 +19,14 @@ SYNC_DATA_DST = SYNC_DATA / "dst"
 URL = "https://github.com/FastLED/FastLED/archive/refs/heads/master.zip"
 
 
+def _get_first_directory(src: Path) -> Path:
+    """Get the first directory in the sync data source."""
+    for item in src.iterdir():
+        if item.is_dir():
+            return item
+    raise FileNotFoundError("No directories found in sync data source.")
+
+
 class SyncTester(unittest.TestCase):
     """Main tester class."""
 
@@ -42,7 +50,8 @@ class SyncTester(unittest.TestCase):
         with zipfile.ZipFile(SYNC_DATA_SRC / "master.zip", "r") as zip_ref:
             zip_ref.extractall(SYNC_DATA_SRC)
 
-        first_dir = next(SYNC_DATA_SRC.iterdir())
+        first_dir = _get_first_directory(SYNC_DATA_SRC)
+        print(f"first_dir: {first_dir}")
         assert first_dir.is_dir(), f"Expected {first_dir.absolute()} to be a directory"
         assert (first_dir / "src").exists(), "Expected FastLED-master directory"
         assert (first_dir / "src" / "FastLED.h").exists(), "Expected FastLED.h file"
