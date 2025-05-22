@@ -1,22 +1,35 @@
 import warnings
 from pathlib import Path
 
+from fastled_wasm_compiler.paths import (
+    FASTLED_SRC,
+)
+
 # Matches what the compiler has: sorted from most complex to least complex.
-FASTLED_SOURCE_PATH = "/git/fastled/src"
+FASTLED_SOURCE_PATH = FASTLED_SRC.as_posix()
 SKETCH_PATH = "/js/src"  # todo - this will change.
-STDLIB_PATH = "/emsdk/emscripten/cache/sysroot/include"
+FASTLED_HEADERS_PATH = FASTLED_SRC.as_posix()
+EMSDK_PATH = "/emsdk"
 
 
 # As defined in the fastled-wasm-compiler.
-FASTLED_PREFIX = "FastLED"
-SKETCH_PREFIX = "Sketch"
-STDLIB_PREFIX = "stdlib"
+FASTLED_PREFIX = "fastledsource"
+SKETCH_PREFIX = "sketchsource"
 
-PATH_MAP: dict[str, str] = {
-    "FastLED": FASTLED_SOURCE_PATH,
-    "Sketch": SKETCH_PATH,
-    "stdlib": STDLIB_PATH,
-}
+SOURCE_PATHS = [
+    FASTLED_SOURCE_PATH,
+    FASTLED_HEADERS_PATH,
+    SKETCH_PATH,
+    EMSDK_PATH,
+]
+
+# Sorted by longest first.
+SOURCE_PATHS_NO_LEADING_SLASH = [p.lstrip("/") for p in SOURCE_PATHS]
+
+PREFIXES = [
+    FASTLED_PREFIX,
+    SKETCH_PREFIX,
+]
 
 
 def dwarf_path_to_file_path(
@@ -37,6 +50,23 @@ def dwarf_path_to_file_path(
     return out
 
 
+def prune_paths(path: str) -> str | None:
+    p: Path = Path(path)
+    # pop off the leaf and store it in a buffer.
+    # When you hit one of the PREFIXES, then stop
+    # and return the path that was popped.
+    parts = p.parts
+    buffer = []
+    parts_reversed = parts[::-1]
+    for part in parts_reversed:
+        if part in PREFIXES:
+            break
+        buffer.append(part)
+    if not buffer:
+        return None
+    return "/".join(buffer[::-1])
+
+
 def _dwarf_path_to_file_path_inner(
     request_path: str,
 ) -> str | Exception:
@@ -46,11 +76,16 @@ def _dwarf_path_to_file_path_inner(
     ):  # we never have .. in the path so someone is trying weird stuff.
         warnings.warn(f"Invalid path: {request_path}")
         return Exception(f"Invalid path: {request_path}")
-    if request_path.startswith("/"):
-        # this is a security check.
-        request_path = request_path[1:]
-    first, rest = request_path.split("/", 1)
-    prefix: str | None = PATH_MAP.get(first)
-    if prefix is None:
-        return Exception(f"Invalid prefix: {first}")
-    return prefix + "/" + rest
+    request_path_pruned = prune_paths(request_path)
+    if request_path_pruned is None:
+        return Exception(f"Invalid path: {request_path}")
+    if request_path_pruned.startswith("headers"):
+        # Special case this one.
+        return request_path_pruned.replace("headers", FASTLED_SOURCE_PATH)
+    for i, source_path in enumerate(SOURCE_PATHS_NO_LEADING_SLASH):
+        if request_path_pruned.startswith(source_path):
+            suffix_path = request_path_pruned[len(source_path) :]
+            if suffix_path.startswith("/"):
+                suffix_path = "/" + suffix_path
+            return f"{SOURCE_PATHS[i]}{suffix_path}"
+    return Exception(f"Invalid path: {request_path}")
