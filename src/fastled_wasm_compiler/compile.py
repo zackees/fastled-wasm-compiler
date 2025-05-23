@@ -120,7 +120,6 @@ def compile(
     # Process and print each line as it comes in with relative timestamp
     line: str
     for line in process.stdout:
-        line = line.replace("/git/src/", "src/")
         timestamped_line = timestamper.timestamp_line(line)
         print(timestamped_line)
     process.wait()
