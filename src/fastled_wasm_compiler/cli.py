@@ -122,7 +122,7 @@ def main() -> int:
         volume_mapped_src=cli_args.update_fastled_src,
     )
     err = compiler.compile(compile_args)
-    if isinstance(err, int):
+    if isinstance(err, Exception):
         print(f"Compilation error: {err}")
         return 1
     return 0
