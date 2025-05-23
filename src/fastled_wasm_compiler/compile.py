@@ -9,50 +9,45 @@ from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
 
-_PIO_VERBOSE = True
-
-
-def _pio_compile_cmd_list(
-    build_mode: BuildMode | None, disable_auto_clean: bool, verbose: bool
-) -> list[str]:
-    cmd_list = ["pio", "run"]
-
-    if disable_auto_clean:
-        cmd_list.append("--disable-auto-clean")
-    if verbose:
-        cmd_list.append("-v")
-
-    # Map build mode to env name
-    env_map = {
-        BuildMode.DEBUG: "wasm-debug",
-        BuildMode.QUICK: "wasm-quick",
-        BuildMode.RELEASE: "wasm-release",
-    }
-
-    if build_mode:
-        env_name = env_map.get(build_mode)
-        if env_name:
-            cmd_list += ["-e", env_name]
-
-    return cmd_list
-
-
 # RUN python /misc/compile_sketch.py \
 #   --example /examples/Blink/Blink.cpp \
 #   --lib /build/debug/libfastled.a \
 #   --out /build_examples/blink
 
 
-def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
+def _new_compile_cmd_list(sketch_root: Path, build_mode: BuildMode) -> list[str]:
+
+    libpath: str = f"/build/{build_mode.value}/libfastled.a"
+    assert os.path.exists(libpath), f"libpath {libpath} does not exist"
+
+    # now sanity check on sketch_root. It must have a src directory where the sketch is
+    # located.
+    assert sketch_root.exists(), f"sketch_root {sketch_root} does not exist"
+    assert (
+        sketch_root / "src"
+    ).exists(), f"sketch_root {sketch_root}/src does not exist"
+    sketch_root = sketch_root / "src"
+
+    # example: /js/build/debug, /js/build/quick, /js/build/release
+    out: str = f"/js/build/{build_mode.value}"
+    if not os.path.exists(out):
+        os.makedirs(out, exist_ok=True)
+
+    import shutil
+
+    python = shutil.which("python")
+    assert python is not None, "Python not found in PATH"
+
     cmd_list = [
-        "python" "-m",
+        python,
+        "-m",
         "fastled_wasm_compiler.compile_sketch",
         "--example",
-        "/examples/Blink/Blink.cpp",
+        sketch_root,
         "--lib",
-        "/build/debug/libfastled.a",
+        libpath,
         "--out",
-        "/build_examples/blink",
+        out,
     ]
     return cmd_list
 
@@ -60,8 +55,7 @@ def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
 def compile(
     compiler_root: Path,
     build_mode: BuildMode,
-    auto_clean: bool,
-    no_platformio: bool,
+    auto_clean: bool,  # unused.
     profile_build: bool,
 ) -> int:
     import platform
@@ -102,11 +96,10 @@ def compile(
     else:
         warnings.warn("Linux platform not detected. Skipping file copy.")
     # copy platformio files here:
-    cmd_list: list[str]
-    if no_platformio:
-        cmd_list = _new_compile_cmd_list(compiler_root)
-    else:
-        cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
+    cmd_list: list[str] = _new_compile_cmd_list(
+        sketch_root=compiler_root, build_mode=build_mode
+    )
+
     print(f"Command: {subprocess.list2cmdline(cmd_list)}")
     print(f"Command cwd: {compiler_root.as_posix()}")
     process: subprocess.Popen = open_process(

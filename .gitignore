@@ -148,9 +148,9 @@ uv.lock
 
 **/fastled_js/
 **/comnpiler_root/src/
-**/compiler_root/.pio/build/**
-!**/compiler_root/.pio/build/readme
-**/compiler_root/.pio/libdeps/**
+**/compiler_root/build/**
+!**/compiler_root/build/readme
+**/compiler_root/libdeps/**
 tests/**/src/Arduino.h
 
 **/*.ino.cpp

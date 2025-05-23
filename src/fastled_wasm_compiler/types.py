@@ -6,6 +6,10 @@ class BuildMode(Enum):
     QUICK = "QUICK"
     RELEASE = "RELEASE"
 
+    @property
+    def value(self):
+        return self.name.lower()
+
     @classmethod
     def from_string(cls, mode_str: str) -> "BuildMode":
         try:

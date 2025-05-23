@@ -41,6 +41,9 @@ class Compiler:
                         warnings.warn(f"Error updating source: {err}")
                         return err
                     if isinstance(err, list) and len(err) > 0:
+                        clear_cache = (
+                            True  # Always clear cache when the source changes.
+                        )
                         diff = time.time() - start
                         print_banner(
                             f"Recompile of static lib(s) source took {diff:.2f} seconds"
