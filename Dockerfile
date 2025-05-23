@@ -138,6 +138,7 @@ RUN pio settings set enable_telemetry 0
 
 # RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 COPY ./build_tools /build_tools
+COPY ./build_tools/ccache-emcxx.sh /build_tools/ccache-emcxx.sh
 
 
 # DISABLE FOR NOW
@@ -172,6 +173,9 @@ RUN fastled-wasm-compiler-prewarm \
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN dos2unix /entrypoint.sh
+
+
+COPY ./build_tools_new/* /build_tools/
 
 ENTRYPOINT ["/entrypoint.sh"]
 

@@ -7,7 +7,8 @@ from fastled_wasm_compiler.paths import FASTLED_SRC
 
 FASTLED_SRC_STR = FASTLED_SRC.as_posix()
 
-CC = "em++"
+CC = "/build_tools/ccache-emcc.sh"
+CXX = "/build_tools/ccache-emcxx.sh"
 
 # Base flags from platformio.ini [env:wasm-base]
 BASE_CXX_FLAGS = [
@@ -50,7 +51,7 @@ QUICK_CXX_FLAGS = [
 ]
 
 # Default to debug flags
-CXX_FLAGS = BASE_CXX_FLAGS + DEBUG_CXX_FLAGS
+CXX_FLAGS = BASE_CXX_FLAGS
 
 # Base link flags from platformio.ini
 BASE_LINK_FLAGS = [
@@ -86,22 +87,28 @@ LINK_FLAGS = BASE_LINK_FLAGS + DEBUG_LINK_FLAGS + ["-o", "fastled.js"]
 
 
 def compile_cpp_to_obj(
-    src_file: Path, build_dir: Path, include_dirs: list[str]
+    src_file: Path,
+    build_mode: str,
 ) -> Path:
+    build_dir = Path("/js/build") / build_mode.lower()
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
 
-    include_flags = [f"-I{d}" for d in include_dirs]
-    cmd = [CC, "-o", str(obj_file), "-c", *CXX_FLAGS, *include_flags, str(src_file)]
-    print("Compiling:", " ".join(cmd))
+    flags = CXX_FLAGS
+    if build_mode.lower() == "debug":
+        flags += DEBUG_CXX_FLAGS
+    elif build_mode.lower() == "quick":
+        flags += QUICK_CXX_FLAGS
+    elif build_mode.lower() == "release":
+        flags += ["-Oz"]
+
+    cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
+    print("Compiling:", subprocess.list2cmdline(cmd))
     subprocess.check_call(cmd)
     return obj_file
 
 
-def compile_sketch(
-    sketch_dir: Path, lib_path: Path, output_dir: Path, build_mode: str = "debug"
-):
-    os.makedirs(output_dir, exist_ok=True)
+def compile_sketch(sketch_dir: Path, build_mode: str) -> None:
 
     # Set build flags based on mode
     global CXX_FLAGS, LINK_FLAGS
@@ -117,7 +124,7 @@ def compile_sketch(
 
     # Add separate dwarf file for debug mode
     if build_mode.lower() == "debug":
-        dwarf_file = output_dir / "fastled.wasm.dwarf"
+        dwarf_file = Path("/build/debug/fastled.wasm.dwarf")
         LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
 
     # Gather all .cpp and .ino files in sketch dir
@@ -125,13 +132,25 @@ def compile_sketch(
     if not sources:
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
+    # Now print out the entire build flags group:
+    print("CXX_FLAGS:", " ".join(CXX_FLAGS))
+    print("LINK_FLAGS:", " ".join(LINK_FLAGS))
+    print("Sources:", " ".join(str(s) for s in sources))
+    print("Sketch directory:", sketch_dir)
+
     # Compile all to object files
-    include_dirs = [sketch_dir, ".", FASTLED_SRC_STR]
-    obj_files = [compile_cpp_to_obj(f, output_dir, include_dirs) for f in sources]
+    # include_dirs = [sketch_dir, ".", FASTLED_SRC_STR]
+    # obj_files = [compile_cpp_to_obj(f, include_dirs) for f in sources]
+    obj_files: list[Path] = []
+    for src_file in sources:
+        obj_file = compile_cpp_to_obj(src_file, build_mode)
+        obj_files.append(obj_file)
+
+    output_dir = Path("/js/build") / build_mode.lower()
 
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
-    cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files), str(lib_path)]
+    cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files)]
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)
 
     print("Linking:", " ".join(cmd_link))
@@ -140,20 +159,17 @@ def compile_sketch(
     print(f"\n✅ Program built at: {output_js}")
 
 
-if __name__ == "__main__":
+def _main() -> int:
     parser = argparse.ArgumentParser(
         description="Compile a FastLED sketch into WASM using a static lib."
     )
     parser.add_argument(
-        "--example",
+        "--sketch",
         type=Path,
         required=True,
         help="Directory with example source files",
     )
-    parser.add_argument("--lib", type=Path, required=True, help="Path to libfastled.a")
-    parser.add_argument(
-        "--out", type=Path, required=True, help="Output directory for build artifacts"
-    )
+
     parser.add_argument(
         "--mode",
         type=str,
@@ -163,4 +179,15 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    compile_sketch(args.example, args.lib, args.out, args.mode)
+    try:
+        compile_sketch(args.sketch, args.mode)
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(_main())

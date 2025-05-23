@@ -42,12 +42,8 @@ def _new_compile_cmd_list(sketch_root: Path, build_mode: BuildMode) -> list[str]
         python,
         "-m",
         "fastled_wasm_compiler.compile_sketch",
-        "--example",
+        "--sketch",
         sketch_root,
-        "--lib",
-        libpath,
-        "--out",
-        out,
     ]
     return cmd_list
 
