@@ -47,7 +47,7 @@ Run `./test` to run the tests.
 7.39   -g3
 7.39   -O0
 7.39   -gsource-map
-7.39   -ffile-prefix-map=/=drawfsource/
+7.39   -ffile-prefix-map=/=dwarfsource/
 7.39   -fsanitize=address
 7.39   -fsanitize=undefined
 7.39   -fno-inline
@@ -59,7 +59,7 @@ Run `./test` to run the tests.
 7.39   -g3
 7.39   -O0
 7.39   -gsource-map
-7.39   -ffile-prefix-map=/=drawfsource/
+7.39   -ffile-prefix-map=/=dwarfsource/
 7.39   -fsanitize=address
 7.39   -fsanitize=undefined
 7.39   -fno-inline

@@ -54,7 +54,7 @@ if(BUILD_MODE STREQUAL "DEBUG")
     -fsanitize=address
     -fsanitize=undefined
     -gsource-map
-    -ffile-prefix-map=/=drawfsource/
+    -ffile-prefix-map=/=dwarfsource/
 
   )
 elseif(BUILD_MODE STREQUAL "QUICK")

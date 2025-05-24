@@ -55,7 +55,7 @@ class SourceFileResolver(unittest.TestCase):
         )
 
         self.check_path(
-            "/drawfsource/js/drawfsource/git/fastled/src/pixel_iterator.h",
+            "/dwarfsource/js/dwarfsource/git/fastled/src/pixel_iterator.h",
             f"/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
         )
 

@@ -98,11 +98,11 @@ debug_compile_flags = [
     "-g3",
     "-O0",
     "-gsource-map",
-    # Files are mapped to drawfsource when compiled, this allows us to use a
+    # Files are mapped to dwarfsource when compiled, this allows us to use a
     # relative rather than absolute path which for some reason means it's
     # a network request instead of a disk request.
     # This enables the use of step through debugging.
-    "-ffile-prefix-map=/=drawfsource/",
+    "-ffile-prefix-map=/=dwarfsource/",
     "-fsanitize=address",
     "-fsanitize=undefined",
     "-fno-inline",

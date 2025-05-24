@@ -15,7 +15,7 @@ EMSDK_PATH = "/emsdk"
 # As defined in the fastled-wasm-compiler.
 FASTLED_PREFIX = "fastledsource"
 SKETCH_PREFIX = "sketchsource"
-DWARF_PREFIX = "drawfsource"
+DWARF_PREFIX = "dwarfsource"
 
 SOURCE_PATHS = [
     FASTLED_SOURCE_PATH,
@@ -34,7 +34,7 @@ def dwarf_path_to_file_path(
     request_path: str,
     check_exists=True,
 ) -> Path | Exception:
-    """Resolve the path for drawfsource."""
+    """Resolve the path for dwarfsource."""
     path_or_error = _dwarf_path_to_file_path_inner(request_path)
     if isinstance(path_or_error, Exception):
         return path_or_error
@@ -70,7 +70,7 @@ def prune_paths(path: str) -> str | None:
 def _dwarf_path_to_file_path_inner(
     request_path: str,
 ) -> str | Exception:
-    """Resolve the path for drawfsource."""
+    """Resolve the path for dwarfsource."""
     if (
         ".." in request_path
     ):  # we never have .. in the path so someone is trying weird stuff.
