@@ -26,7 +26,7 @@ if not dwarf_logger.handlers:
 FASTLED_SRC_STR_RELATIVE = FASTLED_SRC.as_posix().lstrip("/")
 
 
-class SourceFileResolver(unittest.TestCase):
+class SourceFileResolverTester(unittest.TestCase):
     """Main tester class."""
 
     def test_prune_paths(self) -> None:
@@ -52,7 +52,7 @@ class SourceFileResolver(unittest.TestCase):
 
     def check_path(self, path: str, expected: str) -> None:
         """Check the path."""
-        out = dwarf_path_to_file_path(path)
+        out = dwarf_path_to_file_path(path, check_exists=False)
         self.assertIsInstance(
             out, Path, f"Expected Path, got {type(out)}, which is {out}"
         )
