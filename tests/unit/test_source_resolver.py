@@ -41,7 +41,9 @@ class SourceFileResolver(unittest.TestCase):
     def check_path(self, path: str, expected: str) -> None:
         """Check the path."""
         out = dwarf_path_to_file_path(path)
-        self.assertIsInstance(out, Path)
+        self.assertIsInstance(
+            out, Path, f"Expected Path, got {type(out)}, which is {out}"
+        )
         self.assertEqual(
             out,
             Path(expected),
