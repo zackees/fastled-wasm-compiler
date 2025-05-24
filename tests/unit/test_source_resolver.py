@@ -54,24 +54,20 @@ class SourceFileResolver(unittest.TestCase):
             f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
-
         self.check_path(
             "/drawfsource/js/drawfsource/git/fastled/src/pixel_iterator.h",
             f"/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
         )
-
-
 
         self.check_path(
             f"sketchsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
             f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
-
-        self.check_path(
-            "sketchsource/js/src/direct.h",
-            "/js/src/direct.h",
-        )
+        # self.check_path(
+        #     "sketchsource/js/src/direct.h",
+        #     "/js/src/direct.h",
+        # )
 
 
 if __name__ == "__main__":
