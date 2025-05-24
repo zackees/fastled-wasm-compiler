@@ -181,6 +181,11 @@ def run_compile(args: Args) -> int:
                     # Default to QUICK mode if neither debug nor release specified
                     build_mode = BuildMode.QUICK
 
+                print(
+                    banner(
+                        f"Starting compilation process with mode: {build_mode}\n  js_dir: {compiler_root}\n  profile_build: {args.profile}"
+                    )
+                )
                 process_compile(
                     js_dir=compiler_root,
                     build_mode=build_mode,
@@ -192,6 +197,7 @@ def run_compile(args: Args) -> int:
                 return 1
 
             build_dir = _get_build_dir(build_mode=build_mode)
+            print(banner("Using build directory: " + str(build_dir)))
 
             # Copy output files and create manifest
             copy_output_files_and_create_manifest(

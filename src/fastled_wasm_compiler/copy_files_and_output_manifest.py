@@ -64,6 +64,14 @@ def process_embedded_data_directory(
     return manifest
 
 
+def find_all_files_from_root_js() -> list[Path]:
+    """
+    Find all files in the root directory of the js folder.
+    """
+    root_dir = Path("/")
+    return list(root_dir.glob("**/*"))
+
+
 def copy_output_files_and_create_manifest(
     build_dir: Path,
     src_dir: Path,
@@ -89,11 +97,32 @@ def copy_output_files_and_create_manifest(
     out_dir: Path = src_dir / fastled_js_out
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    artifact_files = list(
+        build_dir.glob("fastled.*")
+    )  # Get all .wasm files in the build directory
+
     # Copy all fastled.* build artifacts
-    for file_path in build_dir.glob("fastled.*"):
+    for file_path in artifact_files:
         _dst = out_dir / file_path.name
         print(f"Copying {file_path} to {_dst}")
         shutil.copy2(file_path, _dst)
+
+    # must exist fastled.wasm file
+    must_exist = "fastled.wasm"
+    for file_path in artifact_files:
+        if file_path.name == must_exist:
+            break
+    else:
+
+        print(banner("ERROR! COULD NOT FIND fastled.wasm!!!"))
+        # print("Printing out all files")
+        # print("in the root directory /")
+        # for file_path in find_all_files_from_root_js():
+        #     print(f"  {file_path}")
+
+        raise FileNotFoundError(
+            f"fastled.wasm not found in {build_dir} after compilation"
+        )
 
     # Copy static files.
     print(f"Copying {index_html} to output directory")
