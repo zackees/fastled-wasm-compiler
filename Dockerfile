@@ -115,33 +115,27 @@ RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
     
+# BEGIN BUILDING STATIC libfastled.a
 # Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
 COPY ./build_tools/build_lib.sh /build/build_lib.sh
 
 RUN chmod +x /build/build_lib.sh && \
     dos2unix /build/build_lib.sh
-
-
 # Run the build
 RUN /build/build_lib.sh
-
-
+# libfastled.a {debug,release,quick} is now in /build
+# END BUILDING STATIC libfastled.a
 
 
 COPY . /tmp/fastled-wasm-compiler-install/
 # Use uv to install globally
 RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 
-# RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 COPY ./build_tools /build_tools
 COPY ./build_tools/ccache-emcxx.sh /build_tools/ccache-emcxx.sh
 
 
-# DISABLE FOR NOW
-# COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
-# COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
-# RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
 
 RUN cp -r /git/fastled/examples/Blink /examples
 
