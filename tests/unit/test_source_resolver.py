@@ -60,7 +60,7 @@ class SourceFileResolver(unittest.TestCase):
         )
 
         self.check_path(
-            f"sketchsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
+            f"dwarfsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
             f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
