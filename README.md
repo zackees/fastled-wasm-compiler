@@ -19,7 +19,6 @@ Run `./lint` to run the linter.
 
 Run `./test` to run the tests.
 
-
 # Notes:
 
 ### Compiler settings for debug
