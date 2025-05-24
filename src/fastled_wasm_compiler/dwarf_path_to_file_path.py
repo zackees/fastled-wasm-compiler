@@ -15,6 +15,7 @@ EMSDK_PATH = "/emsdk"
 # As defined in the fastled-wasm-compiler.
 FASTLED_PREFIX = "fastledsource"
 SKETCH_PREFIX = "sketchsource"
+DWARF_PREFIX = "drawfsource"
 
 SOURCE_PATHS = [
     FASTLED_SOURCE_PATH,
@@ -26,10 +27,7 @@ SOURCE_PATHS = [
 # Sorted by longest first.
 SOURCE_PATHS_NO_LEADING_SLASH = [p.lstrip("/") for p in SOURCE_PATHS]
 
-PREFIXES = [
-    FASTLED_PREFIX,
-    SKETCH_PREFIX,
-]
+PREFIXES = [FASTLED_PREFIX, SKETCH_PREFIX, DWARF_PREFIX]
 
 
 def dwarf_path_to_file_path(
@@ -51,6 +49,8 @@ def dwarf_path_to_file_path(
 
 
 def prune_paths(path: str) -> str | None:
+    if path.startswith("/"):
+        path = path[1:]
     p: Path = Path(path)
     # pop off the leaf and store it in a buffer.
     # When you hit one of the PREFIXES, then stop

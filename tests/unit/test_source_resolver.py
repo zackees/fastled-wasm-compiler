@@ -38,35 +38,39 @@ class SourceFileResolver(unittest.TestCase):
             "emsdk/upstream/lib/clang/21/include/__stddef_max_align_t.h",
         )
 
+    def check_path(self, path: str, expected: str) -> None:
+        """Check the path."""
+        out = dwarf_path_to_file_path(path)
+        self.assertIsInstance(out, Path)
+        self.assertEqual(
+            out,
+            Path(expected),
+        )
+
     def test_fastled_patterns(self) -> None:
         """Test command line interface (CLI)."""
-
-        out: Path | Exception = dwarf_path_to_file_path(
+        self.check_path(
             f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
-            check_exists=False,
-        )
-        self.assertIsInstance(out, Path)
-        self.assertEqual(
-            out,
-            Path(f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"),
+            f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
-        out = dwarf_path_to_file_path(
+
+        self.check_path(
+            "/drawfsource/js/drawfsource/git/fastled/src/pixel_iterator.h",
+            f"/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
+        )
+
+
+
+        self.check_path(
             f"sketchsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
-            check_exists=False,
+            f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
-        self.assertIsInstance(out, Path)
-        self.assertEqual(
-            out,
-            Path(f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"),
-        )
-        out = dwarf_path_to_file_path(
-            "sketchsource/js/src/direct.h", check_exists=False
-        )
-        self.assertIsInstance(out, Path)
-        self.assertEqual(
-            out,
-            Path("/js/src/direct.h"),
+
+
+        self.check_path(
+            "sketchsource/js/src/direct.h",
+            "/js/src/direct.h",
         )
 
 
