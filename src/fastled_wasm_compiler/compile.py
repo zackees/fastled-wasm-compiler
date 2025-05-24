@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import warnings
 from pathlib import Path
 
 from fastled_wasm_compiler.open_process import open_process
@@ -33,8 +32,6 @@ def _new_compile_cmd_list(sketch_root: Path, build_mode: BuildMode) -> list[str]
     if not os.path.exists(out):
         os.makedirs(out, exist_ok=True)
 
-    import shutil
-
     python = shutil.which("python")
     assert python is not None, "Python not found in PATH"
 
@@ -54,7 +51,6 @@ def compile(
     auto_clean: bool,  # unused.
     profile_build: bool,
 ) -> int:
-    import platform
 
     print("Starting compilation process...")
     env = os.environ.copy()
@@ -71,26 +67,7 @@ def compile(
                 "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
             )
         )
-    is_linux = platform.system() == "Linux"
-    if is_linux:
-        if not (compiler_root / "platformio.ini").exists():
-            dst = compiler_root / "platformio.ini"
-            print(
-                f"No platformio.ini found, copying /platformio/platformio.ini to {dst}"
-            )
-            shutil.copy2("/platformio/platformio.ini", dst)
 
-        if not (compiler_root / "wasm_compiler_flags.py").exists():
-            dst_file = compiler_root / "wasm_compiler_flags.py"
-            print(
-                f"No wasm_compiler_flags.py found, copying '/platformio/wasm_compiler_flags.py' to {dst_file}"
-            )
-            shutil.copy2(
-                "/platformio/wasm_compiler_flags.py",
-                dst_file,
-            )
-    else:
-        warnings.warn("Linux platform not detected. Skipping file copy.")
     # copy platformio files here:
     cmd_list: list[str] = _new_compile_cmd_list(
         sketch_root=compiler_root, build_mode=build_mode
