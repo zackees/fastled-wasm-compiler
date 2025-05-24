@@ -86,6 +86,6 @@ def _dwarf_path_to_file_path_inner(
         if request_path_pruned.startswith(source_path):
             suffix_path = request_path_pruned[len(source_path) :]
             if suffix_path.startswith("/"):
-                suffix_path = "/" + suffix_path
-            return f"{SOURCE_PATHS[i]}{suffix_path}"
+                suffix_path = suffix_path[1:]
+            return f"{SOURCE_PATHS[i]}/{suffix_path}"
     return Exception(f"Invalid path: {request_path}")
