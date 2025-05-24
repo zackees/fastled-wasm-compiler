@@ -131,11 +131,6 @@ COPY . /tmp/fastled-wasm-compiler-install/
 # Use uv to install globally
 RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 
-# Effectively disable platformio telemetry and auto-updates.
-RUN pio settings set check_platformio_interval 9999
-RUN pio settings set enable_telemetry 0
-
-
 # RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 COPY ./build_tools /build_tools
 COPY ./build_tools/ccache-emcxx.sh /build_tools/ccache-emcxx.sh
@@ -149,7 +144,7 @@ COPY ./build_tools/ccache-emcxx.sh /build_tools/ccache-emcxx.sh
 RUN cp -r /git/fastled/examples/Blink /examples
 
 
-### Final environment for sketch compilation
+# ### Final environment for sketch compilation
 COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
 COPY ./assets/platformio.ini /platformio/platformio.ini
 
