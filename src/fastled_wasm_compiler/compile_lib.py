@@ -79,7 +79,9 @@ def _locked_print(s: str) -> None:
 
 def build_static_lib(
     src_dir: Path,
+    build_dir: Path,
     build_mode: BuildMode = BuildMode.QUICK,
+    max_workers: int | None = None,
 ) -> int:
     if not src_dir.is_dir():
         _locked_print(f"Error: '{src_dir}' is not a directory.")
@@ -106,10 +108,7 @@ def _parse_args(cmd_list: list[str] | None = None) -> argparse.Namespace:
         help="Source directory containing .cpp/.ino files",
     )
     parser.add_argument(
-        "--out",
-        type=Path,
-        required=False,
-        help="(Deprecated/Ignored)Output directory for .o and .a files",
+        "--out", type=Path, required=True, help="Output directory for .o and .a files"
     )
 
     # Build mode arguments (mutually exclusive)
@@ -133,7 +132,7 @@ def main() -> int:
     args = Args.parse_args()
 
     _locked_print(f"Building with mode: {args.build_mode.name}")
-    rtn = build_static_lib(args.src, args.build_mode)
+    rtn = build_static_lib(args.src, args.out, args.build_mode)
     _PRINT_QUEUE.put(None)  # Signal the print worker to exit
     # _PRINT_QUEUE.join()  # Wait for all queued prints to finish
     _THREADED_PRINT.join()  # Wait for the print worker to finish

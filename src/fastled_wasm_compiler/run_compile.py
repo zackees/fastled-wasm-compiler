@@ -65,6 +65,7 @@ def process_compile(
     js_dir: Path,
     build_mode: BuildMode,
     auto_clean: bool,
+    no_platformio: bool,
     profile_build: bool,
 ) -> None:
     print("Starting compilation...")
@@ -72,6 +73,7 @@ def process_compile(
         compiler_root=js_dir,
         build_mode=build_mode,
         auto_clean=auto_clean,
+        no_platformio=no_platformio,
         profile_build=profile_build,
     )
     print(f"Compilation return code: {rtn}")
@@ -81,33 +83,29 @@ def process_compile(
     print(banner("Compilation successful."))
 
 
-def _get_build_dir(build_mode: BuildMode) -> Path:
+def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
     # DEBUG - THIS HAS BEEN HACKED TO WORK WITH NON PIO BUILDS. PLEASE UPDATE.
-    build_dir: Path
     if build_mode == BuildMode.DEBUG:
-        build_dir = Path("/js/build/debug")
+        build_dir = pio_dir / "wasm-debug"
     elif build_mode == BuildMode.RELEASE:
-        build_dir = Path("/js/build/release")
+        build_dir = pio_dir / "wasm-release"
     else:
-        build_dir = Path("/js/build/quick")
+        build_dir = pio_dir / "wasm-quick"
     if not build_dir.exists():
         raise RuntimeError(
             f"Expected build directory {build_dir} to exist, but it does not."
         )
-    # sub_dirs = [d for d in build_dir.iterdir() if d.is_dir()]
-    # if len(sub_dirs) != 1:
-    #     raise RuntimeError(
-    #         f"Expected exactly one subdirectory in {build_dir}, found {len(sub_dirs)}: {sub_dirs}"
-    #     )
+    sub_dirs = [d for d in build_dir.iterdir() if d.is_dir()]
+    if len(sub_dirs) != 1:
+        raise RuntimeError(
+            f"Expected exactly one subdirectory in {build_dir}, found {len(sub_dirs)}: {sub_dirs}"
+        )
     return build_dir
 
 
 def run_compile(args: Args) -> int:
     assets_dir = args.assets_dirs
 
-    if args.no_platformio:
-        warnings.warn("Ignoring --no-platformio flag, as it is always enabled.")
-        args.no_platformio = True
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
 
     index_html = assets_dir / "index.html"
@@ -117,6 +115,7 @@ def run_compile(args: Args) -> int:
     compiler_root = args.compiler_root
 
     sketch_tmp = compiler_root / "src"
+    pio_build_dir = compiler_root / ".pio/build"
     assets_modules = assets_dir / "modules"
 
     # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
@@ -170,6 +169,7 @@ def run_compile(args: Args) -> int:
                 print("Transform to cpp and insert header operations completed.")
                 return 0
 
+        no_platformio: bool = args.no_platformio
         if do_compile:
             try:
                 # Determine build mode from args
@@ -190,14 +190,19 @@ def run_compile(args: Args) -> int:
                     js_dir=compiler_root,
                     build_mode=build_mode,
                     auto_clean=not args.disable_auto_clean,
+                    no_platformio=no_platformio,
                     profile_build=args.profile,
                 )
             except Exception as e:
                 print(f"Error: {str(e)}")
                 return 1
 
-            build_dir = _get_build_dir(build_mode=build_mode)
-            print(banner("Using build directory: " + str(build_dir)))
+            if no_platformio:
+                build_dir = compiler_root / "build"
+            else:
+                build_dir = _get_build_dir_platformio(
+                    build_mode=build_mode, pio_dir=pio_build_dir
+                )
 
             # Copy output files and create manifest
             copy_output_files_and_create_manifest(
@@ -214,11 +219,11 @@ def run_compile(args: Args) -> int:
             if not args.keep_files:
                 print(
                     banner(
-                        f"Cleaning up directories:\n  build ({build_dir}) and\n  sketch ({sketch_tmp})"
+                        f"Cleaning up directories:\n  build ({pio_build_dir}) and\n  sketch ({sketch_tmp})"
                     )
                 )
-                if build_dir.exists() and not args.keep_files:
-                    shutil.rmtree(build_dir, ignore_errors=True)
+                if pio_build_dir.exists() and not args.keep_files:
+                    shutil.rmtree(pio_build_dir, ignore_errors=True)
                 if sketch_tmp.exists():
                     shutil.rmtree(sketch_tmp, ignore_errors=True)
                     sketch_tmp.mkdir(parents=True, exist_ok=True)

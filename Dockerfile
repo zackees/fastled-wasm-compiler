@@ -107,7 +107,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 #     mv /git/FastLED-master /git/fastled && \
 #     rm /git/fastled.zip
 
-RUN echo "update build"
+RUN echo "update build 5"
 
 # Prune platforms we don't use and normalize line endings.
 COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
@@ -124,7 +124,7 @@ RUN chmod +x /build/build_lib.sh && \
     dos2unix /build/build_lib.sh
 # Run the build
 RUN /build/build_lib.sh
-# libfastled.a {debug,release,quick} is now in /build
+
 # END BUILDING STATIC libfastled.a
 
 
@@ -132,15 +132,23 @@ COPY . /tmp/fastled-wasm-compiler-install/
 # Use uv to install globally
 RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 
+# Effectively disable platformio telemetry and auto-updates.
+RUN pio settings set check_platformio_interval 9999
+RUN pio settings set enable_telemetry 0
+# RUN uv run -m fastled_wasm_compiler.cli_update_from_master
 COPY ./build_tools /build_tools
 COPY ./build_tools/ccache-emcxx.sh /build_tools/ccache-emcxx.sh
 
 
+# DISABLE FOR NOW
+# COPY ./src/fastled_wasm_compiler/compile_lib.py /misc/compile_lib.py
+# COPY ./src/fastled_wasm_compiler/compile_all_libs.py /misc/compile_all_libs.py
+# RUN python3 /misc/compile_all_libs.py --src /git/fastled/src --out /build
 
 RUN cp -r /git/fastled/examples/Blink /examples
 
 
-# ### Final environment for sketch compilation
+### Final environment for sketch compilation
 COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
 COPY ./assets/platformio.ini /platformio/platformio.ini
 

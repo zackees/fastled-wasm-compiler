@@ -151,6 +151,9 @@ uv.lock
 **/compiler_root/build/**
 !**/compiler_root/build/readme
 **/compiler_root/libdeps/**
+**/compiler_root/.pio/build/**
+!**/compiler_root/.pio/build/readme
+**/compiler_root/.pio/libdeps/**
 tests/**/src/Arduino.h
 
 **/*.ino.cpp

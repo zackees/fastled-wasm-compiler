@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 
 from fastled_wasm_compiler.open_process import open_process
@@ -8,39 +9,50 @@ from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
 
+_PIO_VERBOSE = True
+
+
+def _pio_compile_cmd_list(
+    build_mode: BuildMode | None, disable_auto_clean: bool, verbose: bool
+) -> list[str]:
+    cmd_list = ["pio", "run"]
+
+    if disable_auto_clean:
+        cmd_list.append("--disable-auto-clean")
+    if verbose:
+        cmd_list.append("-v")
+
+    # Map build mode to env name
+    env_map = {
+        BuildMode.DEBUG: "wasm-debug",
+        BuildMode.QUICK: "wasm-quick",
+        BuildMode.RELEASE: "wasm-release",
+    }
+
+    if build_mode:
+        env_name = env_map.get(build_mode)
+        if env_name:
+            cmd_list += ["-e", env_name]
+
+    return cmd_list
+
+
 # RUN python /misc/compile_sketch.py \
 #   --example /examples/Blink/Blink.cpp \
 #   --lib /build/debug/libfastled.a \
 #   --out /build_examples/blink
 
 
-def _new_compile_cmd_list(sketch_root: Path, build_mode: BuildMode) -> list[str]:
-
-    libpath: str = f"/build/{build_mode.value}/libfastled.a"
-    assert os.path.exists(libpath), f"libpath {libpath} does not exist"
-
-    # now sanity check on sketch_root. It must have a src directory where the sketch is
-    # located.
-    assert sketch_root.exists(), f"sketch_root {sketch_root} does not exist"
-    assert (
-        sketch_root / "src"
-    ).exists(), f"sketch_root {sketch_root}/src does not exist"
-    sketch_root = sketch_root / "src"
-
-    # example: /js/build/debug, /js/build/quick, /js/build/release
-    out: str = f"/js/build/{build_mode.value}"
-    if not os.path.exists(out):
-        os.makedirs(out, exist_ok=True)
-
-    python = shutil.which("python")
-    assert python is not None, "Python not found in PATH"
-
+def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
     cmd_list = [
-        python,
-        "-m",
+        "python" "-m",
         "fastled_wasm_compiler.compile_sketch",
-        "--sketch",
-        sketch_root,
+        "--example",
+        "/examples/Blink/Blink.cpp",
+        "--lib",
+        "/build/debug/libfastled.a",
+        "--out",
+        "/build_examples/blink",
     ]
     return cmd_list
 
@@ -48,9 +60,11 @@ def _new_compile_cmd_list(sketch_root: Path, build_mode: BuildMode) -> list[str]
 def compile(
     compiler_root: Path,
     build_mode: BuildMode,
-    auto_clean: bool,  # unused.
+    auto_clean: bool,
+    no_platformio: bool,
     profile_build: bool,
 ) -> int:
+    import platform
 
     print("Starting compilation process...")
     env = os.environ.copy()
@@ -67,12 +81,32 @@ def compile(
                 "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
             )
         )
+    is_linux = platform.system() == "Linux"
+    if is_linux:
+        if not (compiler_root / "platformio.ini").exists():
+            dst = compiler_root / "platformio.ini"
+            print(
+                f"No platformio.ini found, copying /platformio/platformio.ini to {dst}"
+            )
+            shutil.copy2("/platformio/platformio.ini", dst)
 
+        if not (compiler_root / "wasm_compiler_flags.py").exists():
+            dst_file = compiler_root / "wasm_compiler_flags.py"
+            print(
+                f"No wasm_compiler_flags.py found, copying '/platformio/wasm_compiler_flags.py' to {dst_file}"
+            )
+            shutil.copy2(
+                "/platformio/wasm_compiler_flags.py",
+                dst_file,
+            )
+    else:
+        warnings.warn("Linux platform not detected. Skipping file copy.")
     # copy platformio files here:
-    cmd_list: list[str] = _new_compile_cmd_list(
-        sketch_root=compiler_root, build_mode=build_mode
-    )
-
+    cmd_list: list[str]
+    if no_platformio:
+        cmd_list = _new_compile_cmd_list(compiler_root)
+    else:
+        cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
     print(f"Command: {subprocess.list2cmdline(cmd_list)}")
     print(f"Command cwd: {compiler_root.as_posix()}")
     process: subprocess.Popen = open_process(
