@@ -15,7 +15,7 @@ def _get_cmd(build: str) -> list[str]:
     """Get the command to run based on the build mode."""
     assert build in ["debug", "quick", "release"], f"Invalid build mode: {build}"
     cmd_list: list[str] = [
-        "/build/build_lib.py",
+        "/build/build_lib.sh",
         f"--{build}",
     ]
     return cmd_list
