@@ -11,8 +11,8 @@ FROM emscripten/emsdk:${EMSDK_VERSION_TAG}${PLATFORM_TAG}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update the apt-get package list. This takes a long time, so we do it first to maximize cache hits.
-# Also install apt-fast first
-RUN apt-get update
+# Sometimes this fails so make sure we try a few times.
+RUN apt-get update || apt-get update || apt-get update
 
 
 # Install apt-fast to speed up apt-get installs
