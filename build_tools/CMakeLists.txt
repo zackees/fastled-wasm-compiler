@@ -45,7 +45,7 @@ set(CXX_ONLY_FLAGS
 if(BUILD_MODE STREQUAL "DEBUG")
   list(APPEND SHARED_FLAGS
     -g3
-    -Og
+    -O0
     -fno-inline
     -fno-strict-aliasing
     -fno-inline-functions
