@@ -17,7 +17,7 @@ from tempfile import TemporaryDirectory
 from typing import List
 
 _SOURCE_EXTENSIONS = [".cpp", ".hpp", ".h", ".ino"]
-_HEADER_INCLUDE_PATTERN = re.compile(r'#include\s*["<](.*?)[">]')
+_HEADER_INCLUDE_PATTERN = re.compile(r'#include\s*(["<].*?[">])')
 
 
 @dataclass
@@ -149,6 +149,7 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
                     fout.write(line)
                     continue
                 header_name = _extract_header_include(line)
+                header_name = header_name.replace('"', '\\"')
                 # fout.write(f"// PRESERVED: {line}")
                 fout.write(
                     f'const char* preserved_include_{count} = "{header_name}";\n'
@@ -191,8 +192,16 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
             if not line.startswith("const char* preserved_include_"):
                 continue
             # Replace the preserved include with the actual include directive
-            header_name = line.split('"')[1]
-            lines[i] = f'#include "{header_name}"'
+            header_name = (
+                line.split("=", maxsplit=1)[1]
+                .replace('\\"', '"')
+                .replace(";", "")
+                .strip()
+            )
+            # remove leading and trailing quotes
+            header_name = header_name[1:-1]
+            line = f"#include {header_name}"
+            lines[i] = line
 
         # content = content.replace("// PRESERVED: #include", "#include")
         content = "\n".join(lines)
