@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.11]
-
+    
     steps:
     - uses: actions/checkout@v4
 
@@ -18,32 +18,6 @@ jobs:
 
     - name: Install UV
       run: pip install uv
-
-    - name: Install GCC
-      run: |
-        brew update
-        brew install gcc
-        # Homebrew path for both ARM (M1/M2) and Intel
-        HOMEBREW_PREFIX=$(brew --prefix)
-        echo "HOMEBREW_PREFIX is $HOMEBREW_PREFIX"
-        # Find the latest installed GCC version
-        GCC_PATH=$(ls -1 $HOMEBREW_PREFIX/bin/gcc-* | grep -E 'gcc-[0-9]+$' | sort | tail -1)
-        GCC_VERSION=$(echo $GCC_PATH | grep -o '[0-9]\+$')
-        echo "Found GCC version: $GCC_VERSION at $GCC_PATH"
-        mkdir -p $HOME/gcc-bin
-        ln -sf $HOMEBREW_PREFIX/bin/gcc-$GCC_VERSION $HOME/gcc-bin/gcc
-        ln -sf $HOMEBREW_PREFIX/bin/g++-$GCC_VERSION $HOME/gcc-bin/g++
-        echo "PATH=$HOME/gcc-bin:$PATH" >> $GITHUB_ENV
-        echo "CC=$HOME/gcc-bin/gcc" >> $GITHUB_ENV
-        echo "CXX=$HOME/gcc-bin/g++" >> $GITHUB_ENV
-        $HOME/gcc-bin/gcc --version
-
-    - name: Check compiler
-      run: |
-        which gcc
-        gcc --version
-        echo "CC=$CC"
-        echo "CXX=$CXX"
 
     - name: Install
       run: ./install
