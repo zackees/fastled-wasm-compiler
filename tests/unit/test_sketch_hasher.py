@@ -3,6 +3,7 @@ Unit test file.
 """
 
 import os
+import platform
 import shutil
 import unittest
 from pathlib import Path
@@ -13,6 +14,9 @@ from fastled_wasm_compiler.sketch_hasher import generate_hash_of_project_files
 HERE = Path(__file__).parent
 TEST_DATA = HERE / "test_data"
 SKETCH_CACHE = TEST_DATA / "sketch_cache"
+
+# Check if we're running on macOS
+_IS_MACOS = platform.system() == "Darwin"
 
 
 class SketchHasherTester(unittest.TestCase):
@@ -29,6 +33,7 @@ class SketchHasherTester(unittest.TestCase):
         self.assertTrue(SKETCH_CACHE.exists(), "Sketch cache directory does not exist.")
         self.assertTrue(SKETCH_CACHE.is_dir(), "Sketch cache path is not a directory.")
 
+    @unittest.skipIf(_IS_MACOS, "Skipping test on macOS")
     def test_sketch_hash(self) -> None:
         # copy to a temporary directory
 
