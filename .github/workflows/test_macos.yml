@@ -23,16 +23,20 @@ jobs:
       run: |
         brew update
         brew install gcc
-        echo "Creating gcc symlinks to use real GCC instead of Clang"
-        GCC_VERSION=$(ls -1 /usr/local/bin/gcc-* | grep -o '[0-9]*$' | sort -n | tail -1)
-        echo "Found GCC version: $GCC_VERSION"
+        # Homebrew path for both ARM (M1/M2) and Intel
+        HOMEBREW_PREFIX=$(brew --prefix)
+        echo "HOMEBREW_PREFIX is $HOMEBREW_PREFIX"
+        # Find the latest installed GCC version
+        GCC_PATH=$(ls -1 $HOMEBREW_PREFIX/bin/gcc-* | grep -E 'gcc-[0-9]+$' | sort | tail -1)
+        GCC_VERSION=$(echo $GCC_PATH | grep -o '[0-9]\+$')
+        echo "Found GCC version: $GCC_VERSION at $GCC_PATH"
         mkdir -p $HOME/gcc-bin
-        ln -sf /usr/local/bin/gcc-$GCC_VERSION $HOME/gcc-bin/gcc
-        ln -sf /usr/local/bin/g++-$GCC_VERSION $HOME/gcc-bin/g++
+        ln -sf $HOMEBREW_PREFIX/bin/gcc-$GCC_VERSION $HOME/gcc-bin/gcc
+        ln -sf $HOMEBREW_PREFIX/bin/g++-$GCC_VERSION $HOME/gcc-bin/g++
         echo "PATH=$HOME/gcc-bin:$PATH" >> $GITHUB_ENV
         echo "CC=$HOME/gcc-bin/gcc" >> $GITHUB_ENV
         echo "CXX=$HOME/gcc-bin/g++" >> $GITHUB_ENV
-        echo "Using GCC from: $HOME/gcc-bin/gcc"
+        $HOME/gcc-bin/gcc --version
 
     - name: Check compiler
       run: |
