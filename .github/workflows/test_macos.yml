@@ -30,12 +30,16 @@ jobs:
         ln -sf /usr/local/bin/gcc-$GCC_VERSION $HOME/gcc-bin/gcc
         ln -sf /usr/local/bin/g++-$GCC_VERSION $HOME/gcc-bin/g++
         echo "PATH=$HOME/gcc-bin:$PATH" >> $GITHUB_ENV
-        echo "Using GCC from: $(readlink -f $HOME/gcc-bin/gcc)"
+        echo "CC=$HOME/gcc-bin/gcc" >> $GITHUB_ENV
+        echo "CXX=$HOME/gcc-bin/g++" >> $GITHUB_ENV
+        echo "Using GCC from: $HOME/gcc-bin/gcc"
 
     - name: Check compiler
       run: |
         which gcc
         gcc --version
+        echo "CC=$CC"
+        echo "CXX=$CXX"
 
     - name: Install
       run: ./install
