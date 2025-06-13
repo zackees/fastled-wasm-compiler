@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.11]
-    
+
     steps:
     - uses: actions/checkout@v4
 
@@ -24,18 +24,17 @@ jobs:
         brew update
         brew install gcc
         echo "Creating gcc symlinks to use real GCC instead of Clang"
-        # Find the latest installed GCC version
         GCC_VERSION=$(ls -1 /usr/local/bin/gcc-* | grep -o '[0-9]*$' | sort -n | tail -1)
         echo "Found GCC version: $GCC_VERSION"
-        # Create a directory for our symlinks
         mkdir -p $HOME/gcc-bin
-        # Create symlinks to the real GCC
         ln -sf /usr/local/bin/gcc-$GCC_VERSION $HOME/gcc-bin/gcc
         ln -sf /usr/local/bin/g++-$GCC_VERSION $HOME/gcc-bin/g++
-        # Add our symlinks directory to the beginning of PATH
-        echo "$HOME/gcc-bin" >> $GITHUB_PATH
-        # Verify we're using the right GCC
-        echo "Will use GCC from path: $(which gcc)"
+        echo "PATH=$HOME/gcc-bin:$PATH" >> $GITHUB_ENV
+        echo "Using GCC from: $(readlink -f $HOME/gcc-bin/gcc)"
+
+    - name: Check compiler
+      run: |
+        which gcc
         gcc --version
 
     - name: Install
@@ -43,4 +42,3 @@ jobs:
 
     - name: Unit tests
       run: ./test
-
