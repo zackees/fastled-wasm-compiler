@@ -85,6 +85,19 @@ compile_flags = [
     "-I",
     "src",
     "-I/js/fastled/src/platforms/wasm/compiler",
+    # Add stricter compiler warnings.
+    "-Wall",
+    #"-Wextra",
+    "-Werror",
+    # "-Wconversion",
+    #"-Wsign-conversion",
+    #"-Wunused",
+    #"-Wuninitialized",
+    #"-Wdouble-promotion",
+    #"-Wformat=2",
+    #"-Wcast-align",
+    #"-Wcast-qual",
+    "-Werror=return-type"
 ]
 
 # Base link flags (LINKFLAGS)
@@ -226,3 +239,5 @@ for f in fastled_compile_link_flags:
 
 
 print_banner("End of Flags\nBegin compile/link using PlatformIO")
+
+
