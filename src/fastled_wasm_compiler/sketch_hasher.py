@@ -17,6 +17,7 @@ from tempfile import TemporaryDirectory
 from typing import List
 
 _SOURCE_EXTENSIONS = [".cpp", ".hpp", ".h", ".ino"]
+_HEADER_INCLUDE_PATTERN = re.compile(r'#include\s*["<](.*?)[">]')
 
 
 @dataclass
@@ -32,6 +33,10 @@ class SrcFileHashResult:
     hash: str
     stdout: str
     error: bool
+
+
+def _testing_verbose() -> bool:
+    return os.environ.get("TESTING_VERBOSE", "0") == "1"
 
 
 def hash_string(s: str) -> str:
@@ -82,11 +87,16 @@ def concatenate_files(file_list: List[Path], output_file: Path) -> None:
         output_file (str): Path to the output file.
     """
     with open(str(output_file), "w", encoding="utf-8") as outfile:
+        content: str = ""
         for file_path in file_list:
-            outfile.write(f"// File: {file_path}\n")
+            content += f"// File: {file_path}\n"
             with open(file_path, "r", encoding="utf-8") as infile:
-                outfile.write(infile.read())
-                outfile.write("\n\n")
+                content += infile.read()
+                content += "\n\n"
+        outfile.write(content)
+
+        if _testing_verbose():
+            print(f"Concatenated content:\n{content}")
 
 
 def collapse_spaces_preserve_cstrings(line: str):
@@ -107,6 +117,14 @@ def collapse_spaces_preserve_cstrings(line: str):
     return processed_line
 
 
+def _extract_header_include(line: str) -> str:
+    """Extract the header file name from an include directive."""
+    match = _HEADER_INCLUDE_PATTERN.match(line)
+    if match:
+        return match.group(1)
+    return ""
+
+
 # return a hash
 def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
     """Preprocess a file with GCC, leaving #include directives intact.
@@ -121,14 +139,21 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
     output_file = output_file.absolute()
     temp_input = str(input_file) + ".tmp"
 
+    count = 0
+
     try:
         # Create modified version of input that comments out includes
         with open(str(input_file), "r") as fin, open(str(temp_input), "w") as fout:
             for line in fin:
-                if line.strip().startswith("#include"):
-                    fout.write(f"// PRESERVED: {line}")
-                else:
+                if not line.strip().startswith("#include"):
                     fout.write(line)
+                    continue
+                header_name = _extract_header_include(line)
+                # fout.write(f"// PRESERVED: {line}")
+                fout.write(
+                    f'const char* preserved_include_{count} = "{header_name}";\n'
+                )
+                count += 1
 
         # Run GCC preprocessor with explicit output path in order to remove
         # comments. This is necessary to ensure that the hash
@@ -158,7 +183,19 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
         with open(output_file, "r") as f:
             content = f.read()
 
-        content = content.replace("// PRESERVED: #include", "#include")
+        if _testing_verbose():
+            print(f"Preprocessed content before minification:\n{content}")
+
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            if not line.startswith("const char* preserved_include_"):
+                continue
+            # Replace the preserved include with the actual include directive
+            header_name = line.split('"')[1]
+            lines[i] = f'#include "{header_name}"'
+
+        # content = content.replace("// PRESERVED: #include", "#include")
+        content = "\n".join(lines)
         out_lines: list[str] = []
         # now preform minification to further strip out horizontal whitespace and // File: comments.
         for line in content.split("\n"):
@@ -178,6 +215,9 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
         content = "\n".join(out_lines)
         with open(output_file, "w") as f:
             f.write(content)
+
+        if _testing_verbose():
+            print(f"Final preprocessed content:\n{content}")
 
         print(f"Preprocessed file saved to {output_file}")
 
@@ -213,6 +253,9 @@ def generate_hash_of_src_files(src_files: list[Path]) -> SrcFileHashResult:
             concatenate_files(src_files, Path(temp_file))
             preprocess_with_gcc(temp_file, preprocessed_file)
             contents = preprocessed_file.read_text()
+
+            if _testing_verbose():
+                print(f"Preprocessed contents:\n{contents}")
 
             # strip the last line in it:
             parts = contents.split("\n")

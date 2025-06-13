@@ -2,6 +2,7 @@
 Unit test file.
 """
 
+import os
 import shutil
 import unittest
 from pathlib import Path
@@ -17,12 +18,17 @@ SKETCH_CACHE = TEST_DATA / "sketch_cache"
 class SketchHasherTester(unittest.TestCase):
     """Main tester class."""
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up the test class."""
+        # Ensure the sketch cache directory exists
+        os.environ["TESTING_VERBOSE"] = "1"
+
     def test_sanity(self) -> None:
         """Test command line interface (CLI)."""
         self.assertTrue(SKETCH_CACHE.exists(), "Sketch cache directory does not exist.")
         self.assertTrue(SKETCH_CACHE.is_dir(), "Sketch cache path is not a directory.")
 
-    @unittest.skip("Skipping test_sketch_hash for now")
     def test_sketch_hash(self) -> None:
         # copy to a temporary directory
 
