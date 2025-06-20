@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 _LOGGING_ENABLED = False
 
+# In-memory cache for file modification times to optimize file comparison
+# Format: {(src_path, dst_path): (src_mtime, dst_mtime, files_are_equal)}
+_FILE_MTIME_CACHE: dict[tuple[str, str], tuple[float, float, bool]] = {}
+
 # Create formatter with filename and line number
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
@@ -123,6 +127,51 @@ _FILTER_EXAMPLES = FilterList(
 )
 
 
+def clear_file_mtime_cache() -> None:
+    """Clear the in-memory file modification time cache."""
+    global _FILE_MTIME_CACHE
+    _FILE_MTIME_CACHE.clear()
+    logger.info("Cleared file mtime cache")
+
+
+def _should_check_file_content(src: Path, dst: Path) -> bool:
+    """
+    Check if we should perform expensive file content comparison based on modification times.
+    Returns True if content check is needed, False if we can skip it.
+    """
+    cache_key = (str(src), str(dst))
+    
+    try:
+        src_mtime = src.stat().st_mtime
+        dst_mtime = dst.stat().st_mtime
+    except (OSError, FileNotFoundError):
+        # If we can't get mtime, we need to check content
+        return True
+    
+    if cache_key in _FILE_MTIME_CACHE:
+        cached_src_mtime, cached_dst_mtime, files_are_equal = _FILE_MTIME_CACHE[cache_key]
+        
+        # If mtimes haven't changed since last check, use cached result
+        if src_mtime == cached_src_mtime and dst_mtime == cached_dst_mtime:
+            logger.info(f"Using cached comparison result for {src} -> {dst}: {'equal' if files_are_equal else 'different'}")
+            return not files_are_equal  # Return True if we need to check content (files are different)
+    
+    # Mtimes changed or not in cache, we need to check content
+    return True
+
+
+def _update_file_mtime_cache(src: Path, dst: Path, files_are_equal: bool) -> None:
+    """Update the mtime cache with the result of file comparison."""
+    try:
+        src_mtime = src.stat().st_mtime
+        dst_mtime = dst.stat().st_mtime
+        cache_key = (str(src), str(dst))
+        _FILE_MTIME_CACHE[cache_key] = (src_mtime, dst_mtime, files_are_equal)
+        logger.info(f"Updated mtime cache for {src} -> {dst}: {'equal' if files_are_equal else 'different'}")
+    except (OSError, FileNotFoundError):
+        logger.warning(f"Could not update mtime cache for {src} -> {dst}: failed to get file stats")
+
+
 def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
     if not dst.exists():
         # logger.info(f"Copying new file {src} to {dst}")
@@ -137,17 +186,31 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
         return dst
     else:
         logger.info(f"File {dst} already exists")
-        # File already exists, but are the bytes the sames?
+        
+        # Check if we should perform expensive content comparison based on modification times
+        if not _should_check_file_content(src, dst):
+            # Files are known to be equal based on cached mtime comparison
+            logger.info(f"File {dst} already exists and is no different (from mtime cache)")
+            return None
+        
+        # File already exists, but are the bytes the same?
         file_src_bytes = src.read_bytes()
         file_dst_bytes = dst.read_bytes()
         # normalize line endings to \n
         file_src_bytes = file_src_bytes.replace(b"\r\n", b"\n")
         # source code is already guaranteed to have normalized line endings.
         # file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
-        if file_src_bytes == file_dst_bytes:
+        
+        files_are_equal = (file_src_bytes == file_dst_bytes)
+        
+        # Update the mtime cache with the comparison result
+        _update_file_mtime_cache(src, dst, files_are_equal)
+        
+        if files_are_equal:
             logger.info(f"File {dst} already exists and is no different")
             return None
-        # replace
+        
+        # Files are different - replace
         # overwrite the file
         logger.info(f"Overwriting {dst} with {src}")
         if not dryrun:
@@ -296,9 +359,13 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
 
 
 def sync_fastled(
-    src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
+    src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True, clear_mtime_cache: bool = False
 ) -> list[Path]:
     """Sync the source directory to the destination directory."""
+    
+    if clear_mtime_cache:
+        clear_file_mtime_cache()
+    
     start = time.time()
     # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
     logger.info(f"Syncing {src} to {dst}")
