@@ -106,6 +106,13 @@ _FILTER_INCLUDE_ALL = FilterList(
     filter_list=[],
 )
 
+_FILTER_INCLUDE_PLATFORMS_SHARED = FilterList(
+    file_glob=[],
+    filter_list=[
+        FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/shared/**"]),
+    ],
+)
+
 _FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
     file_glob=[],
     filter_list=[
@@ -275,6 +282,12 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
         _FILTER_INCLUDE_ALL,
         dryrun=dryrun,
     )
+    changed_platform_shared = _sync_subdir(
+        src / "platforms" / "shared",
+        dst / "platforms" / "shared",
+        _FILTER_INCLUDE_ALL,
+        dryrun=dryrun,
+    )
     changed_platform_root_files = _sync_subdir(
         src / "platforms",
         dst / "platforms",
@@ -283,6 +296,8 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     )
     if changed_src:
         print(f"Changed src files: {changed_src}")
+    if changed_platform_shared:
+        print(f"Changed platform shared files: {changed_platform_shared}")
     if changed_wasm:
         print(f"Changed wasm files: {changed_wasm}")
     if changed_stub:
@@ -290,7 +305,11 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
     if changed_platform_root_files:
         print(f"Changed platform root files: {changed_platform_root_files}")
     files_changed = (
-        changed_src + changed_wasm + changed_stub + changed_platform_root_files
+        changed_src
+        + changed_platform_shared
+        + changed_wasm
+        + changed_stub
+        + changed_platform_root_files
     )
     return files_changed
 
