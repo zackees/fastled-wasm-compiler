@@ -14,11 +14,11 @@ wget -O /git/fastled.zip ${URL} && \
     rm /git/fastled.zip
 
 
-# Now remove all files in /git/fastled/src/platforms that isn't wasm or stub
+# Now remove all files in /git/fastled/src/platforms that isn't wasm, stub or shared
 cd /git/fastled/src/platforms
 shopt -s extglob  # enable extended globing
 for d in */; do
-  if [[ ! "$d" == *wasm* && ! "$d" == *stub* ]]; then
+  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* ]]; then
     rm -rf "$d"
   fi
 done

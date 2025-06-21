@@ -107,7 +107,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 #     mv /git/FastLED-master /git/fastled && \
 #     rm /git/fastled.zip
 
-RUN echo "update build 5"
+RUN echo "update build 16"
 
 # Prune platforms we don't use and normalize line endings.
 COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
