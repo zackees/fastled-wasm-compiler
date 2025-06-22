@@ -1,6 +1,5 @@
 import os
 import time
-import warnings
 from pathlib import Path
 
 import fasteners
@@ -36,11 +35,16 @@ class Compiler:
                         f"Updating source directory from {self.volume_mapped_src} if necessary"
                     )
                     start = time.time()
-                    err = self.update_src(src_to_merge_from=self.volume_mapped_src)
-                    if isinstance(err, Exception):
-                        warnings.warn(f"Error updating source: {err}")
-                        return err
-                    if isinstance(err, list) and len(err) > 0:
+                    result = self.update_src(src_to_merge_from=self.volume_mapped_src)
+
+                    # Handle error case
+                    if isinstance(result, Exception):
+                        error_msg = f"Error updating source: {result}"
+                        print_banner(error_msg)
+                        return Exception(error_msg)
+
+                    # Handle success case with changed files
+                    if isinstance(result, list) and len(result) > 0:
                         clear_cache = (
                             True  # Always clear cache when the source changes.
                         )
@@ -48,6 +52,7 @@ class Compiler:
                         print_banner(
                             f"Recompile of static lib(s) source took {diff:.2f} seconds"
                         )
+                    # If no files changed (empty list), continue without clearing cache
 
                 if clear_cache:
                     # Clear the ccache
@@ -67,52 +72,85 @@ class Compiler:
     ) -> list[Path] | Exception:
         """
         Update the source directory.
+
+        Returns:
+            On success: List of changed files (may be empty if no changes)
+            On error: Exception with error details
         """
+        try:
+            src_to_merge_from = src_to_merge_from or self.volume_mapped_src
+            if not isinstance(src_to_merge_from, Path):
+                error_msg = (
+                    f"src_to_merge_from must be a Path, got {type(src_to_merge_from)}"
+                )
+                print_banner(f"Error: {error_msg}")
+                return ValueError(error_msg)
 
-        src_to_merge_from = src_to_merge_from or self.volume_mapped_src
-        assert isinstance(
-            src_to_merge_from, Path
-        ), f"src_to_merge_from must be a Path, got {type(src_to_merge_from)}"
-        if not src_to_merge_from.exists():
-            print("Skipping fastled src update: no source directory")
-            return []  # Nothing to do
+            if not src_to_merge_from.exists():
+                print("Skipping fastled src update: no source directory")
+                return []  # Nothing to do
 
-        if not (src_to_merge_from / "FastLED.h").exists():
-            return FileNotFoundError(f"FastLED.h not found in {src_to_merge_from}")
+            if not (src_to_merge_from / "FastLED.h").exists():
+                error_msg = f"FastLED.h not found in {src_to_merge_from}"
+                print_banner(f"Error: {error_msg}")
+                return FileNotFoundError(error_msg)
 
-        files_will_change: list[Path] = sync_fastled(
-            src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
-        )
-
-        if not files_will_change:
-            print("No files changed, skipping rsync")
-            return []
-
-        print_banner(f"There were {len(files_will_change)} files changed")
-
-        for file in files_will_change:
-            print(f"File changed: {file.as_posix()}")
-
-        # Perform the actual sync, this time behind the write lock
-        with self.rwlock.write_lock():
-            print("Performing code sync and rebuild")
-            files_changed = sync_fastled(
-                src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+            # First check what files will change
+            files_will_change: list[Path] = sync_fastled(
+                src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
             )
-        if not files_changed:
-            print("No files changed after rsync")
-            return []
 
-        build_modes = ["debug", "quick", "release"]
-        if builds is not None:
-            build_modes = builds
+            if not files_will_change:
+                print("No files changed, skipping rsync")
+                return []
 
-        rtn = compile_all_libs(
-            FASTLED_SRC.as_posix(),
-            "/build",
-            build_modes=build_modes,
-        )
-        if rtn != 0:
-            print(f"Error compiling all libs: {rtn}")
-            return Exception(f"Error compiling all libs: {rtn}")
-        return files_changed
+            print_banner(f"There were {len(files_will_change)} files changed")
+            for file in files_will_change:
+                print(f"File changed: {file.as_posix()}")
+
+            # Perform the actual sync, this time behind the write lock
+            with self.rwlock.write_lock():
+                print("Performing code sync and rebuild")
+                files_changed = sync_fastled(
+                    src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                )
+
+            if not files_changed:
+                print(
+                    "Warning: No files changed after rsync, but files were expected to change"
+                )
+                return []
+
+            # Determine build modes
+            build_modes = ["debug", "quick", "release"]
+            if builds is not None:
+                build_modes = builds
+
+            # Compile the libraries
+            print_banner("Compiling libraries with updated source...")
+            rtn = compile_all_libs(
+                FASTLED_SRC.as_posix(),
+                "/build",
+                build_modes=build_modes,
+            )
+
+            if rtn != 0:
+                error_msg = f"Failed to compile libraries with exit code: {rtn}"
+                print_banner(f"Error: {error_msg}")
+                return RuntimeError(error_msg)
+
+            # Verify the build output
+            for mode in build_modes:
+                lib_path = Path(f"/build/{mode}/libfastled.a")
+                if not lib_path.exists():
+                    error_msg = f"Expected library not found at {lib_path}"
+                    print_banner(f"Error: {error_msg}")
+                    return FileNotFoundError(error_msg)
+
+            print_banner("Library compilation completed successfully")
+            return files_changed
+
+        except Exception as e:
+            error_msg = f"Unexpected error during source update: {str(e)}"
+            print_banner(f"Error: {error_msg}")
+            return RuntimeError(error_msg)
