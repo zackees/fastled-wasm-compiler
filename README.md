@@ -10,6 +10,8 @@ The compiler and build system for FastLED for WASM.
 
 [![Build and Push Multi Docker Image](https://github.com/zackees/fastled-wasm-compiler/actions/workflows/build_multi_docker_image.yml/badge.svg)](https://github.com/zackees/fastled-wasm-compiler/actions/workflows/build_multi_docker_image.yml)
 
+[![Publish Emscripten Artifacts](https://github.com/zackees/fastled-wasm-compiler/actions/workflows/publish-emscripten.yml/badge.svg)](https://github.com/zackees/fastled-wasm-compiler/actions/workflows/publish-emscripten.yml)
+
 
 
 ## Development
