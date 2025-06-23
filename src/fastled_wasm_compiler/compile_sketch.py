@@ -68,7 +68,7 @@ BASE_LINK_FLAGS = [
     # Emscripten-specific linker settings
     "-sALLOW_MEMORY_GROWTH=1",
     "-sINITIAL_MEMORY=134217728",
-    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8']",
+    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
     "-sFILESYSTEM=0",
     "-Wl,--whole-archive",
