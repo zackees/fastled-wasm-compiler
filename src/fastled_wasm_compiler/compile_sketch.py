@@ -51,23 +51,25 @@ QUICK_CXX_FLAGS = [
 ]
 
 # Default to debug flags
+# Base compile flags (used during compilation)
 CXX_FLAGS = BASE_CXX_FLAGS
 
-# Base link flags from platformio.ini
+# Base link flags (used during linking)
 BASE_LINK_FLAGS = [
     "--bind",
     "-fuse-ld=lld",
     "-sWASM=1",
-    "-sALLOW_MEMORY_GROWTH=1",
-    "-sINITIAL_MEMORY=134217728",
-    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8']",
-    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
     "--no-entry",
     "--emit-symbol-map",
     "-sMODULARIZE=1",
     "-sEXPORT_NAME=fastled",
     "-sUSE_PTHREADS=0",
     "-sEXIT_RUNTIME=0",
+    # Emscripten-specific linker settings
+    "-sALLOW_MEMORY_GROWTH=1",
+    "-sINITIAL_MEMORY=134217728",
+    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8']",
+    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
     "-sFILESYSTEM=0",
     "-Wl,--whole-archive",
     "--source-map-base=http://localhost:8000/",
@@ -83,7 +85,7 @@ DEBUG_LINK_FLAGS = [
 ]
 
 # Default to debug link flags
-LINK_FLAGS = BASE_LINK_FLAGS + DEBUG_LINK_FLAGS + ["-o", "fastled.js"]
+LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
 
 
 def compile_cpp_to_obj(
