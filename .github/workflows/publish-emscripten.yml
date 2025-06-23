@@ -1,0 +1,31 @@
+name: Publish Emscripten Artifacts
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Emscripten Setup Script
+        shell: bash
+        run: |
+          chmod +x install_emscripten.sh
+          ./install_emscripten.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: emsdk-${{ matrix.os }}
+          path: |
+            ~/emsdk.tar.gz
