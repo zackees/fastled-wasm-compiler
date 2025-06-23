@@ -129,6 +129,7 @@ debug_compile_flags = [
     "-O0",
 ]
 
+
 debug_link_flags = [
     "--emit-symbol-map",
     # write out the .dwarf file next to fastled.wasm
