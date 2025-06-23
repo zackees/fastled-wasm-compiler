@@ -27,4 +27,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: emsdk-${{ matrix.os }}
-          path: ~/emsdk-$(echo ${{ matrix.os }} | cut -d'-' -f1).tar.gz
+          path: ~/emsdk-*.tar.gz
