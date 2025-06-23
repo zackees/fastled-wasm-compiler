@@ -28,3 +28,45 @@ jobs:
         with:
           name: emsdk-${{ matrix.os }}
           path: ~/emsdk-*.tar.gz
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          clean: false
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Prepare artifacts for deployment
+        run: |
+          mkdir -p emsdk
+          # Move each artifact to the correct location
+          for os in ubuntu-latest macos-latest windows-latest; do
+            # Extract the OS name from the artifact name
+            case $os in
+              ubuntu-latest) os_name="ubuntu" ;;
+              macos-latest) os_name="macos" ;;
+              windows-latest) os_name="windows" ;;
+            esac
+            
+            # Find the artifact and copy it to the deployment directory
+            find ./artifacts -name "emsdk-${os}*.tar.gz" -exec cp {} ./emsdk/emsdk-${os_name}-latest.tar.gz \;
+          done
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: emsdk
+          clean: false
+          single-commit: true
+          commit-message: "Update Emscripten SDK artifacts"
+          force: true
