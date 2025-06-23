@@ -30,6 +30,9 @@ valid_modes = ["DEBUG", "QUICK", "RELEASE"]
 if BUILD_MODE not in valid_modes:
     raise ValueError(f"BUILD_MODE must be one of {valid_modes}, got {BUILD_MODE}")
 
+# Check if STRICT mode is enabled (treat warnings as errors)
+STRICT_MODE = os.environ.get("STRICT", "").lower() in ("1", "true")
+
 DEBUG = BUILD_MODE == "DEBUG"
 QUICK_BUILD = BUILD_MODE == "QUICK"
 OPTIMIZED = BUILD_MODE == "RELEASE"
@@ -87,18 +90,25 @@ compile_flags = [
     "-I/js/fastled/src/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
-    #"-Wextra",
-    #"-Werror",
-    # "-Wconversion",
-    #"-Wsign-conversion",
-    #"-Wunused",
-    #"-Wuninitialized",
-    #"-Wdouble-promotion",
-    #"-Wformat=2",
-    #"-Wcast-align",
-    #"-Wcast-qual",
-    #"-Werror=return-type"
 ]
+
+# Additional warning flags to enable in strict mode
+strict_warning_flags = [
+    "-Wextra",
+    "-Wconversion",
+    "-Wsign-conversion",
+    "-Wunused",
+    "-Wuninitialized",
+    "-Wdouble-promotion",
+    "-Wformat=2",
+    "-Wcast-align",
+    "-Wcast-qual",
+    "-Werror=return-type"
+]
+
+# Add strict mode flags if enabled
+if STRICT_MODE:
+    compile_flags.extend(["-Werror"] + strict_warning_flags)
 
 # Base link flags (LINKFLAGS)
 link_flags = [
@@ -227,6 +237,7 @@ print_banner("C++/C Compiler Flags:")
 print("CC/CXX flags:")
 for f in compile_flags:
     print(f"  {f}")
+print(f"STRICT mode: {'ENABLED' if STRICT_MODE else 'DISABLED'}")
 print("FastLED Library CC flags:")
 for f in fastled_compile_cc_flags:
     print(f"  {f}")
