@@ -60,7 +60,7 @@ BASE_LINK_FLAGS = [
     "-sWASM=1",
     "-sALLOW_MEMORY_GROWTH=1",
     "-sINITIAL_MEMORY=134217728",
-    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8']",
+    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8']",
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
     "--no-entry",
     "--emit-symbol-map",
