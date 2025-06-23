@@ -282,12 +282,16 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
         _FILTER_INCLUDE_ALL,
         dryrun=dryrun,
     )
-    changed_platform_shared = _sync_subdir(
-        src / "platforms" / "shared",
-        dst / "platforms" / "shared",
-        _FILTER_INCLUDE_ALL,
-        dryrun=dryrun,
-    )
+    # Only sync shared directory if it exists in the source
+    changed_platform_shared = []
+    shared_src = src / "platforms" / "shared"
+    if shared_src.exists() and shared_src.is_dir():
+        changed_platform_shared = _sync_subdir(
+            shared_src,
+            dst / "platforms" / "shared",
+            _FILTER_INCLUDE_ALL,
+            dryrun=dryrun,
+        )
     changed_platform_root_files = _sync_subdir(
         src / "platforms",
         dst / "platforms",
