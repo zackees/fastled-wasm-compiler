@@ -7,6 +7,7 @@ This cli simplifies it with a layer of abstraction.
 """
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ class CliArgs:
     no_platformio: bool
     clear_ccache: bool
     update_fastled_src: Path | None
+    strict: bool
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -81,8 +83,18 @@ def _parse_args() -> CliArgs:
         help="Path to the FastLED source directory to update",
         default=None,
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat all compiler warnings as errors",
+    )
 
     args = parser.parse_args()
+
+    # Set STRICT environment variable if --strict flag is used
+    if args.strict:
+        os.environ["STRICT"] = "1"
+
     out: CliArgs = CliArgs(
         compiler_root=args.compiler_root,
         assets_dirs=args.assets_dirs,
@@ -95,6 +107,7 @@ def _parse_args() -> CliArgs:
         no_platformio=args.no_platformio,
         clear_ccache=args.clear_ccache,
         update_fastled_src=args.update_fastled_src,
+        strict=args.strict,
     )
     return out
 
@@ -117,6 +130,7 @@ def main() -> int:
         quick=cli_args.quick,
         release=cli_args.release,
         clear_ccache=cli_args.clear_ccache,
+        strict=cli_args.strict,  # Pass the strict flag through to the Args object
     )
     compiler = Compiler(
         volume_mapped_src=cli_args.update_fastled_src,

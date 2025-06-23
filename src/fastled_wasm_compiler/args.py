@@ -20,6 +20,7 @@ class Args:
     quick: bool
     release: bool
     clear_ccache: bool
+    strict: bool
 
     @staticmethod
     def parse_args(args: list[str] | None = None) -> "Args":
@@ -44,6 +45,7 @@ class Args:
             "--quick" if self.quick else "",
             "--release" if self.release else "",
             "--clear-ccache" if self.clear_ccache else "",
+            "--strict" if self.strict else "",
         ]
         return [arg for arg in args if arg]
 
@@ -66,6 +68,7 @@ class Args:
             and self.quick == other.quick
             and self.release == other.release
             and self.clear_ccache == other.clear_ccache
+            and self.strict == other.strict
         )
 
     def __post_init__(self):
@@ -82,6 +85,8 @@ class Args:
         assert isinstance(self.debug, bool)
         assert isinstance(self.quick, bool)
         assert isinstance(self.release, bool)
+        assert isinstance(self.clear_ccache, bool)
+        assert isinstance(self.strict, bool)
 
     def __str__(self):
         return (
@@ -97,7 +102,9 @@ class Args:
             f"no_platformio={self.no_platformio}, "
             f"debug={self.debug}, "
             f"quick={self.quick}, "
-            f"release={self.release})"
+            f"release={self.release}, "
+            f"clear_ccache={self.clear_ccache}, "
+            f"strict={self.strict})"
         )
 
 
@@ -150,6 +157,11 @@ def _parse_args(args: list[str] | None = None) -> Args:
         action="store_true",
         help="Clear the ccache before compilation.",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Enable strict mode.",
+    )
     # Add mutually exclusive build mode group
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
@@ -178,5 +190,6 @@ def _parse_args(args: list[str] | None = None) -> Args:
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,
-        clear_ccache=tmp.clear_ccache,
+        clear_ccache=True if tmp.clear_ccache else False,
+        strict=True if tmp.strict else False,
     )

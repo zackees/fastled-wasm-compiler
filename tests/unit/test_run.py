@@ -60,6 +60,7 @@ class MainTester(unittest.TestCase):
             quick=False,
             release=False,
             clear_ccache=False,
+            strict=False,
         )
         rtn = run(args)
         self.assertEqual(0, rtn)

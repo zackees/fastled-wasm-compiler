@@ -134,6 +134,7 @@ def main() -> int:
             quick=build == BuildMode.QUICK,
             release=build == BuildMode.RELEASE,
             clear_ccache=False,
+            strict=False,
         )
         rtn = run_compile(full_args)
         if rtn != 0:

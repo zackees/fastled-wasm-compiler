@@ -16,6 +16,7 @@ def run_compiler(
     quick: bool,
     release: bool,
     clear_ccache: bool = False,
+    strict: bool = False,
 ) -> int:
     """
     Run the FastLED WASM compiler with the provided arguments.
@@ -34,7 +35,8 @@ def run_compiler(
         debug (bool): Flag to enable debug mode.
         quick (bool): Flag to enable quick mode.
         release (bool): Flag to enable release mode.
-
+        clear_ccache (bool): Flag to clear the ccache before compilation.
+        strict (bool): Flag to treat all compiler warnings as errors.
     Returns:
         int: Exit code of the compilation process.
     """
@@ -54,6 +56,7 @@ def run_compiler(
         quick=quick,
         release=release,
         clear_ccache=clear_ccache,
+        strict=strict,
     )
     rtn: int = run_compiler_with_args(args)
     return rtn
