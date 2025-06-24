@@ -95,19 +95,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 
-
-
-# ARG FASTLED_VERSION=master
-# ENV URL https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
-
-
-# # Download latest, unzip move into position and clean up.
-# RUN wget -O /git/fastled.zip ${URL} && \
-#     unzip /git/fastled.zip -d /git && \
-#     mv /git/FastLED-master /git/fastled && \
-#     rm /git/fastled.zip
-
-RUN echo "update build 18"
+RUN echo "update build 19"
 
 # Prune platforms we don't use and normalize line endings.
 COPY ./build_tools/download_fastled.sh /build/download_fastled.sh

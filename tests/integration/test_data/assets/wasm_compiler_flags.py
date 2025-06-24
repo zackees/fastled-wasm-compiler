@@ -69,6 +69,7 @@ compile_flags = [
     "-DFASTLED_FORCE_NAMESPACE=1",
     "-DFASTLED_USE_PROGMEM=0",
     "-DUSE_OFFSET_CONVERTER=0",
+    "-DFASTLED_WASM_USE_CCALL",
     "-std=gnu++17",
     "-fpermissive",
     "-Wno-constant-logical-operand",
@@ -89,7 +90,7 @@ link_flags = [
     "-sALLOW_MEMORY_GROWTH=1",  # enable dynamic heap growth
     "-sINITIAL_MEMORY=134217728",  # start with 128 MB heap
     "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
-    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files']",
+    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
     "--no-entry",
 ]
 
