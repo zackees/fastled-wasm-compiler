@@ -23,11 +23,21 @@ jobs:
           chmod +x install_emscripten.sh
           ./install_emscripten.sh
 
+      - name: List created artifacts (debug)
+        shell: bash
+        run: |
+          echo "Contents of home directory:"
+          ls -la ~/emsdk-*.tar.gz || echo "No artifacts found in home directory"
+          echo "Contents of current directory:"
+          ls -la ./emsdk-*.tar.gz || echo "No artifacts found in current directory"
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: emsdk-${{ matrix.os }}
-          path: ~/emsdk-*.tar.gz
+          path: |
+            ~/emsdk-*.tar.gz
+            ./emsdk-*.tar.gz
 
   deploy:
     needs: build
@@ -45,21 +55,44 @@ jobs:
         with:
           path: ./artifacts
 
+      - name: List downloaded artifacts (debug)
+        run: |
+          echo "Downloaded artifacts:"
+          find ./artifacts -type f -name "*.tar.gz" | head -20
+
       - name: Prepare artifacts for deployment
         run: |
           mkdir -p emsdk
-          # Move each artifact to the correct location
+          # Process each OS type
           for os in ubuntu-latest macos-latest windows-latest; do
-            # Extract the OS name from the artifact name
+            # Map GitHub Actions OS names to friendly names
             case $os in
               ubuntu-latest) os_name="ubuntu" ;;
               macos-latest) os_name="macos" ;;
               windows-latest) os_name="windows" ;;
             esac
             
-            # Find the artifact and copy it to the deployment directory
-            find ./artifacts -name "emsdk-${os}*.tar.gz" -exec cp {} ./emsdk/emsdk-${os_name}-latest.tar.gz \;
+            echo "Processing $os -> $os_name"
+            
+            # Find the artifact directory for this OS
+            artifact_dir="./artifacts/emsdk-${os}"
+            if [ -d "$artifact_dir" ]; then
+              # Look for tar.gz files in the artifact directory
+              found_file=$(find "$artifact_dir" -name "*.tar.gz" -type f | head -1)
+              if [ -n "$found_file" ]; then
+                echo "Found artifact: $found_file"
+                cp "$found_file" "./emsdk/emsdk-${os_name}-latest.tar.gz"
+                echo "Copied to: ./emsdk/emsdk-${os_name}-latest.tar.gz"
+              else
+                echo "No tar.gz file found in $artifact_dir"
+              fi
+            else
+              echo "Artifact directory not found: $artifact_dir"
+            fi
           done
+          
+          echo "Final artifacts in emsdk directory:"
+          ls -la ./emsdk/
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
