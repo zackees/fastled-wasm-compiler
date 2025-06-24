@@ -1,6 +1,14 @@
 #!/bin/bash
 
 set -e
+
+# if not activate present, install it
+if ! command -v activate &> /dev/null; then
+    echo "activate could not be found, installing it"
+    bash install
+fi
+
+
 echo "Running unittests"
 uv run pytest -n auto tests/unit -v --durations=0
 # finally run the integration tests one by one.
