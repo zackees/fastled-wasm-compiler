@@ -36,33 +36,11 @@ jobs:
           chmod +x install_emscripten.sh
           ./install_emscripten.sh
 
-      - name: List created artifacts (debug)
-        shell: bash
-        run: |
-          echo "Contents of home directory:"
-          ls -la ~/emsdk-*.tar.gz || echo "No artifacts found in home directory"
-          echo "Contents of current directory:"
-          ls -la ./emsdk-*.tar.gz || echo "No artifacts found in current directory"
-
-      - name: Prepare artifacts for upload
-        shell: bash
-        run: |
-          mkdir -p ./upload-artifacts
-          # Copy artifacts from both possible locations to a single directory
-          if ls ~/emsdk-*.tar.gz 1> /dev/null 2>&1; then
-            cp ~/emsdk-*.tar.gz ./upload-artifacts/
-          fi
-          if ls ./emsdk-*.tar.gz 1> /dev/null 2>&1; then
-            cp ./emsdk-*.tar.gz ./upload-artifacts/
-          fi
-          echo "Artifacts prepared for upload:"
-          ls -la ./upload-artifacts/
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: emsdk-${{ matrix.artifact_name }}
-          path: ./upload-artifacts/
+          path: ./emsdk-*.tar.gz
           if-no-files-found: error
 
   deploy:
@@ -78,14 +56,10 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: List downloaded artifacts (debug)
-        run: |
-          echo "Downloaded artifacts:"
-          find ./artifacts -type f -name "*.tar.gz" | head -20
-
       - name: Prepare artifacts for deployment
         run: |
           mkdir -p emsdk
+          
           # Process each artifact type
           declare -A artifact_mapping=(
             ["ubuntu-latest"]="ubuntu"
@@ -124,13 +98,26 @@ jobs:
           
           echo "Final artifacts in emsdk directory:"
           ls -la ./emsdk/
+          
+          # Check file sizes to ensure they're under GitHub's 100MB limit
+          for file in ./emsdk/*.tar.gz; do
+            if [ -f "$file" ] && [ ! -L "$file" ]; then
+              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+              size_mb=$((size / 1024 / 1024))
+              echo "File size: $file = ${size_mb}MB"
+              if [ $size_mb -gt 95 ]; then
+                echo "WARNING: $file is ${size_mb}MB, approaching GitHub's 100MB limit!"
+              fi
+            fi
+          done
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: emsdk
-          clean: false
+          clean: true
           single-commit: true
           commit-message: "Update Emscripten SDK artifacts"
-          force: true
+          git-config-name: github-actions[bot]
+          git-config-email: github-actions[bot]@users.noreply.github.com
