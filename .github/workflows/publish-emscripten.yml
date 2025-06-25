@@ -10,7 +10,15 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: ubuntu-latest
+          - os: macos-13  # Intel Mac runner
+            artifact_name: macos-x86_64
+          - os: macos-latest  # ARM Mac runner (Apple Silicon)
+            artifact_name: macos-arm64
+          - os: windows-latest
+            artifact_name: windows-latest
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -48,7 +56,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: emsdk-${{ matrix.os }}
+          name: emsdk-${{ matrix.artifact_name }}
           path: ./upload-artifacts/
           if-no-files-found: error
 
@@ -76,26 +84,28 @@ jobs:
       - name: Prepare artifacts for deployment
         run: |
           mkdir -p emsdk
-          # Process each OS type
-          for os in ubuntu-latest macos-latest windows-latest; do
-            # Map GitHub Actions OS names to friendly names
-            case $os in
-              ubuntu-latest) os_name="ubuntu" ;;
-              macos-latest) os_name="macos" ;;
-              windows-latest) os_name="windows" ;;
-            esac
+          # Process each artifact type
+          declare -A artifact_mapping=(
+            ["ubuntu-latest"]="ubuntu"
+            ["macos-x86_64"]="macos-x86_64"
+            ["macos-arm64"]="macos-arm64"
+            ["windows-latest"]="windows"
+          )
+          
+          for artifact_name in "${!artifact_mapping[@]}"; do
+            friendly_name="${artifact_mapping[$artifact_name]}"
             
-            echo "Processing $os -> $os_name"
+            echo "Processing $artifact_name -> $friendly_name"
             
-            # Find the artifact directory for this OS
-            artifact_dir="./artifacts/emsdk-${os}"
+            # Find the artifact directory for this type
+            artifact_dir="./artifacts/emsdk-${artifact_name}"
             if [ -d "$artifact_dir" ]; then
               # Look for tar.gz files in the artifact directory
               found_file=$(find "$artifact_dir" -name "*.tar.gz" -type f | head -1)
               if [ -n "$found_file" ]; then
                 echo "Found artifact: $found_file"
-                cp "$found_file" "./emsdk/emsdk-${os_name}-latest.tar.gz"
-                echo "Copied to: ./emsdk/emsdk-${os_name}-latest.tar.gz"
+                cp "$found_file" "./emsdk/emsdk-${friendly_name}-latest.tar.gz"
+                echo "Copied to: ./emsdk/emsdk-${friendly_name}-latest.tar.gz"
               else
                 echo "No tar.gz file found in $artifact_dir"
               fi
@@ -103,6 +113,12 @@ jobs:
               echo "Artifact directory not found: $artifact_dir"
             fi
           done
+          
+          # Create legacy macos symlink pointing to macos-arm64 (default for newer systems)
+          if [ -f "./emsdk/emsdk-macos-arm64-latest.tar.gz" ]; then
+            ln -sf "emsdk-macos-arm64-latest.tar.gz" "./emsdk/emsdk-macos-latest.tar.gz"
+            echo "Created legacy symlink: emsdk-macos-latest.tar.gz -> emsdk-macos-arm64-latest.tar.gz"
+          fi
           
           echo "Final artifacts in emsdk directory:"
           ls -la ./emsdk/

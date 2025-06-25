@@ -19,12 +19,33 @@ emcc -v
 
 cd ..
 
-# Map uname output to GitHub Actions OS names for consistency
+# Map uname output to GitHub Actions OS names for consistency, with Mac architecture detection
 case "$(uname | tr '[:upper:]' '[:lower:]')" in
-  linux) OS_NAME="ubuntu-latest" ;;
-  darwin) OS_NAME="macos-latest" ;;
-  mingw*|cygwin*|msys*) OS_NAME="windows-latest" ;;
-  *) OS_NAME="$(uname | tr '[:upper:]' '[:lower:]')" ;;
+  linux) 
+    OS_NAME="ubuntu-latest" 
+    ;;
+  darwin) 
+    # Detect Mac architecture
+    ARCH=$(uname -m)
+    case "$ARCH" in
+      arm64)
+        OS_NAME="macos-arm64"
+        ;;
+      x86_64)
+        OS_NAME="macos-x86_64"
+        ;;
+      *)
+        # Fallback to generic macos-latest for unknown architectures
+        OS_NAME="macos-latest"
+        ;;
+    esac
+    ;;
+  mingw*|cygwin*|msys*) 
+    OS_NAME="windows-latest" 
+    ;;
+  *) 
+    OS_NAME="$(uname | tr '[:upper:]' '[:lower:]')" 
+    ;;
 esac
 
 ARTIFACT_NAME="emsdk-${OS_NAME}"
