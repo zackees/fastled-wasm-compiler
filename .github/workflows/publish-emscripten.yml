@@ -31,13 +31,26 @@ jobs:
           echo "Contents of current directory:"
           ls -la ./emsdk-*.tar.gz || echo "No artifacts found in current directory"
 
+      - name: Prepare artifacts for upload
+        shell: bash
+        run: |
+          mkdir -p ./upload-artifacts
+          # Copy artifacts from both possible locations to a single directory
+          if ls ~/emsdk-*.tar.gz 1> /dev/null 2>&1; then
+            cp ~/emsdk-*.tar.gz ./upload-artifacts/
+          fi
+          if ls ./emsdk-*.tar.gz 1> /dev/null 2>&1; then
+            cp ./emsdk-*.tar.gz ./upload-artifacts/
+          fi
+          echo "Artifacts prepared for upload:"
+          ls -la ./upload-artifacts/
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: emsdk-${{ matrix.os }}
-          path: |
-            ~/emsdk-*.tar.gz
-            ./emsdk-*.tar.gz
+          path: ./upload-artifacts/
+          if-no-files-found: error
 
   deploy:
     needs: build
