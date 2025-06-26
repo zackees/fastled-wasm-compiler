@@ -78,6 +78,8 @@ compile_flags = [
     "-Werror=cast-function-type",
     "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
     "-I",
+    ".",
+    "-I",
     "src",
     "-I/js/fastled/src/platforms/wasm/compiler",
 ]
