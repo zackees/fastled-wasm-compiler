@@ -69,6 +69,7 @@ RUN \
    mkdir -p /examples && \
    mkdir -p /js
 
+ENV UV_COMPILE_BYTECODE=1
 
 
 # Add Python and Emscripten to PATH
