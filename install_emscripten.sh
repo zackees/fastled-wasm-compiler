@@ -4,13 +4,32 @@ set -e
 
 EMSDK_DIR="$HOME/emsdk"
 
+# Set aggressive optimization flags for SDK compilation
+export CFLAGS="-Oz -flto -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fno-unwind-tables -fno-asynchronous-unwind-tables -fomit-frame-pointer -ffast-math -fno-stack-protector"
+export CXXFLAGS="-Oz -flto -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -fno-unwind-tables -fno-asynchronous-unwind-tables -fomit-frame-pointer -ffast-math -fno-stack-protector"
+export LDFLAGS="-Oz -flto -Wl,--gc-sections -Wl,--strip-all -Wl,--strip-debug -s"
+
+# Additional optimization environment variables
+export EMCC_OPTIMIZE_SIZE=1
+export EMCC_CLOSURE=1
+export CMAKE_BUILD_TYPE=MinSizeRel
+
+echo "Setting optimization flags for SDK compilation:"
+echo "CFLAGS: $CFLAGS"
+echo "CXXFLAGS: $CXXFLAGS"
+echo "LDFLAGS: $LDFLAGS"
+
 if [ ! -d "$EMSDK_DIR" ]; then
-    git clone https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+    git clone https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR" --depth=1
 fi
 
 cd "$EMSDK_DIR"
-git pull
+# Only pull if we have a full clone
+if [ -d ".git" ]; then
+    git pull
+fi
 
+# Install with optimization flags set
 ./emsdk install latest
 ./emsdk activate latest
 source ./emsdk_env.sh
@@ -48,16 +67,41 @@ find . -name "*.log" -size +1M -delete 2>/dev/null || true
 find . -name "*.o" -delete 2>/dev/null || true
 find . -name "*.a" -name "*debug*" -delete 2>/dev/null || true
 
-# Remove debug symbols and strip binaries if strip command is available
-if command -v strip >/dev/null 2>&1; then
-    echo "Stripping debug symbols from binaries..."
-    find . -type f -executable -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | xargs -r strip --strip-debug 2>/dev/null || true
-fi
+# More aggressive cleanup for maximum size reduction
+echo "Applying aggressive size reduction..."
 
-# Remove unnecessary language packs and locales
+# Remove all debug information and symbols
+find . -name "*.debug" -delete 2>/dev/null || true
+find . -name "*.pdb" -delete 2>/dev/null || true
+find . -name "*.dSYM" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# Remove source maps and debugging files
+find . -name "*.map" -delete 2>/dev/null || true
+find . -name "*.dwp" -delete 2>/dev/null || true
+find . -name "*.dwarf" -delete 2>/dev/null || true
+
+# Remove unnecessary static libraries (keep only essential ones)
+find . -name "*.a" -path "*/lib/*" -not -name "libc.a" -not -name "libm.a" -not -name "libpthread.a" -not -name "librt.a" -not -name "libdl.a" -delete 2>/dev/null || true
+
+# Remove unnecessary headers and includes (keep only essential runtime headers)
+find . -path "*/include/*" -name "*.h" -not -path "*/emscripten/*" -not -path "*/c++/*" -not -name "emscripten.h" -not -name "bind.h" -delete 2>/dev/null || true
+
+# Remove language-specific files we don't need
 rm -rf */locale/ 2>/dev/null || true
 rm -rf */locales/ 2>/dev/null || true
 rm -rf */i18n/ 2>/dev/null || true
+rm -rf */po/ 2>/dev/null || true
+rm -rf */share/locale/ 2>/dev/null || true
+
+# Remove man pages and documentation
+rm -rf */man/ 2>/dev/null || true
+rm -rf */share/man/ 2>/dev/null || true
+rm -rf */share/doc/ 2>/dev/null || true
+rm -rf */share/info/ 2>/dev/null || true
+
+# Remove unnecessary compiler tools (keep only essential ones)
+find . -name "clang++-*" -not -name "clang++" -delete 2>/dev/null || true
+find . -name "clang-*" -not -name "clang" -delete 2>/dev/null || true
 
 # Remove source files that aren't needed for compilation
 find . -name "*.cpp" -path "*/src/*" -delete 2>/dev/null || true
@@ -72,8 +116,44 @@ find . -type f -size +50M -name "*.zip" -delete 2>/dev/null || true
 find . -name "*.bak" -delete 2>/dev/null || true
 find . -name "*~" -delete 2>/dev/null || true
 
+# Remove unnecessary binary variants (keep only the most optimized ones)
+find . -name "*-debug" -type f -delete 2>/dev/null || true
+find . -name "*_debug" -type f -delete 2>/dev/null || true
+
+# Strip debug symbols from all binaries and shared libraries
+if command -v strip >/dev/null 2>&1; then
+    echo "Stripping debug symbols from binaries..."
+    find . -type f -executable -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | xargs -r strip --strip-all 2>/dev/null || true
+    # Also strip static libraries
+    find . -name "*.a" -exec strip --strip-debug {} \; 2>/dev/null || true
+fi
+
+# Use UPX to compress binaries if available (ultra-aggressive compression)
+if command -v upx >/dev/null 2>&1; then
+    echo "Compressing binaries with UPX..."
+    find . -type f -executable -size +1M -exec upx --ultra-brute {} \; 2>/dev/null || true
+fi
+
 # Remove duplicate shared libraries (keep only the most recent versions)
 find . -name "*.so.*" -type f | sort | uniq -d | head -n -1 | xargs -r rm 2>/dev/null || true
+
+# Remove Python optimization files
+find . -name "*.pyo" -delete 2>/dev/null || true
+find . -name "*.opt-1.pyc" -delete 2>/dev/null || true
+find . -name "*.opt-2.pyc" -delete 2>/dev/null || true
+
+# Remove unnecessary Node.js modules (if any)
+find . -path "*/node_modules/*" -name "*.md" -delete 2>/dev/null || true
+find . -path "*/node_modules/*" -name "LICENSE*" -delete 2>/dev/null || true
+find . -path "*/node_modules/*" -name "CHANGELOG*" -delete 2>/dev/null || true
+
+# Remove CMake cache and build files
+find . -name "CMakeCache.txt" -delete 2>/dev/null || true
+find . -name "CMakeFiles" -type d -exec rm -rf {} + 2>/dev/null || true
+find . -name "*.cmake" -path "*/CMakeFiles/*" -delete 2>/dev/null || true
+
+# Remove pkg-config files we don't need
+find . -name "*.pc" -path "*/pkgconfig/*" -delete 2>/dev/null || true
 
 echo "Cleanup completed. Checking directory size..."
 
@@ -129,6 +209,20 @@ GZIP=-9 tar --exclude='*.git*' \
     --exclude='*~' \
     --exclude='*/locale/*' \
     --exclude='*/locales/*' \
+    --exclude='*/man/*' \
+    --exclude='*/share/man/*' \
+    --exclude='*/share/doc/*' \
+    --exclude='*/share/info/*' \
+    --exclude='*debug*' \
+    --exclude='*.debug' \
+    --exclude='*.pdb' \
+    --exclude='*.dSYM' \
+    --exclude='*.map' \
+    --exclude='*.dwp' \
+    --exclude='*.dwarf' \
+    --exclude='CMakeFiles' \
+    --exclude='*.cmake' \
+    --exclude='*.pc' \
     -czf "${ARTIFACT_NAME}.tar.gz" emsdk
 
 # Check the size of the created artifact
@@ -164,6 +258,20 @@ if command -v stat >/dev/null 2>&1; then
             --exclude='*~' \
             --exclude='*/locale/*' \
             --exclude='*/locales/*' \
+            --exclude='*/man/*' \
+            --exclude='*/share/man/*' \
+            --exclude='*/share/doc/*' \
+            --exclude='*/share/info/*' \
+            --exclude='*debug*' \
+            --exclude='*.debug' \
+            --exclude='*.pdb' \
+            --exclude='*.dSYM' \
+            --exclude='*.map' \
+            --exclude='*.dwp' \
+            --exclude='*.dwarf' \
+            --exclude='CMakeFiles' \
+            --exclude='*.cmake' \
+            --exclude='*.pc' \
             --exclude='python/*' \
             --exclude='node/*' \
             -czf "../${ARTIFACT_NAME}-core.tar.gz" .
@@ -185,6 +293,20 @@ if command -v stat >/dev/null 2>&1; then
             --exclude='*~' \
             --exclude='*/locale/*' \
             --exclude='*/locales/*' \
+            --exclude='*/man/*' \
+            --exclude='*/share/man/*' \
+            --exclude='*/share/doc/*' \
+            --exclude='*/share/info/*' \
+            --exclude='*debug*' \
+            --exclude='*.debug' \
+            --exclude='*.pdb' \
+            --exclude='*.dSYM' \
+            --exclude='*.map' \
+            --exclude='*.dwp' \
+            --exclude='*.dwarf' \
+            --exclude='CMakeFiles' \
+            --exclude='*.cmake' \
+            --exclude='*.pc' \
             -czf "../${ARTIFACT_NAME}-runtime.tar.gz" python/ node/ 2>/dev/null || true
             
         cd ..
