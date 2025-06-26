@@ -24,6 +24,7 @@ BASE_CXX_FLAGS = [
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+    "-I.",
     "-Isrc",
     f"-I{FASTLED_SRC_STR}",
     f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",

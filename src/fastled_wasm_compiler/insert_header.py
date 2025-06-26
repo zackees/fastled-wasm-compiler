@@ -17,7 +17,8 @@ def insert_header(file: Path) -> None:
             rf"^.*{re.escape(header)}.*\n", "", content, flags=re.MULTILINE
         )
 
-    # Remove both versions of Arduino.h include
+    # Remove both versions of Arduino.h include (quoted and angle brackets)
+    # Both forms now resolve to the same file due to consistent include path configuration
     arduino_pattern = r'^\s*#\s*include\s*[<"]Arduino\.h[>"]\s*.*\n'
     content = re.sub(arduino_pattern, "", content, flags=re.MULTILINE)
 

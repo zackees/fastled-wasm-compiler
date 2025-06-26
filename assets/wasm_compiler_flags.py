@@ -85,10 +85,9 @@ compile_flags = [
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
     "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
-    "-I",
-    ".",
-    "-I",
-    "src",
+    "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
+    "-Isrc",
+    "-I/js/fastled/src",
     "-I/js/fastled/src/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
@@ -194,6 +193,9 @@ env.Append(LINKFLAGS=link_flags)
 fastled_compile_cc_flags = [
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+    "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
+    "-Isrc",
+    "-I/js/fastled/src",
     "-I/js/fastled/src/platforms/wasm/compiler",
 ]
 fastled_compile_link_flags = [
