@@ -62,6 +62,7 @@ if(BUILD_MODE STREQUAL "DEBUG")
 elseif(BUILD_MODE STREQUAL "QUICK")
   list(APPEND SHARED_FLAGS
     -O1
+    -flto=thin
     -fno-inline
     -fno-strict-aliasing
     -fno-inline-functions

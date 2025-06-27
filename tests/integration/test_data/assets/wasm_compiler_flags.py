@@ -144,7 +144,7 @@ if OPTIMIZED:
     compile_flags += ["-flto", "-Oz"]
 
 if QUICK_BUILD:
-    compile_flags += ["-Oz"]
+    compile_flags += ["-flto=thin", "-Oz"]
 
 # Handle custom export name
 export_name = env.GetProjectOption("custom_wasm_export_name", "")
