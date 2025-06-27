@@ -112,7 +112,7 @@ COPY ./build_tools/build_lib.sh /build/build_lib.sh
 RUN chmod +x /build/build_lib.sh && \
     dos2unix /build/build_lib.sh
 # Run the build
-RUN /build/build_lib.sh
+RUN /build/build_lib.sh --all
 
 # END BUILDING STATIC libfastled.a
 

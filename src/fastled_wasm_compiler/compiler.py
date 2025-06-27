@@ -16,13 +16,17 @@ _RW_LOCK = fasteners.ReaderWriterLock()
 
 class Compiler:
 
-    def __init__(self, volume_mapped_src: Path | None = None) -> None:
+    def __init__(
+        self, volume_mapped_src: Path | None = None, build_libs: list[str] | None = None
+    ) -> None:
         # At this time we always use exclusive locks, but want
         # to keep the reader/writer lock for future use
         self.volume_mapped_src: Path = (
             volume_mapped_src if volume_mapped_src else VOLUME_MAPPED_SRC
         )
         self.rwlock = _RW_LOCK
+        # Default to all modes if none specified
+        self.build_libs = build_libs if build_libs else ["debug", "quick", "release"]
 
     def compile(self, args: Args) -> Exception | None:
         clear_cache = args.clear_ccache
@@ -121,10 +125,8 @@ class Compiler:
                 )
                 return []
 
-            # Determine build modes
-            build_modes = ["debug", "quick", "release"]
-            if builds is not None:
-                build_modes = builds
+            # Determine build modes - use the modes specified during initialization
+            build_modes = builds if builds is not None else self.build_libs
 
             # Compile the libraries
             print_banner("Compiling libraries with updated source...")

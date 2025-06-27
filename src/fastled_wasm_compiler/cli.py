@@ -66,6 +66,9 @@ def _parse_args() -> CliArgs:
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--quick", action="store_true", help="Enable quick mode")
     parser.add_argument("--release", action="store_true", help="Enable release mode")
+    parser.add_argument(
+        "--all", action="store_true", help="Build all modes (debug, quick, release)"
+    )
 
     parser.add_argument(
         "--no-platformio",
@@ -94,6 +97,18 @@ def _parse_args() -> CliArgs:
     # Set STRICT environment variable if --strict flag is used
     if args.strict:
         os.environ["STRICT"] = "1"
+
+    # Handle --all flag by expanding to all three modes
+    if args.all:
+        args.debug = True
+        args.quick = True
+        args.release = True
+
+    # If no modes specified, default to all
+    if not any([args.debug, args.quick, args.release]):
+        args.debug = True
+        args.quick = True
+        args.release = True
 
     out: CliArgs = CliArgs(
         compiler_root=args.compiler_root,
@@ -132,8 +147,18 @@ def main() -> int:
         clear_ccache=cli_args.clear_ccache,
         strict=cli_args.strict,  # Pass the strict flag through to the Args object
     )
+    # Derive build modes from boolean flags
+    build_libs = []
+    if cli_args.debug:
+        build_libs.append("debug")
+    if cli_args.quick:
+        build_libs.append("quick")
+    if cli_args.release:
+        build_libs.append("release")
+
     compiler = Compiler(
         volume_mapped_src=cli_args.update_fastled_src,
+        build_libs=build_libs,
     )
     err = compiler.compile(compile_args)
     if isinstance(err, Exception):
