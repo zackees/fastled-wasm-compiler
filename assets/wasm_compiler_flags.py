@@ -193,40 +193,6 @@ env.Append(CXXFLAGS=compile_flags)
 env.Append(LINKFLAGS=link_flags)
 
 
-# FastLED library compile flags - compile as LLVM bitcode for faster builds
-fastled_compile_cc_flags = [
-    "-emit-llvm",  # Generate LLVM bitcode instead of object files
-    "-fno-rtti",
-    "-fno-exceptions",
-    "-Werror=bad-function-cast",
-    "-Werror=cast-function-type",
-    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
-    "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
-    "-Isrc",
-    "-I/js/fastled/src",
-    "-I/js/fastled/src/platforms/wasm/compiler",
-]
-fastled_compile_link_flags = [
-    "-Wl,--whole-archive,-fuse-ld=lld",
-    "-Werror=bad-function-cast",
-    "-Werror=cast-function-type",
-]
-
-
-if DEBUG:
-    fastled_compile_cc_flags = _remove_flags(
-        fastled_compile_cc_flags, ["-Oz", "-Os", "-O0", "-O1", "-O2", "-O3"]
-    )
-    fastled_compile_cc_flags += debug_compile_flags
-    fastled_compile_link_flags += debug_link_flags
-
-# Apply to library builders
-for lb in env.GetLibBuilders():
-    lb.env.Replace(CC=CC, CXX=CXX, LINK=LINK, AR="emar", RANLIB="emranlib")
-    lb.env.Append(CCFLAGS=fastled_compile_cc_flags)
-    lb.env.Append(LINKFLAGS=fastled_compile_link_flags)
-
-
 # Banner utilities
 def banner(s: str) -> str:
     lines = s.split("\n")
@@ -249,17 +215,9 @@ print("CC/CXX flags:")
 for f in compile_flags:
     print(f"  {f}")
 print(f"STRICT mode: {'ENABLED' if STRICT_MODE else 'DISABLED'}")
-print("FastLED Library CC flags:")
-for f in fastled_compile_cc_flags:
-    print(f"  {f}")
-print("Sketch CC flags:")
 
 print_banner("Linker Flags:")
 for f in link_flags:
     print(f"  {f}")
-print_banner("FastLED Library Flags:")
-for f in fastled_compile_link_flags:
-    print(f"  {f}")
-
 
 print_banner("End of Flags\nBegin compile/link using PlatformIO")
