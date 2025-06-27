@@ -1,12 +1,17 @@
-
 #include <FastLED.h>
 
 #include "fl/audio.h"
 #include "fl/math.h"
+#include "lib/file.h"
 
 UIAudio audio("Audio");
+TestClass testObj;
 
-void setup() {}
+void setup() {
+    testObj.doSomething();
+    testFunction();
+}
+
 void loop()
 {
 

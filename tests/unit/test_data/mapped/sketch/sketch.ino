@@ -1,6 +1,11 @@
-
 #include <FastLED.h>
+#include "lib/file.h"
 
+TestClass testObj;
 
-void setup(){}
+void setup(){
+    testObj.doSomething();
+    testFunction();
+}
+
 void loop(){}

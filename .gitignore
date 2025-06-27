@@ -26,6 +26,9 @@ parts/
 sdist/
 var/
 wheels/
+# Exceptions for test lib directories
+!tests/integration/sketch/lib/
+!tests/unit/test_data/mapped/sketch/lib/
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
