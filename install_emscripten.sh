@@ -147,12 +147,14 @@ if command -v strip >/dev/null 2>&1; then
     esac
 fi
 
-# Use UPX to compress binaries if available (ultra-aggressive compression)
-if command -v upx >/dev/null 2>&1; then
-    echo "Compressing binaries with UPX..."
-    find . -type f -size +1M -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | while read -r file; do
-        upx --ultra-brute "$file" 2>/dev/null || true
+# Use UPX to compress binaries if available (fast compression to avoid CI timeouts)
+if command -v upx >/dev/null 2>&1 && [ "${GITHUB_ACTIONS:-false}" != "true" ]; then
+    echo "Compressing binaries with UPX (local build only)..."
+    find . -type f -size +1M -size -50M -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | while read -r file; do
+        timeout 60 upx --best "$file" 2>/dev/null || true
     done
+else
+    echo "Skipping UPX compression (disabled in CI or UPX not available)"
 fi
 
 # Remove duplicate shared libraries (keep only the most recent versions) - Fix head command
