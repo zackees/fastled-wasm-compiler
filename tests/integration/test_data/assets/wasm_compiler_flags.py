@@ -87,7 +87,6 @@ compile_flags = [
 
 # Base link flags (LINKFLAGS)
 link_flags = [
-    "--bind",  # ensure embind runtime support is linked in
     "-fuse-ld=lld",  # use LLD at link time
     f"-sWASM={USE_WASM}",  # Wasm vs asm.js
     "-sALLOW_MEMORY_GROWTH=1",  # enable dynamic heap growth
@@ -170,7 +169,6 @@ fastled_compile_cc_flags = [
     "-I/js/fastled/src/platforms/wasm/compiler",
 ]
 fastled_compile_link_flags = [
-    "--bind",
     "-Wl,--whole-archive,-fuse-ld=lld",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",

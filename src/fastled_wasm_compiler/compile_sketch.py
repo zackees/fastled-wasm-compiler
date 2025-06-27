@@ -58,7 +58,6 @@ CXX_FLAGS = BASE_CXX_FLAGS
 
 # Base link flags (used during linking)
 BASE_LINK_FLAGS = [
-    "--bind",
     "-fuse-ld=lld",
     "-sWASM=1",
     "--no-entry",
