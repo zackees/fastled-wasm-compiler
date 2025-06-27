@@ -32,6 +32,7 @@ set(SHARED_FLAGS
   -DFASTLED_FORCE_NAMESPACE=1
   -DFASTLED_USE_PROGMEM=0
   -DUSE_OFFSET_CONVERTER=0
+  -DGL_ENABLE_GET_PROC_ADDRESS=0
   -fpermissive
   -Wno-constant-logical-operand
   -Wnon-c-typedef-for-linkage

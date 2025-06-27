@@ -69,6 +69,7 @@ compile_flags = [
     "-DFASTLED_FORCE_NAMESPACE=1",
     "-DFASTLED_USE_PROGMEM=0",
     "-DUSE_OFFSET_CONVERTER=0",
+    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
     "-std=gnu++17",
     "-fpermissive",
     "-fno-rtti",
@@ -169,6 +170,7 @@ fastled_compile_cc_flags = [
     "-fno-exceptions",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
+    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
     "-I/js/fastled/src",

@@ -18,6 +18,7 @@ BASE_CXX_FLAGS = [
     "-DUSE_OFFSET_CONVERTER=0",
     "-DSKETCH_COMPILE=1",
     "-DFASTLED_WASM_USE_CCALL",
+    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
     "-std=gnu++17",
     "-fpermissive",
     "-Wno-constant-logical-operand",
