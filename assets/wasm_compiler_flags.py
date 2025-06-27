@@ -170,9 +170,11 @@ if DEBUG:
 # Optimize for RELEASE
 if OPTIMIZED:
     compile_flags += ["-flto", "-Oz"]
+    link_flags += ["-flto"]
 
 if QUICK_BUILD:
     compile_flags += ["-flto=thin", "-Oz"]
+    link_flags += ["-flto=thin"]
 
 # Handle custom export name
 export_name = env.GetProjectOption("custom_wasm_export_name", "")
