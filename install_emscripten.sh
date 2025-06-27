@@ -123,19 +123,42 @@ find . -name "*_debug" -type f -delete 2>/dev/null || true
 # Strip debug symbols from all binaries and shared libraries
 if command -v strip >/dev/null 2>&1; then
     echo "Stripping debug symbols from binaries..."
-    find . -type f -executable -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | xargs -r strip --strip-all 2>/dev/null || true
-    # Also strip static libraries
-    find . -name "*.a" -exec strip --strip-debug {} \; 2>/dev/null || true
+    # Fix for macOS: use different approach for finding executable files
+    case "$(uname)" in
+        Darwin)
+            # macOS-specific approach
+            find . -type f -perm +111 -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | while read -r file; do
+                strip -S "$file" 2>/dev/null || true
+            done
+            # Strip static libraries
+            find . -name "*.a" -exec strip -S {} \; 2>/dev/null || true
+            ;;
+        Linux)
+            # Linux approach
+            find . -type f -executable -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | xargs -r strip --strip-all 2>/dev/null || true
+            # Also strip static libraries
+            find . -name "*.a" -exec strip --strip-debug {} \; 2>/dev/null || true
+            ;;
+        *)
+            # Generic approach
+            find . -type f -name "*.so*" -exec strip {} \; 2>/dev/null || true
+            find . -name "*.a" -exec strip {} \; 2>/dev/null || true
+            ;;
+    esac
 fi
 
 # Use UPX to compress binaries if available (ultra-aggressive compression)
 if command -v upx >/dev/null 2>&1; then
     echo "Compressing binaries with UPX..."
-    find . -type f -executable -size +1M -exec upx --ultra-brute {} \; 2>/dev/null || true
+    find . -type f -size +1M -exec file {} \; | grep -E "(executable|shared object)" | cut -d: -f1 | while read -r file; do
+        upx --ultra-brute "$file" 2>/dev/null || true
+    done
 fi
 
-# Remove duplicate shared libraries (keep only the most recent versions)
-find . -name "*.so.*" -type f | sort | uniq -d | head -n -1 | xargs -r rm 2>/dev/null || true
+# Remove duplicate shared libraries (keep only the most recent versions) - Fix head command
+find . -name "*.so.*" -type f | sort | uniq -d | head -n 1 | while read -r file; do
+    rm "$file" 2>/dev/null || true
+done
 
 # Remove Python optimization files
 find . -name "*.pyo" -delete 2>/dev/null || true
@@ -190,44 +213,66 @@ esac
 
 ARTIFACT_NAME="emsdk-${OS_NAME}"
 
+# Function to get file size in a cross-platform way
+get_file_size() {
+    local file="$1"
+    if command -v stat >/dev/null 2>&1; then
+        case "$(uname)" in
+            Darwin|*BSD)
+                stat -f%z "$file" 2>/dev/null
+                ;;
+            *)
+                stat -c%s "$file" 2>/dev/null
+                ;;
+        esac
+    else
+        # Fallback: use ls and extract size
+        ls -l "$file" 2>/dev/null | awk '{print $5}'
+    fi
+}
+
+# Common tar exclusions
+COMMON_EXCLUDES=(
+    --exclude='*.git*'
+    --exclude='*cache*'
+    --exclude='*tmp*'
+    --exclude='*temp*'
+    --exclude='*.log'
+    --exclude='*test*'
+    --exclude='*doc*'
+    --exclude='*example*'
+    --exclude='*download*'
+    --exclude='*.tar*'
+    --exclude='*.zip'
+    --exclude='*.bak'
+    --exclude='*~'
+    --exclude='*/locale/*'
+    --exclude='*/locales/*'
+    --exclude='*/man/*'
+    --exclude='*/share/man/*'
+    --exclude='*/share/doc/*'
+    --exclude='*/share/info/*'
+    --exclude='*debug*'
+    --exclude='*.debug'
+    --exclude='*.pdb'
+    --exclude='*.dSYM'
+    --exclude='*.map'
+    --exclude='*.dwp'
+    --exclude='*.dwarf'
+    --exclude='CMakeFiles'
+    --exclude='*.cmake'
+    --exclude='*.pc'
+)
+
 echo "Creating compressed artifact: ${ARTIFACT_NAME}.tar.gz"
 
 # Create a highly compressed tarball with maximum compression
 echo "Using GZIP compression with maximum compression level..."
-GZIP=-9 tar --exclude='*.git*' \
-    --exclude='*cache*' \
-    --exclude='*tmp*' \
-    --exclude='*temp*' \
-    --exclude='*.log' \
-    --exclude='*test*' \
-    --exclude='*doc*' \
-    --exclude='*example*' \
-    --exclude='*download*' \
-    --exclude='*.tar*' \
-    --exclude='*.zip' \
-    --exclude='*.bak' \
-    --exclude='*~' \
-    --exclude='*/locale/*' \
-    --exclude='*/locales/*' \
-    --exclude='*/man/*' \
-    --exclude='*/share/man/*' \
-    --exclude='*/share/doc/*' \
-    --exclude='*/share/info/*' \
-    --exclude='*debug*' \
-    --exclude='*.debug' \
-    --exclude='*.pdb' \
-    --exclude='*.dSYM' \
-    --exclude='*.map' \
-    --exclude='*.dwp' \
-    --exclude='*.dwarf' \
-    --exclude='CMakeFiles' \
-    --exclude='*.cmake' \
-    --exclude='*.pc' \
-    -czf "${ARTIFACT_NAME}.tar.gz" emsdk
+GZIP=-9 tar "${COMMON_EXCLUDES[@]}" -czf "${ARTIFACT_NAME}.tar.gz" emsdk
 
 # Check the size of the created artifact
-if command -v stat >/dev/null 2>&1; then
-    size=$(stat -f%z "${ARTIFACT_NAME}.tar.gz" 2>/dev/null || stat -c%s "${ARTIFACT_NAME}.tar.gz" 2>/dev/null)
+size=$(get_file_size "${ARTIFACT_NAME}.tar.gz")
+if [ -n "$size" ] && [ "$size" -gt 0 ]; then
     size_mb=$((size / 1024 / 1024))
     echo "Created artifact: ${ARTIFACT_NAME}.tar.gz (${size_mb}MB)"
     
@@ -238,100 +283,141 @@ if command -v stat >/dev/null 2>&1; then
         # Remove the oversized artifact
         rm "${ARTIFACT_NAME}.tar.gz"
         
-        # Create split archives
+        # Create split archives with more granular splitting
         cd emsdk
         
-        # Create core tools archive (essential binaries)
-        echo "Creating core tools archive..."
-        GZIP=-9 tar --exclude='*.git*' \
-            --exclude='*cache*' \
-            --exclude='*tmp*' \
-            --exclude='*temp*' \
-            --exclude='*.log' \
-            --exclude='*test*' \
-            --exclude='*doc*' \
-            --exclude='*example*' \
-            --exclude='*download*' \
-            --exclude='*.tar*' \
-            --exclude='*.zip' \
-            --exclude='*.bak' \
-            --exclude='*~' \
-            --exclude='*/locale/*' \
-            --exclude='*/locales/*' \
-            --exclude='*/man/*' \
-            --exclude='*/share/man/*' \
-            --exclude='*/share/doc/*' \
-            --exclude='*/share/info/*' \
-            --exclude='*debug*' \
-            --exclude='*.debug' \
-            --exclude='*.pdb' \
-            --exclude='*.dSYM' \
-            --exclude='*.map' \
-            --exclude='*.dwp' \
-            --exclude='*.dwarf' \
-            --exclude='CMakeFiles' \
-            --exclude='*.cmake' \
-            --exclude='*.pc' \
+        # 1. Core Emscripten Tools (emcc, em++, basic scripts)
+        echo "Creating core Emscripten tools archive..."
+        GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+            --exclude='upstream/*' \
             --exclude='python/*' \
             --exclude='node/*' \
-            -czf "../${ARTIFACT_NAME}-core.tar.gz" .
+            --exclude='binaryen/*' \
+            --exclude='java/*' \
+            -czf "../${ARTIFACT_NAME}-core.tar.gz" . 2>/dev/null || true
             
-        # Create runtime archive (python and node)
-        echo "Creating runtime dependencies archive..."
-        GZIP=-9 tar --exclude='*.git*' \
-            --exclude='*cache*' \
-            --exclude='*tmp*' \
-            --exclude='*temp*' \
-            --exclude='*.log' \
-            --exclude='*test*' \
-            --exclude='*doc*' \
-            --exclude='*example*' \
-            --exclude='*download*' \
-            --exclude='*.tar*' \
-            --exclude='*.zip' \
-            --exclude='*.bak' \
-            --exclude='*~' \
-            --exclude='*/locale/*' \
-            --exclude='*/locales/*' \
-            --exclude='*/man/*' \
-            --exclude='*/share/man/*' \
-            --exclude='*/share/doc/*' \
-            --exclude='*/share/info/*' \
-            --exclude='*debug*' \
-            --exclude='*.debug' \
-            --exclude='*.pdb' \
-            --exclude='*.dSYM' \
-            --exclude='*.map' \
-            --exclude='*.dwp' \
-            --exclude='*.dwarf' \
-            --exclude='CMakeFiles' \
-            --exclude='*.cmake' \
-            --exclude='*.pc' \
-            -czf "../${ARTIFACT_NAME}-runtime.tar.gz" python/ node/ 2>/dev/null || true
-            
+        # 2. LLVM/Clang Backend
+        echo "Creating LLVM backend archive..."
+        if [ -d "upstream" ]; then
+            cd upstream
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                --exclude='lib/*' \
+                --exclude='share/*' \
+                --exclude='include/*' \
+                -czf "../../${ARTIFACT_NAME}-llvm.tar.gz" bin/ 2>/dev/null || true
+            cd ..
+        fi
+        
+        # 3. System Libraries
+        echo "Creating system libraries archive..."
+        if [ -d "upstream" ]; then
+            cd upstream
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                -czf "../../${ARTIFACT_NAME}-libs.tar.gz" lib/ share/ include/ 2>/dev/null || true
+            cd ..
+        fi
+        
+        # 4. Python Runtime
+        echo "Creating Python runtime archive..."
+        if [ -d "python" ]; then
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                -czf "../${ARTIFACT_NAME}-python.tar.gz" python/ 2>/dev/null || true
+        fi
+        
+        # 5. Node.js Runtime
+        echo "Creating Node.js runtime archive..."
+        if [ -d "node" ]; then
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                -czf "../${ARTIFACT_NAME}-node.tar.gz" node/ 2>/dev/null || true
+        fi
+        
+        # 6. Binaryen Tools (wasm-opt, etc.)
+        echo "Creating Binaryen tools archive..."
+        if [ -d "binaryen" ]; then
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                -czf "../${ARTIFACT_NAME}-binaryen.tar.gz" binaryen/ 2>/dev/null || true
+        fi
+        
+        # 7. Java Runtime (if exists)
+        if [ -d "java" ]; then
+            echo "Creating Java runtime archive..."
+            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
+                -czf "../${ARTIFACT_NAME}-java.tar.gz" java/ 2>/dev/null || true
+        fi
+        
         cd ..
         
-        # Check sizes of split archives
-        for archive in "${ARTIFACT_NAME}-core.tar.gz" "${ARTIFACT_NAME}-runtime.tar.gz"; do
+        # Check sizes of all split archives
+        success=true
+        total_size=0
+        for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
             if [ -f "$archive" ]; then
-                size=$(stat -f%z "$archive" 2>/dev/null || stat -c%s "$archive" 2>/dev/null)
-                size_mb=$((size / 1024 / 1024))
-                echo "Created split artifact: $archive (${size_mb}MB)"
-                
-                if [ $size_mb -gt 95 ]; then
-                    echo "ERROR: Split artifact $archive is still ${size_mb}MB, exceeding the limit!"
-                    exit 1
+                size=$(get_file_size "$archive")
+                if [ -n "$size" ] && [ "$size" -gt 0 ]; then
+                    size_mb=$((size / 1024 / 1024))
+                    total_size=$((total_size + size_mb))
+                    echo "Created split artifact: $archive (${size_mb}MB)"
+                    
+                    if [ $size_mb -gt 95 ]; then
+                        echo "ERROR: Split artifact $archive is still ${size_mb}MB, exceeding the limit!"
+                        success=false
+                    fi
+                else
+                    echo "WARNING: Could not determine size of $archive"
                 fi
             fi
         done
         
-        echo "Successfully created split artifacts under the size limit."
+        if [ "$success" = true ]; then
+            echo "Successfully created split artifacts under the size limit."
+            echo "Total compressed size: ${total_size}MB across $(ls "${ARTIFACT_NAME}"-*.tar.gz 2>/dev/null | wc -l) archives"
+            
+            # Create a manifest file listing all parts
+            echo "Creating manifest file..."
+            cat > "${ARTIFACT_NAME}-manifest.txt" << EOF
+# EMSDK Split Archive Manifest
+# This file lists all the parts of the split EMSDK archive
+# Extract all parts to the same directory to reconstruct the full EMSDK
+
+EMSDK_VERSION=$(cat emsdk/.emscripten_version 2>/dev/null || echo "unknown")
+SPLIT_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+TOTAL_ARCHIVES=$(ls "${ARTIFACT_NAME}"-*.tar.gz 2>/dev/null | wc -l)
+
+Archives:
+EOF
+            for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
+                if [ -f "$archive" ]; then
+                    size=$(get_file_size "$archive")
+                    size_mb=$((size / 1024 / 1024))
+                    echo "  $archive (${size_mb}MB)" >> "${ARTIFACT_NAME}-manifest.txt"
+                fi
+            done
+            
+            echo ""
+            echo "Extraction Instructions:" >> "${ARTIFACT_NAME}-manifest.txt"
+            echo "1. Download all ${ARTIFACT_NAME}-*.tar.gz files to the same directory" >> "${ARTIFACT_NAME}-manifest.txt"
+            echo "2. Extract each archive in order:" >> "${ARTIFACT_NAME}-manifest.txt"
+            for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
+                if [ -f "$archive" ]; then
+                    echo "   tar -xzf $archive" >> "${ARTIFACT_NAME}-manifest.txt"
+                fi
+            done
+            echo "3. Run: source emsdk/emsdk_env.sh" >> "${ARTIFACT_NAME}-manifest.txt"
+            
+        else
+            echo "ERROR: Some split artifacts are still too large!"
+            exit 1
+        fi
     else
         echo "Artifact size is acceptable (${size_mb}MB < 95MB)"
     fi
+else
+    echo "ERROR: Could not determine artifact size"
+    exit 1
 fi
 
 # Also create the artifact in the original repository directory if we're not already there
 if [ "$PWD" != "$GITHUB_WORKSPACE" ] && [ -n "$GITHUB_WORKSPACE" ]; then
     cp "${ARTIFACT_NAME}"*.tar.gz "$GITHUB_WORKSPACE/" 2>/dev/null || true
+    cp "${ARTIFACT_NAME}"*.txt "$GITHUB_WORKSPACE/" 2>/dev/null || true
 fi
