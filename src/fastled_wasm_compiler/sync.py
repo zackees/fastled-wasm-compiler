@@ -182,7 +182,7 @@ def _sync_subdir(
     src_list = [s for s in src_list if s.is_file()]
     dst_list = [d for d in dst_list if d.is_file()]
 
-    # Filter the source list and dst list
+    # Filter the source list and dst list using the same filter
     src_list = [s for s in src_list if filter_list.passes(s)]
     dst_list = [d for d in dst_list if filter_list.passes(d)]
 
@@ -204,6 +204,13 @@ def _sync_subdir(
             dir.mkdir(parents=True, exist_ok=True)
 
     files_to_delete_on_dst: set[Path] = dst_set - src_set
+
+    # Debug output for deletion
+    if files_to_delete_on_dst:
+        print(f"Files to delete from destination: {len(files_to_delete_on_dst)}")
+        for file in files_to_delete_on_dst:
+            print(f"  Deleting: {file}")
+
     out_changed_files: list[Path] = []
     futures: list[Future] = []
     with ThreadPoolExecutor(max_workers=32) as executor:
