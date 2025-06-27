@@ -40,7 +40,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: emsdk-${{ matrix.artifact_name }}
-          path: ./emsdk-*.tar.gz
+          path: |
+            ./emsdk-*.tar.xz
+            ./emsdk-*.tar.xz.part*
+            ./emsdk-*-reconstruct.sh
+            ./emsdk-*-manifest.txt
           if-no-files-found: error
 
   deploy:
@@ -76,14 +80,23 @@ jobs:
             # Find the artifact directory for this type
             artifact_dir="./artifacts/emsdk-${artifact_name}"
             if [ -d "$artifact_dir" ]; then
-              # Look for tar.gz files in the artifact directory
-              found_file=$(find "$artifact_dir" -name "*.tar.gz" -type f | head -1)
-              if [ -n "$found_file" ]; then
-                echo "Found artifact: $found_file"
-                cp "$found_file" "./emsdk/emsdk-${friendly_name}-latest.tar.gz"
-                echo "Copied to: ./emsdk/emsdk-${friendly_name}-latest.tar.gz"
+              # Look for tar.xz files or tar.xz.part files in the artifact directory
+              found_archive=$(find "$artifact_dir" -name "*.tar.xz" -type f | head -1)
+              found_parts=$(find "$artifact_dir" -name "*.tar.xz.part*" -type f | head -1)
+              
+              if [ -n "$found_archive" ]; then
+                echo "Found single archive: $found_archive"
+                cp "$found_archive" "./emsdk/emsdk-${friendly_name}-latest.tar.xz"
+                echo "Copied to: ./emsdk/emsdk-${friendly_name}-latest.tar.xz"
+              elif [ -n "$found_parts" ]; then
+                echo "Found split archive parts, copying all files..."
+                # Copy all split parts, reconstruction script, and manifest
+                cp "$artifact_dir"/emsdk-*.tar.xz.part* "./emsdk/" 2>/dev/null || true
+                cp "$artifact_dir"/emsdk-*-reconstruct.sh "./emsdk/" 2>/dev/null || true
+                cp "$artifact_dir"/emsdk-*-manifest.txt "./emsdk/" 2>/dev/null || true
+                echo "Copied split archive parts for $friendly_name"
               else
-                echo "No tar.gz file found in $artifact_dir"
+                echo "No tar.xz or tar.xz.part files found in $artifact_dir"
               fi
             else
               echo "Artifact directory not found: $artifact_dir"
@@ -91,16 +104,16 @@ jobs:
           done
           
           # Create legacy macos symlink pointing to macos-arm64 (default for newer systems)
-          if [ -f "./emsdk/emsdk-macos-arm64-latest.tar.gz" ]; then
-            ln -sf "emsdk-macos-arm64-latest.tar.gz" "./emsdk/emsdk-macos-latest.tar.gz"
-            echo "Created legacy symlink: emsdk-macos-latest.tar.gz -> emsdk-macos-arm64-latest.tar.gz"
+          if [ -f "./emsdk/emsdk-macos-arm64-latest.tar.xz" ]; then
+            ln -sf "emsdk-macos-arm64-latest.tar.xz" "./emsdk/emsdk-macos-latest.tar.xz"
+            echo "Created legacy symlink: emsdk-macos-latest.tar.xz -> emsdk-macos-arm64-latest.tar.xz"
           fi
           
           echo "Final artifacts in emsdk directory:"
           ls -la ./emsdk/
           
           # Check file sizes to ensure they're under GitHub's 100MB limit
-          for file in ./emsdk/*.tar.gz; do
+          for file in ./emsdk/*.tar.xz ./emsdk/*.tar.xz.part*; do
             if [ -f "$file" ] && [ ! -L "$file" ]; then
               size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
               size_mb=$((size / 1024 / 1024))

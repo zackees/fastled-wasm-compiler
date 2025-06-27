@@ -264,152 +264,173 @@ COMMON_EXCLUDES=(
     --exclude='*.pc'
 )
 
-echo "Creating compressed artifact: ${ARTIFACT_NAME}.tar.gz"
+echo "Creating compressed artifact: ${ARTIFACT_NAME}.tar.xz"
 
-# Create a highly compressed tarball with maximum compression
-echo "Using GZIP compression with maximum compression level..."
-GZIP=-9 tar "${COMMON_EXCLUDES[@]}" -czf "${ARTIFACT_NAME}.tar.gz" emsdk
+# Create a highly compressed tarball with XZ compression (better than gzip)
+echo "Using XZ compression with maximum compression level..."
+XZ_OPT=-9 tar "${COMMON_EXCLUDES[@]}" -cJf "${ARTIFACT_NAME}.tar.xz" emsdk
 
 # Check the size of the created artifact
-size=$(get_file_size "${ARTIFACT_NAME}.tar.gz")
+size=$(get_file_size "${ARTIFACT_NAME}.tar.xz")
 if [ -n "$size" ] && [ "$size" -gt 0 ]; then
     size_mb=$((size / 1024 / 1024))
-    echo "Created artifact: ${ARTIFACT_NAME}.tar.gz (${size_mb}MB)"
+    echo "Created artifact: ${ARTIFACT_NAME}.tar.xz (${size_mb}MB)"
     
     if [ $size_mb -gt 95 ]; then
-        echo "WARNING: Artifact is ${size_mb}MB, which is close to GitHub's ~100MB limit!"
-        echo "Attempting to create split archives..."
+        echo "WARNING: Artifact is ${size_mb}MB, which exceeds GitHub's 95MB limit!"
+        echo "Splitting archive into 95MB chunks..."
         
-        # Remove the oversized artifact
-        rm "${ARTIFACT_NAME}.tar.gz"
+        # Split the tar.xz file into 95MB chunks
+        split -b 95M "${ARTIFACT_NAME}.tar.xz" "${ARTIFACT_NAME}.tar.xz.part"
         
-        # Create split archives with more granular splitting
-        cd emsdk
+        # Remove the original large file
+        rm "${ARTIFACT_NAME}.tar.xz"
         
-        # 1. Core Emscripten Tools (emcc, em++, basic scripts)
-        echo "Creating core Emscripten tools archive..."
-        GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-            --exclude='upstream/*' \
-            --exclude='python/*' \
-            --exclude='node/*' \
-            --exclude='binaryen/*' \
-            --exclude='java/*' \
-            -czf "../${ARTIFACT_NAME}-core.tar.gz" . 2>/dev/null || true
-            
-        # 2. LLVM/Clang Backend
-        echo "Creating LLVM backend archive..."
-        if [ -d "upstream" ]; then
-            cd upstream
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                --exclude='lib/*' \
-                --exclude='share/*' \
-                --exclude='include/*' \
-                -czf "../../${ARTIFACT_NAME}-llvm.tar.gz" bin/ 2>/dev/null || true
-            cd ..
-        fi
-        
-        # 3. System Libraries
-        echo "Creating system libraries archive..."
-        if [ -d "upstream" ]; then
-            cd upstream
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                -czf "../../${ARTIFACT_NAME}-libs.tar.gz" lib/ share/ include/ 2>/dev/null || true
-            cd ..
-        fi
-        
-        # 4. Python Runtime
-        echo "Creating Python runtime archive..."
-        if [ -d "python" ]; then
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                -czf "../${ARTIFACT_NAME}-python.tar.gz" python/ 2>/dev/null || true
-        fi
-        
-        # 5. Node.js Runtime
-        echo "Creating Node.js runtime archive..."
-        if [ -d "node" ]; then
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                -czf "../${ARTIFACT_NAME}-node.tar.gz" node/ 2>/dev/null || true
-        fi
-        
-        # 6. Binaryen Tools (wasm-opt, etc.)
-        echo "Creating Binaryen tools archive..."
-        if [ -d "binaryen" ]; then
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                -czf "../${ARTIFACT_NAME}-binaryen.tar.gz" binaryen/ 2>/dev/null || true
-        fi
-        
-        # 7. Java Runtime (if exists)
-        if [ -d "java" ]; then
-            echo "Creating Java runtime archive..."
-            GZIP=-9 tar "${COMMON_EXCLUDES[@]}" \
-                -czf "../${ARTIFACT_NAME}-java.tar.gz" java/ 2>/dev/null || true
-        fi
-        
-        cd ..
-        
-        # Check sizes of all split archives
+        # Check the created parts
         success=true
         total_size=0
-        for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
-            if [ -f "$archive" ]; then
-                size=$(get_file_size "$archive")
+        part_count=0
+        
+        for part in "${ARTIFACT_NAME}".tar.xz.part*; do
+            if [ -f "$part" ]; then
+                part_count=$((part_count + 1))
+                size=$(get_file_size "$part")
                 if [ -n "$size" ] && [ "$size" -gt 0 ]; then
                     size_mb=$((size / 1024 / 1024))
                     total_size=$((total_size + size_mb))
-                    echo "Created split artifact: $archive (${size_mb}MB)"
+                    echo "Created split part: $part (${size_mb}MB)"
                     
                     if [ $size_mb -gt 95 ]; then
-                        echo "ERROR: Split artifact $archive is still ${size_mb}MB, exceeding the limit!"
+                        echo "ERROR: Split part $part is still ${size_mb}MB, exceeding the limit!"
                         success=false
                     fi
                 else
-                    echo "WARNING: Could not determine size of $archive"
+                    echo "WARNING: Could not determine size of $part"
                 fi
             fi
         done
         
         if [ "$success" = true ]; then
-            echo "Successfully created split artifacts under the size limit."
-            echo "Total compressed size: ${total_size}MB across $(ls "${ARTIFACT_NAME}"-*.tar.gz 2>/dev/null | wc -l) archives"
+            echo "Successfully split archive into ${part_count} parts under the size limit."
+            echo "Total compressed size: ${total_size}MB across ${part_count} parts"
+            
+            # Create a reconstruction script
+            echo "Creating reconstruction script..."
+            cat > "${ARTIFACT_NAME}-reconstruct.sh" << 'EOF'
+#!/bin/bash
+
+# EMSDK Archive Reconstruction Script
+# This script reconstructs the original tar.xz file from split parts
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Get the base name from the script name
+BASE_NAME="${0%-reconstruct.sh}"
+ARCHIVE_NAME="${BASE_NAME}.tar.xz"
+
+echo "Reconstructing ${ARCHIVE_NAME} from split parts..."
+
+# Check if all parts are present
+PARTS=()
+for part in "${BASE_NAME}".tar.xz.part*; do
+    if [ -f "$part" ]; then
+        PARTS+=("$part")
+    fi
+done
+
+if [ ${#PARTS[@]} -eq 0 ]; then
+    echo "ERROR: No split parts found matching pattern ${BASE_NAME}.tar.xz.part*"
+    exit 1
+fi
+
+echo "Found ${#PARTS[@]} parts to reconstruct"
+
+# Sort parts to ensure correct order
+IFS=$'\n' PARTS=($(sort <<<"${PARTS[*]}"))
+
+# Reconstruct the archive
+cat "${PARTS[@]}" > "$ARCHIVE_NAME"
+
+if [ -f "$ARCHIVE_NAME" ]; then
+    echo "Successfully reconstructed: $ARCHIVE_NAME"
+    
+    # Verify the archive
+    if command -v xz >/dev/null 2>&1 && xz -t "$ARCHIVE_NAME" 2>/dev/null; then
+        echo "Archive integrity verified"
+    else
+        echo "WARNING: Could not verify archive integrity (xz command not available or archive corrupted)"
+    fi
+    
+    echo ""
+    echo "To extract the EMSDK:"
+    echo "  tar -xJf $ARCHIVE_NAME"
+    echo "  cd emsdk"
+    echo "  source ./emsdk_env.sh"
+    echo ""
+    echo "Optional: Remove split parts after successful reconstruction:"
+    printf "  rm"
+    for part in "${PARTS[@]}"; do
+        printf " '%s'" "$part"
+    done
+    echo ""
+else
+    echo "ERROR: Failed to reconstruct archive"
+    exit 1
+fi
+EOF
+            
+            # Make the reconstruction script executable
+            chmod +x "${ARTIFACT_NAME}-reconstruct.sh"
             
             # Create a manifest file listing all parts
             echo "Creating manifest file..."
             cat > "${ARTIFACT_NAME}-manifest.txt" << EOF
 # EMSDK Split Archive Manifest
 # This file lists all the parts of the split EMSDK archive
-# Extract all parts to the same directory to reconstruct the full EMSDK
 
 EMSDK_VERSION=$(cat emsdk/.emscripten_version 2>/dev/null || echo "unknown")
 SPLIT_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-TOTAL_ARCHIVES=$(ls "${ARTIFACT_NAME}"-*.tar.gz 2>/dev/null | wc -l)
+TOTAL_PARTS=${part_count}
+TOTAL_SIZE_MB=${total_size}
+COMPRESSION=tar.xz
+SPLIT_SIZE=95MB
 
-Archives:
+Split Parts:
 EOF
-            for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
-                if [ -f "$archive" ]; then
-                    size=$(get_file_size "$archive")
+            for part in "${ARTIFACT_NAME}".tar.xz.part*; do
+                if [ -f "$part" ]; then
+                    size=$(get_file_size "$part")
                     size_mb=$((size / 1024 / 1024))
-                    echo "  $archive (${size_mb}MB)" >> "${ARTIFACT_NAME}-manifest.txt"
+                    echo "  $part (${size_mb}MB)" >> "${ARTIFACT_NAME}-manifest.txt"
                 fi
             done
             
-            echo ""
-            echo "Extraction Instructions:" >> "${ARTIFACT_NAME}-manifest.txt"
-            echo "1. Download all ${ARTIFACT_NAME}-*.tar.gz files to the same directory" >> "${ARTIFACT_NAME}-manifest.txt"
-            echo "2. Extract each archive in order:" >> "${ARTIFACT_NAME}-manifest.txt"
-            for archive in "${ARTIFACT_NAME}"-*.tar.gz; do
-                if [ -f "$archive" ]; then
-                    echo "   tar -xzf $archive" >> "${ARTIFACT_NAME}-manifest.txt"
-                fi
-            done
-            echo "3. Run: source emsdk/emsdk_env.sh" >> "${ARTIFACT_NAME}-manifest.txt"
+            cat >> "${ARTIFACT_NAME}-manifest.txt" << EOF
+
+Reconstruction Instructions:
+1. Download all ${ARTIFACT_NAME}.tar.xz.part* files to the same directory
+2. Download ${ARTIFACT_NAME}-reconstruct.sh to the same directory
+3. Run: chmod +x ${ARTIFACT_NAME}-reconstruct.sh
+4. Run: ./${ARTIFACT_NAME}-reconstruct.sh
+5. Extract: tar -xJf ${ARTIFACT_NAME}.tar.xz
+6. Setup: cd emsdk && source ./emsdk_env.sh
+
+Alternative manual reconstruction:
+1. Download all parts to the same directory  
+2. Run: cat ${ARTIFACT_NAME}.tar.xz.part* > ${ARTIFACT_NAME}.tar.xz
+3. Extract: tar -xJf ${ARTIFACT_NAME}.tar.xz
+4. Setup: cd emsdk && source ./emsdk_env.sh
+EOF
             
         else
-            echo "ERROR: Some split artifacts are still too large!"
+            echo "ERROR: Some split parts are still too large!"
             exit 1
         fi
     else
-        echo "Artifact size is acceptable (${size_mb}MB < 95MB)"
+        echo "Artifact size is acceptable (${size_mb}MB <= 95MB)"
     fi
 else
     echo "ERROR: Could not determine artifact size"
@@ -418,6 +439,7 @@ fi
 
 # Also create the artifact in the original repository directory if we're not already there
 if [ "$PWD" != "$GITHUB_WORKSPACE" ] && [ -n "$GITHUB_WORKSPACE" ]; then
-    cp "${ARTIFACT_NAME}"*.tar.gz "$GITHUB_WORKSPACE/" 2>/dev/null || true
+    cp "${ARTIFACT_NAME}"*.tar.xz* "$GITHUB_WORKSPACE/" 2>/dev/null || true
+    cp "${ARTIFACT_NAME}"*-reconstruct.sh "$GITHUB_WORKSPACE/" 2>/dev/null || true
     cp "${ARTIFACT_NAME}"*.txt "$GITHUB_WORKSPACE/" 2>/dev/null || true
 fi
