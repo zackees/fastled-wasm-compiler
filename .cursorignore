@@ -1,0 +1,69 @@
+# Cursor ignore file to reduce background agent timeouts
+
+# Build directories
+build/
+dist/
+.build/
+**/build/
+**/dist/
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+.ruff_cache/  
+.mypy_cache/
+.tox/
+.nox/
+.coverage
+.cache/
+.venv/
+venv/
+env/
+
+# Emscripten and WebAssembly build artifacts
+*.wasm
+*.wasm.map
+*.dwarf
+*.bc
+*.o
+*.a
+
+
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+**/libdeps/
+
+# ccache directories
+.ccache/
+
+# FastLED specific build artifacts  
+**/fastled_js/
+**/compiler_root/src/
+**/compiler_root/build/
+**/compiler_root/libdeps/
+**/compiler_root/.pio/build/
+**/compiler_root/.pio/libdeps/
+
+# Sync data (test artifacts)
+tests/unit/.sync_data/
+
+
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package manager locks and dependencies
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*.log 

@@ -1,7 +1,49 @@
 # Add files or directories to ignore here
 
+# Shell scripts and executables
 run
 lint
 test
 install
 clean
+
+# Build directories and artifacts
+build/
+dist/
+.build/
+**/build/
+**/dist/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+
+# Emscripten/WebAssembly artifacts
+*.wasm
+*.bc
+*.o
+*.a
+*.dwarf
+
+# CMake artifacts
+CMakeFiles/
+CMakeCache.txt
+
+# PlatformIO artifacts
+.pio/
+**/libdeps/
+
+# Test sync data
+tests/unit/.sync_data/
+
+# Virtual environments
+.venv/
+venv/
+
+# Generated files
+*.ino.cpp
