@@ -27,6 +27,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ——— 4) Compiler Flags ——————————————————————————————————————————
 set(SHARED_FLAGS
+  -emit-llvm  # Generate LLVM bitcode instead of object files for faster builds
   -DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50
   -DFASTLED_FORCE_NAMESPACE=1
   -DFASTLED_USE_PROGMEM=0

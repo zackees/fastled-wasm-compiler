@@ -159,8 +159,9 @@ env.Append(CCFLAGS=compile_flags)
 env.Append(CXXFLAGS=compile_flags)
 env.Append(LINKFLAGS=link_flags)
 
-# FastLED library compile flags
+# FastLED library compile flags - compile as LLVM bitcode for faster builds
 fastled_compile_cc_flags = [
+    "-emit-llvm",  # Generate LLVM bitcode instead of object files
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
