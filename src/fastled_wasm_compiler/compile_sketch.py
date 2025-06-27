@@ -44,6 +44,7 @@ DEBUG_CXX_FLAGS = [
 
 # Quick build flags from platformio.ini [env:wasm-quick]
 QUICK_CXX_FLAGS = [
+    "-flto=thin",
     "-O0",
     "-sASSERTIONS=0",
     "-g0",
