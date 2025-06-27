@@ -72,6 +72,8 @@ compile_flags = [
     "-DFASTLED_WASM_USE_CCALL",
     "-std=gnu++17",
     "-fpermissive",
+    "-fno-rtti",
+    "-fno-exceptions",
     "-Wno-constant-logical-operand",
     "-Wnon-c-typedef-for-linkage",
     "-Werror=bad-function-cast",
@@ -163,6 +165,8 @@ env.Append(LINKFLAGS=link_flags)
 # FastLED library compile flags - compile as LLVM bitcode for faster builds
 fastled_compile_cc_flags = [
     "-emit-llvm",  # Generate LLVM bitcode instead of object files
+    "-fno-rtti",
+    "-fno-exceptions",
     "-Werror=bad-function-cast",
     "-Werror=cast-function-type",
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
