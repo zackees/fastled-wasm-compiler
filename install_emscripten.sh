@@ -190,8 +190,13 @@ rm -f .flake8 2>/dev/null || true
 # Remove documentation files to save space
 rm -f README.md SECURITY.md 2>/dev/null || true
 
-# Remove legacy tag files
+# Remove legacy tag files and build-time metadata
 rm -f legacy-emscripten-tags.txt legacy-binaryen-tags.txt 2>/dev/null || true
+rm -f llvm-tags-64bit.txt 2>/dev/null || true
+rm -f emscripten-releases-tags.json 2>/dev/null || true
+
+# Remove development/build scripts directory if not essential
+rm -rf scripts/ 2>/dev/null || true
 
 # Remove bazel if present and not needed
 rm -rf bazel/ 2>/dev/null || true
@@ -319,13 +324,17 @@ COMMON_EXCLUDES=(
     --exclude='*debug*'
     --exclude='*.debug'
     --exclude='*.pdb'
-    --exclude='*.dSYM'
     --exclude='*.map'
     --exclude='*.dwp'
     --exclude='*.dwarf'
     --exclude='CMakeFiles'
     --exclude='*.cmake'
     --exclude='*.pc'
+    --exclude='.circleci'
+    --exclude='.flake8'
+    --exclude='README.md'
+    --exclude='SECURITY.md'
+
 )
 
 echo "Creating compressed artifact: ${ARTIFACT_NAME}.tar.xz"
