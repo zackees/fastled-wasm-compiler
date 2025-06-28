@@ -96,7 +96,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 
-RUN echo "update build 19"
+RUN echo "update build 21"
 
 # Prune platforms we don't use and normalize line endings.
 COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
