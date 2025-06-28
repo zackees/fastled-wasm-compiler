@@ -424,7 +424,11 @@ jobs:
           branch: gh-pages
           folder: emsdk
           clean: true
+          clean-exclude: |
+            .nojekyll
+            CNAME
           single-commit: true
-          commit-message: "Update Emscripten SDK artifacts"
+          force: true
+          commit-message: "Replace Emscripten SDK artifacts"
           git-config-name: github-actions[bot]
           git-config-email: github-actions[bot]@users.noreply.github.com
