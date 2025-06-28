@@ -15,6 +15,16 @@ The compiler and build system for FastLED for WASM.
 
 For emsdk pre-built binaries go [here](https://zackees.github.io/fastled-wasm-compiler/)
 
+```bash
+# Option 1: Clone only main branch
+git clone -b main --single-branch https://github.com/zackees/fastled-wasm-compiler.git
+
+# Option 2: Clone normally then configure to exclude gh-pages
+git clone https://github.com/zackees/fastled-wasm-compiler.git
+cd fastled-wasm-compiler
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/* ^refs/heads/gh-pages"
+```
+
 ## Development
 
 Run `./install` to install the dependencies.
