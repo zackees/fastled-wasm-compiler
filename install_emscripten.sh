@@ -180,7 +180,69 @@ find . -name "*.cmake" -path "*/CMakeFiles/*" -delete 2>/dev/null || true
 # Remove pkg-config files we don't need
 find . -name "*.pc" -path "*/pkgconfig/*" -delete 2>/dev/null || true
 
-echo "Cleanup completed. Checking directory size..."
+# Additional specific cleanup based on typical EMSDK structure
+echo "Applying EMSDK-specific optimizations..."
+
+# Remove CI/development files
+rm -rf .circleci/ 2>/dev/null || true
+rm -f .flake8 2>/dev/null || true
+
+# Remove documentation files to save space
+rm -f README.md SECURITY.md 2>/dev/null || true
+
+# Remove legacy tag files
+rm -f legacy-emscripten-tags.txt legacy-binaryen-tags.txt 2>/dev/null || true
+
+# Remove bazel if present and not needed
+rm -rf bazel/ 2>/dev/null || true
+
+# Keep only essential shell environment files (remove platform-specific ones)
+# Keep: emsdk_env.sh (main), emsdk_env.bat (Windows basic)
+# Remove: csh, fish, ps1 variants
+rm -f emsdk_env.csh emsdk_env.fish emsdk_env.ps1 2>/dev/null || true
+rm -f emsdk.ps1 emcmdprompt.bat 2>/dev/null || true
+
+# Clean up Node.js installation if present
+if [ -d "node" ]; then
+    echo "Optimizing Node.js installation..."
+    # Remove Node.js documentation and examples
+    find node/ -name "*.md" -delete 2>/dev/null || true
+    find node/ -name "doc" -type d -exec rm -rf {} + 2>/dev/null || true
+    find node/ -name "example*" -type d -exec rm -rf {} + 2>/dev/null || true
+    find node/ -name "CHANGELOG*" -delete 2>/dev/null || true
+    find node/ -name "LICENSE*" -delete 2>/dev/null || true
+    # Remove npm cache and logs
+    find node/ -name ".npm" -type d -exec rm -rf {} + 2>/dev/null || true
+    find node/ -name "npm-debug.log*" -delete 2>/dev/null || true
+fi
+
+# Clean up Python installation if present
+if [ -d "python" ]; then
+    echo "Optimizing Python installation..."
+    # Remove Python test files and documentation  
+    find python/ -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
+    find python/ -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
+    find python/ -name "Doc" -type d -exec rm -rf {} + 2>/dev/null || true
+    find python/ -name "*.md" -delete 2>/dev/null || true
+    # Remove pip cache
+    find python/ -name "pip" -type d -path "*/cache/*" -exec rm -rf {} + 2>/dev/null || true
+fi
+
+# Remove development/build scripts that aren't needed for runtime
+if [ -d "scripts" ]; then
+    echo "Cleaning up scripts directory..."
+    # Keep only essential scripts, remove development ones
+    find scripts/ -name "*test*" -delete 2>/dev/null || true
+    find scripts/ -name "*dev*" -delete 2>/dev/null || true
+    find scripts/ -name "*debug*" -delete 2>/dev/null || true
+fi
+
+# Remove any remaining large archive files that might have been missed
+find . -name "*.tar.gz" -size +10M -delete 2>/dev/null || true
+find . -name "*.tar.bz2" -size +10M -delete 2>/dev/null || true
+find . -name "*.zip" -size +10M -delete 2>/dev/null || true
+
+echo "EMSDK-specific cleanup completed. Checking directory size..."
 
 cd ..
 

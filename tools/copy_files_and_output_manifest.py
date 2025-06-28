@@ -2,8 +2,7 @@ import json
 import shutil
 from pathlib import Path
 
-from fastled_wasm_compiler.hashfile import hash_file
-from fastled_wasm_compiler.print_banner import banner
+from utils import banner, hash_file
 
 
 def process_embedded_data_directory(
@@ -80,6 +79,7 @@ def copy_output_files_and_create_manifest(
     index_css_src: Path,
     index_js_src: Path,
     assets_modules: Path,
+    generate_index_html: bool = False,
 ) -> None:
     """
     Copy all output files to the destination directory and create manifest.
@@ -92,6 +92,7 @@ def copy_output_files_and_create_manifest(
         index_css_src: Path to the index.css file
         index_js_src: Path to the index.js file
         assets_modules: Path to the modules directory
+        generate_index_html: Whether to generate an additional platform index.html
     """
     print(banner("Copying output files..."))
     out_dir: Path = src_dir / fastled_js_out
@@ -151,3 +152,51 @@ def copy_output_files_and_create_manifest(
     manifest_json_str = json.dumps(manifest, indent=2, sort_keys=True)
     with open(out_dir / "files.json", "w") as f:
         f.write(manifest_json_str)
+
+    # Optionally generate a platform-style index.html for artifacts
+    if generate_index_html:
+        print(banner("Generating platform index.html"))
+        try:
+            # Import from the same tools directory
+            from generate_index import (
+                generate_manifest_json,
+                generate_platform_index_html,
+                get_file_info,
+            )
+
+            # Collect all files in the output directory
+            wasm_files = []
+            for file_path in out_dir.iterdir():
+                if file_path.is_file():
+                    wasm_files.append(get_file_info(file_path))
+
+            # Create platform info structure
+            platforms = {
+                "wasm": {
+                    "display_name": "WebAssembly Build",
+                    "description": "Compiled WebAssembly modules and supporting files",
+                    "files": wasm_files,
+                }
+            }
+
+            # Generate the index.html in the parent directory
+            generate_platform_index_html(
+                src_dir,
+                platforms,
+                title="FastLED WASM Compiler - Build Artifacts",
+                subtitle="WebAssembly compilation output",
+            )
+
+            # Also generate a JSON manifest
+            generate_manifest_json(
+                src_dir,
+                platforms,
+                {"build_type": "wasm", "output_directory": fastled_js_out},
+            )
+
+        except ImportError:
+            print(
+                "Warning: Could not import tools/generate_index.py for HTML generation"
+            )
+        except Exception as e:
+            print(f"Warning: Failed to generate platform index.html: {e}")
