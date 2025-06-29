@@ -73,7 +73,7 @@ def _parse_args() -> CliArgs:
     parser.add_argument(
         "--no-platformio",
         action="store_true",
-        help="Disable PlatformIO (not implemented yet)",
+        help="Disable PlatformIO and use direct emcc calls instead",
     )
     parser.add_argument(
         "--clear-ccache",
@@ -119,7 +119,7 @@ def _parse_args() -> CliArgs:
         debug=args.debug,
         quick=args.quick,
         release=args.release,
-        no_platformio=args.no_platformio,
+        no_platformio=args.no_platformio,  # Restored: Use the parsed flag from command line
         clear_ccache=args.clear_ccache,
         update_fastled_src=args.update_fastled_src,
         strict=args.strict,
@@ -140,7 +140,7 @@ def main() -> int:
         only_compile=False,
         profile=cli_args.profile,
         disable_auto_clean=False,
-        no_platformio=False,
+        no_platformio=cli_args.no_platformio,  # Fixed: Use the parsed flag instead of hardcoded False
         debug=cli_args.debug,
         quick=cli_args.quick,
         release=cli_args.release,

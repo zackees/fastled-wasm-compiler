@@ -43,16 +43,16 @@ def _pio_compile_cmd_list(
 #   --out /build_examples/blink
 
 
-def _new_compile_cmd_list(compiler_root: Path) -> list[str]:
+def _new_compile_cmd_list(compiler_root: Path, build_mode: BuildMode) -> list[str]:
+    # Use the compile_sketch.py module to compile the sketch directly
     cmd_list = [
-        "python" "-m",
+        "python",
+        "-m",
         "fastled_wasm_compiler.compile_sketch",
-        "--example",
-        "/examples/Blink/Blink.cpp",
-        "--lib",
-        "/build/debug/libfastled.a",
-        "--out",
-        "/build_examples/blink",
+        "--sketch",
+        str(compiler_root / "src"),  # The sketch source directory
+        "--mode",
+        build_mode.name.lower(),  # debug, quick, or release
     ]
     return cmd_list
 
@@ -104,7 +104,7 @@ def compile(
     # copy platformio files here:
     cmd_list: list[str]
     if no_platformio:
-        cmd_list = _new_compile_cmd_list(compiler_root)
+        cmd_list = _new_compile_cmd_list(compiler_root, build_mode)
     else:
         cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
     print(f"Command: {subprocess.list2cmdline(cmd_list)}")

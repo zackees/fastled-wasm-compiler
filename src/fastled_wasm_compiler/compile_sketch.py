@@ -128,9 +128,12 @@ def compile_cpp_to_obj(
 
 
 def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
+    # Determine output directory first
+    output_dir = BUILD_ROOT / build_mode.lower()
+
     # Add separate dwarf file for debug mode
     if build_mode.lower() == "debug":
-        dwarf_file = Path("/build/debug/fastled.wasm.dwarf")
+        dwarf_file = output_dir / "fastled.wasm.dwarf"
         LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
 
     # Gather all .cpp and .ino files in sketch dir
@@ -161,7 +164,6 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         print(f"Compiled {src_file} to {obj_file}")
         obj_files.append(obj_file)
 
-    output_dir = BUILD_ROOT / build_mode.lower()
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
     # cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files)]
@@ -181,7 +183,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         raise ValueError(f"Invalid build mode: {build_mode}")
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)
     if build_mode.lower() == "debug":
-        dwarf_file = Path("/build/debug/fastled.wasm.dwarf")
+        dwarf_file = output_dir / "fastled.wasm.dwarf"
         cmd_link.append(f"-gseparate-dwarf={dwarf_file}")
 
     print("\nLinking:", subprocess.list2cmdline(cmd_link))

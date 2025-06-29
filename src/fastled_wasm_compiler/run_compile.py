@@ -198,7 +198,8 @@ def run_compile(args: Args) -> int:
                 return 1
 
             if no_platformio:
-                build_dir = compiler_root / "build"
+                # The compile_sketch.py creates subdirectories based on build mode
+                build_dir = compiler_root / "build" / build_mode.name.lower()
             else:
                 build_dir = _get_build_dir_platformio(
                     build_mode=build_mode, pio_dir=pio_build_dir
