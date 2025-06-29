@@ -2,7 +2,11 @@
 
 set -e
 
-cd /git/fastled-wasm
+# Use environment variables with defaults, matching the Python paths.py pattern
+FASTLED_ROOT="${ENV_FASTLED_ROOT:-/git/fastled}"
+BUILD_ROOT_BASE="${ENV_BUILD_ROOT:-/build}"
+
+cd "${FASTLED_ROOT}-wasm"
 
 MODES=()
 
@@ -31,14 +35,14 @@ done
 for MODE in "${UNIQUE_MODES[@]}"; do
   echo ">>> Building in mode: $MODE"
 
-  # Build directory in /build/<mode> (absolute)
-  BUILD_DIR="/build/${MODE,,}"
+  # Build directory in $BUILD_ROOT_BASE/<mode> (absolute)
+  BUILD_DIR="${BUILD_ROOT_BASE}/${MODE,,}"
 
   mkdir -p "$BUILD_DIR"
   cd "$BUILD_DIR"
 
   export BUILD_MODE="$MODE"
-  emcmake cmake /git/fastled-wasm -G Ninja
+  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja
   ninja -v
 
   cd -

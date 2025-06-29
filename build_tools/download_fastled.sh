@@ -2,20 +2,23 @@
 
 set -e
 
+# Use environment variables with defaults, matching the Python paths.py pattern
+FASTLED_ROOT="${ENV_FASTLED_ROOT:-/git/fastled}"
+
 FASTLED_VERSION=master
 
 URL=https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
 
 
 # Download latest, unzip move into position and clean up.
-wget -O /git/fastled.zip ${URL} && \
-    unzip /git/fastled.zip -d /git && \
-    mv /git/FastLED-master /git/fastled && \
-    rm /git/fastled.zip
+wget -O "${FASTLED_ROOT}.zip" ${URL} && \
+    unzip "${FASTLED_ROOT}.zip" -d "$(dirname "${FASTLED_ROOT}")" && \
+    mv "$(dirname "${FASTLED_ROOT}")/FastLED-master" "${FASTLED_ROOT}" && \
+    rm "${FASTLED_ROOT}.zip"
 
 
-# Now remove all files in /git/fastled/src/platforms that isn't wasm, stub or shared
-cd /git/fastled/src/platforms
+# Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub or shared
+cd "${FASTLED_ROOT}/src/platforms"
 shopt -s extglob  # enable extended globing
 for d in */; do
   if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* ]]; then
@@ -23,7 +26,7 @@ for d in */; do
   fi
 done
 
-cd /git/fastled/src
+cd "${FASTLED_ROOT}/src"
 
 # now normalize all file endings encase they aren't unix.
 find . \( \
