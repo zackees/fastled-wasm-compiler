@@ -4,13 +4,14 @@ from pathlib import Path
 
 from fastled_wasm_compiler.paths import (
     FASTLED_SRC,
+    SKETCH_ROOT,
 )
 
 logger = logging.getLogger(__name__)
 
 # Matches what the compiler has: sorted from most complex to least complex.
 FASTLED_SOURCE_PATH = FASTLED_SRC.as_posix()
-SKETCH_PATH = "/js/src"  # todo - this will change.
+SKETCH_PATH = SKETCH_ROOT.as_posix()
 FASTLED_HEADERS_PATH = FASTLED_SRC.as_posix()
 EMSDK_PATH = "/emsdk"
 

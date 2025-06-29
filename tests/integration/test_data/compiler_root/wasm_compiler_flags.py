@@ -6,6 +6,8 @@ import os
 
 from SCons.Script import Import
 
+from fastled_wasm_compiler.paths import FASTLED_SRC
+
 # For drawf support it needs a file server running at this point.
 # TODO: Emite this information as a src-map.json file to hold this
 # port and other information.
@@ -82,8 +84,8 @@ compile_flags = [
     "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
-    "-I/js/fastled/src",
-    "-I/js/fastled/src/platforms/wasm/compiler",
+    f"-I{FASTLED_SRC.as_posix()}",
+    f"-I{FASTLED_SRC.as_posix()}/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
 ]

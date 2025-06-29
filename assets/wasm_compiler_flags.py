@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 
 from SCons.Script import Import
+from fastled_wasm_compiler.paths import FASTLED_SRC
 
 _IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
@@ -91,8 +92,8 @@ compile_flags = [
     "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
-    "-I/js/fastled/src",
-    "-I/js/fastled/src/platforms/wasm/compiler",
+    f"-I{FASTLED_SRC.as_posix()}",
+    f"-I{FASTLED_SRC.as_posix()}/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
 ]

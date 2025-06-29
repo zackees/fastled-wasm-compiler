@@ -9,6 +9,8 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from fastled_wasm_compiler.paths import CONTAINER_JS_ROOT
+
 # Enable Docker BuildKit for faster builds
 os.environ["DOCKER_BUILDKIT"] = "1"
 
@@ -172,13 +174,13 @@ class FullBuildTester(unittest.TestCase):
             "-v",
             f"{MAPPED_DIR.absolute()}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:/js",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
             "-v",
             f"{ASSETS_DIR.absolute()}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
-            "/js",
+            CONTAINER_JS_ROOT,
             "--assets-dirs",
             "/assets",
             "--mapped-dir",
@@ -281,13 +283,13 @@ class FullBuildTester(unittest.TestCase):
             "-v",
             f"{MAPPED_DIR.absolute()}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:/js",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
             "-v",
             f"{ASSETS_DIR.absolute()}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
-            "/js",
+            CONTAINER_JS_ROOT,
             "--assets-dirs",
             "/assets",
             "--mapped-dir",
@@ -370,13 +372,13 @@ class FullBuildTester(unittest.TestCase):
             "-v",
             f"{MAPPED_DIR.absolute()}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:/js",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
             "-v",
             f"{ASSETS_DIR.absolute()}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
-            "/js",
+            CONTAINER_JS_ROOT,
             "--assets-dirs",
             "/assets",
             "--mapped-dir",

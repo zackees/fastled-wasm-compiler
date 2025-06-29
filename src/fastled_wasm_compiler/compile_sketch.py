@@ -3,7 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC
 
 FASTLED_SRC_STR = FASTLED_SRC.as_posix()
 
@@ -96,7 +96,7 @@ def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
 ) -> tuple[subprocess.CompletedProcess, Path]:
-    build_dir = Path("/js/build") / build_mode.lower()
+    build_dir = BUILD_ROOT / build_mode.lower()
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
 
@@ -161,7 +161,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         print(f"Compiled {src_file} to {obj_file}")
         obj_files.append(obj_file)
 
-    output_dir = Path("/js/build") / build_mode.lower()
+    output_dir = BUILD_ROOT / build_mode.lower()
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
     # cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files)]
