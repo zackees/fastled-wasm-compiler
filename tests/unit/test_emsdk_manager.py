@@ -32,12 +32,13 @@ class TestEmsdkPlatform(unittest.TestCase):
     def test_platform_creation(self):
         """Test creating platform info."""
         platform_info = EmsdkPlatform(
-            "ubuntu-latest", "Ubuntu Linux", "emsdk-ubuntu-latest"
+            "ubuntu-latest", "Ubuntu Linux", "emsdk-ubuntu-latest", "ubuntu"
         )
 
         self.assertEqual(platform_info.name, "ubuntu-latest")
         self.assertEqual(platform_info.display_name, "Ubuntu Linux")
         self.assertEqual(platform_info.archive_pattern, "emsdk-ubuntu-latest")
+        self.assertEqual(platform_info.platform_name, "ubuntu")
 
 
 class TestEmsdkManager(unittest.TestCase):
@@ -46,7 +47,8 @@ class TestEmsdkManager(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.temp_dir = Path(tempfile.mkdtemp())
-        self.manager = EmsdkManager(install_dir=self.temp_dir)
+        self.cache_dir = self.temp_dir / "cache"
+        self.manager = EmsdkManager(install_dir=self.temp_dir, cache_dir=self.cache_dir)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -223,33 +225,22 @@ echo "test archive content" > {target_archive}
 
     def test_get_tool_paths_installed(self):
         """Test get_tool_paths returns correct paths when installed."""
-        # Set up mock installation
-        emsdk_dir = self.manager.emsdk_dir
-        upstream_dir = emsdk_dir / "upstream" / "emscripten"
-        upstream_dir.mkdir(parents=True)
+        # Install EMSDK if not already installed
+        if not self.manager.is_installed():
+            self.manager.install()
 
-        # Create emsdk_env.sh
-        (emsdk_dir / "emsdk_env.sh").touch()
+        # Get tool paths
+        tool_paths = self.manager.get_tool_paths()
 
-        # Create tool files with platform-appropriate extensions
+        # Verify paths
         tools = ["emcc", "em++", "emar", "emranlib"]
-        if platform.system() == "Windows":
-            for tool in tools:
-                (upstream_dir / f"{tool}.bat").touch()
-        else:
-            for tool in tools:
-                (upstream_dir / tool).touch()
-
-        # Mock is_installed to return True
-        with patch.object(self.manager, "is_installed", return_value=True):
-            # Get tool paths
-            tool_paths = self.manager.get_tool_paths()
-
-            # Verify paths
-            self.assertEqual(len(tool_paths), 4)
-            for tool in tools:
-                self.assertIn(tool, tool_paths)
-                self.assertTrue(tool_paths[tool].exists())
+        self.assertEqual(len(tool_paths), 4)
+        for tool in tools:
+            self.assertIn(tool, tool_paths)
+            self.assertTrue(
+                tool_paths[tool].exists(),
+                f"Tool {tool} not found at {tool_paths[tool]}",
+            )
 
     def test_get_tool_paths_windows_extensions(self):
         """Test get_tool_paths adds .bat extension on Windows."""
@@ -276,28 +267,21 @@ echo "test archive content" > {target_archive}
                 for tool in tools:
                     self.assertTrue(tool_paths[tool].name.endswith(".bat"))
 
-    @patch("subprocess.run")
-    def test_get_env_vars(self, mock_run):
+    def test_get_env_vars(self):
         """Test getting environment variables from emsdk_env.sh."""
-        # Set up mock installation
-        emsdk_dir = self.manager.emsdk_dir
-        emsdk_dir.mkdir(parents=True)
-        (emsdk_dir / "emsdk_env.sh").touch()
+        # Install EMSDK if not already installed
+        if not self.manager.is_installed():
+            self.manager.install()
 
-        # Mock is_installed to return True
-        with patch.object(self.manager, "is_installed", return_value=True):
-            # Mock subprocess result
-            mock_result = Mock()
-            mock_result.returncode = 0
-            mock_result.stdout = "PATH=/emsdk/bin\nEMSDK=/emsdk\nTEST_VAR=value"
-            mock_run.return_value = mock_result
+        # Get environment variables
+        env_vars = self.manager.get_env_vars()
 
-            # Get environment variables
-            env_vars = self.manager.get_env_vars()
+        # Verify important environment variables exist
+        self.assertIn("EMSDK", env_vars)
+        self.assertIn("PATH", env_vars)
 
-            # Verify result
-            expected = {"PATH": "/emsdk/bin", "EMSDK": "/emsdk", "TEST_VAR": "value"}
-            self.assertEqual(env_vars, expected)
+        # Verify EMSDK path points to our installation
+        self.assertEqual(env_vars["EMSDK"], str(self.manager.emsdk_dir))
 
     def test_create_wrapper_scripts_unix(self):
         """Test creating wrapper scripts on Unix-like systems."""
@@ -448,14 +432,17 @@ class TestEmsdkManagerFactory(unittest.TestCase):
 
         self.assertIsInstance(manager, EmsdkManager)
         self.assertEqual(manager.install_dir, Path.home() / ".fastled-emsdk")
+        self.assertEqual(manager.cache_dir, Path.cwd() / ".cache" / "emsdk-binaries")
 
-    def test_get_emsdk_manager_custom_dir(self):
-        """Test getting EMSDK manager with custom directory."""
-        custom_dir = Path("/tmp/custom-emsdk")
-        manager = get_emsdk_manager(install_dir=custom_dir)
+    def test_get_emsdk_manager_custom_dirs(self):
+        """Test getting EMSDK manager with custom directories."""
+        custom_install = Path("/tmp/custom-emsdk")
+        custom_cache = Path("/tmp/custom-cache")
+        manager = get_emsdk_manager(install_dir=custom_install, cache_dir=custom_cache)
 
         self.assertIsInstance(manager, EmsdkManager)
-        self.assertEqual(manager.install_dir, custom_dir)
+        self.assertEqual(manager.install_dir, custom_install)
+        self.assertEqual(manager.cache_dir, custom_cache)
 
 
 if __name__ == "__main__":

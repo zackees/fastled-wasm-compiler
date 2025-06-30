@@ -11,6 +11,7 @@ Key responsibilities:
 - Toolchain validation
 """
 
+import os
 import platform
 import shutil
 import subprocess
@@ -26,10 +27,13 @@ import httpx
 class EmsdkPlatform:
     """Platform information for EMSDK binary selection."""
 
-    def __init__(self, name: str, display_name: str, archive_pattern: str):
+    def __init__(
+        self, name: str, display_name: str, archive_pattern: str, platform_name: str
+    ):
         self.name = name
         self.display_name = display_name
         self.archive_pattern = archive_pattern
+        self.platform_name = platform_name
 
 
 class EmsdkManager:
@@ -40,31 +44,39 @@ class EmsdkManager:
     # Platform mapping for binary selection
     PLATFORMS = {
         ("Linux", "x86_64"): EmsdkPlatform(
-            "ubuntu-latest", "Ubuntu Linux", "emsdk-ubuntu-latest"
+            "ubuntu-latest", "Ubuntu Linux", "emsdk-ubuntu-latest", "ubuntu"
         ),
         ("Darwin", "arm64"): EmsdkPlatform(
-            "macos-arm64", "macOS Apple Silicon", "emsdk-macos-arm64"
+            "macos-arm64", "macOS Apple Silicon", "emsdk-macos-arm64", "macos-arm64"
         ),
         ("Darwin", "x86_64"): EmsdkPlatform(
-            "macos-x86_64", "macOS Intel", "emsdk-macos-x86_64"
+            "macos-x86_64", "macOS Intel", "emsdk-macos-x86_64", "macos-x86_64"
         ),
         ("Windows", "AMD64"): EmsdkPlatform(
-            "windows-latest", "Windows", "emsdk-windows-latest"
+            "windows-latest", "Windows", "emsdk-windows-latest", "windows"
         ),
         ("Windows", "x86_64"): EmsdkPlatform(
-            "windows-latest", "Windows", "emsdk-windows-latest"
+            "windows-latest", "Windows", "emsdk-windows-latest", "windows"
         ),
     }
 
-    def __init__(self, install_dir: Optional[Path] = None):
-        """Initialize EMSDK manager.
+    def __init__(
+        self, install_dir: Optional[Path] = None, cache_dir: Optional[Path] = None
+    ):
+        """Initialize EMSDK Manager.
 
         Args:
-            install_dir: Directory to install EMSDK. Defaults to ~/.fastled-emsdk
+            install_dir: Directory to install EMSDK to. Defaults to ~/.fastled-emsdk
+            cache_dir: Directory to cache downloads. Defaults to .cache/emsdk-binaries
         """
-        self.install_dir = install_dir or Path.home() / ".fastled-emsdk"
+        self.install_dir = install_dir or (Path.home() / ".fastled-emsdk")
+        self.cache_dir = cache_dir or (Path.cwd() / ".cache" / "emsdk-binaries")
         self.emsdk_dir = self.install_dir / "emsdk"
         self.platform_info = self._detect_platform()
+
+        # Ensure directories exist
+        self.install_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _detect_platform(self) -> EmsdkPlatform:
         """Detect current platform and return appropriate EMSDK platform info."""
@@ -129,74 +141,94 @@ class EmsdkManager:
                 destination.unlink()  # Clean up partial download
             raise RuntimeError(f"Failed to download {url}: {e}") from e
 
-    def _download_split_archive(
-        self, base_pattern: str, download_dir: Path
+    def _download_split_archive_cached(
+        self, base_pattern: str, temp_dir: Path
     ) -> List[Path]:
-        """Download split archive parts and reconstruction script.
+        """Download split archive parts using cache to avoid re-downloads.
 
         Args:
-            base_pattern: Base pattern like "emsdk-ubuntu-latest"
-            download_dir: Directory to download files to
+            base_pattern: Base pattern for archive files (e.g., "emsdk-windows-latest")
+            temp_dir: Temporary directory for reconstruction
 
         Returns:
-            List of downloaded file paths
+            List of file paths in temp_dir ready for reconstruction
         """
-        downloaded_files = []
+        # Create cache subdirectory for this platform
+        platform_cache = self.cache_dir / self.platform_info.platform_name
+        platform_cache.mkdir(parents=True, exist_ok=True)
 
-        # Download split parts (we don't know how many, so try until we fail)
-        part_suffix = "a"
-        part_num = 1
+        # Build the platform directory URL based on platform_name
+        platform_dir = f"{self.platform_info.platform_name}/"
+        base_url = urljoin(self.BASE_URL, platform_dir)
 
-        while part_num <= 10:  # Safety limit
-            if part_num == 1:
-                part_file = f"{base_pattern}.tar.xz.parta{part_suffix}"
-            else:
-                part_file = f"{base_pattern}.tar.xz.parta{'a' * part_num}"
+        temp_files = []
 
-            url = urljoin(self.BASE_URL, f"{self.platform_info.name}/{part_file}")
-            dest_path = download_dir / part_file
+        # Download or copy reconstruction script
+        reconstruct_script = f"{base_pattern}-reconstruct.sh"
+        cached_script = platform_cache / reconstruct_script
+        temp_script = temp_dir / reconstruct_script
 
+        if not cached_script.exists():
+            script_url = urljoin(base_url, reconstruct_script)
             try:
-                self._download_file(url, dest_path)
-                downloaded_files.append(dest_path)
-                part_num += 1
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404:
-                    break  # No more parts
-                raise
+                self._download_file(script_url, cached_script)
+                print(f"Downloaded and cached: {reconstruct_script}")
+            except Exception as e:
+                print(f"Could not download reconstruction script: {e}")
+        else:
+            print(f"Using cached: {reconstruct_script}")
 
-        if not downloaded_files:
-            # Try the alternate naming scheme
-            part_letters = ["aa", "ab", "ac", "ad", "ae"]
-            for letter in part_letters:
-                part_file = f"{base_pattern}.tar.xz.part{letter}"
-                url = urljoin(self.BASE_URL, f"{self.platform_info.name}/{part_file}")
-                dest_path = download_dir / part_file
+        if cached_script.exists():
+            shutil.copy2(cached_script, temp_script)
+            temp_files.append(temp_script)
 
+        # Download or copy manifest file
+        manifest_file = f"{base_pattern}-manifest.txt"
+        cached_manifest = platform_cache / manifest_file
+        temp_manifest = temp_dir / manifest_file
+
+        if not cached_manifest.exists():
+            manifest_url = urljoin(base_url, manifest_file)
+            try:
+                self._download_file(manifest_url, cached_manifest)
+                print(f"Downloaded and cached: {manifest_file}")
+            except Exception as e:
+                print(f"Could not download manifest: {e}")
+        else:
+            print(f"Using cached: {manifest_file}")
+
+        if cached_manifest.exists():
+            shutil.copy2(cached_manifest, temp_manifest)
+            temp_files.append(temp_manifest)
+
+        # Download or copy split archive parts
+        part_suffixes = ["aa", "ab", "ac", "ad", "ae", "af", "ag", "ah"]
+
+        for suffix in part_suffixes:
+            part_name = f"{base_pattern}.tar.xz.part{suffix}"
+            cached_part = platform_cache / part_name
+            temp_part = temp_dir / part_name
+
+            if not cached_part.exists():
+                part_url = urljoin(base_url, part_name)
                 try:
-                    self._download_file(url, dest_path)
-                    downloaded_files.append(dest_path)
-                except httpx.HTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        break
-                    raise
+                    self._download_file(part_url, cached_part)
+                    print(f"Downloaded and cached: {part_name}")
+                except Exception as e:
+                    print(f"Part {suffix} not available: {e}")
+                    break  # Stop when we hit a missing part
 
-        # Download reconstruction script and manifest
-        for suffix in ["-reconstruct.sh", "-manifest.txt"]:
-            filename = f"{base_pattern}{suffix}"
-            url = urljoin(self.BASE_URL, f"{self.platform_info.name}/{filename}")
-            dest_path = download_dir / filename
+            if cached_part.exists():
+                print(f"Using cached: {part_name}")
+                shutil.copy2(cached_part, temp_part)
+                temp_files.append(temp_part)
+            else:
+                break  # Stop if this part doesn't exist
 
-            try:
-                self._download_file(url, dest_path)
-                downloaded_files.append(dest_path)
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 404:
-                    print(f"Warning: {filename} not found, continuing...")
-                else:
-                    raise
+        if not temp_files:
+            raise RuntimeError(f"No archive files found for pattern {base_pattern}")
 
-        return downloaded_files
+        return temp_files
 
     def _reconstruct_archive(self, download_dir: Path, base_pattern: str) -> Path:
         """Reconstruct split archive into complete tar.xz file."""
@@ -246,37 +278,30 @@ class EmsdkManager:
         return target_archive
 
     def install(self, force: bool = False) -> None:
-        """Download and install EMSDK for the current platform.
+        """Install EMSDK from pre-built binaries.
 
         Args:
             force: Force reinstallation even if already installed
         """
-        if self.is_installed() and not force:
+        if not force and self.is_installed():
             print(f"EMSDK already installed at {self.emsdk_dir}")
             return
 
         print(f"Installing EMSDK for {self.platform_info.display_name}")
 
-        # Create installation directory
-        self.install_dir.mkdir(parents=True, exist_ok=True)
-
-        # Clean existing installation if forcing
+        # Clean up existing installation if forcing
         if force and self.emsdk_dir.exists():
+            print("Removing existing installation...")
             shutil.rmtree(self.emsdk_dir)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Download split archive files
             print("Downloading EMSDK archive...")
-            downloaded_files = self._download_split_archive(
+            self._download_split_archive_cached(
                 self.platform_info.archive_pattern, temp_path
             )
 
-            if not downloaded_files:
-                raise RuntimeError("Failed to download any EMSDK files")
-
-            # Reconstruct complete archive
             print("Reconstructing archive...")
             archive_path = self._reconstruct_archive(
                 temp_path, self.platform_info.archive_pattern
@@ -316,31 +341,50 @@ Install directory: {self.install_dir}
         print(f"EMSDK successfully installed to {self.emsdk_dir}")
 
     def get_env_vars(self) -> Dict[str, str]:
-        """Get environment variables needed for EMSDK."""
+        """Get environment variables needed for EMSDK.
+
+        Returns:
+            Dictionary of environment variables
+        """
         if not self.is_installed():
             raise RuntimeError("EMSDK not installed. Call install() first.")
 
-        # Read emsdk_env.sh to get environment setup
-        env_script = self.emsdk_dir / "emsdk_env.sh"
-        if not env_script.exists():
-            raise RuntimeError(f"EMSDK environment script not found: {env_script}")
+        # Get current environment as base
+        env_vars = dict(os.environ)
 
-        # Execute the environment script and capture output
-        result = subprocess.run(
-            ["bash", "-c", f"source {env_script} && env"],
-            capture_output=True,
-            text=True,
+        # Add EMSDK-specific paths directly without sourcing bash script
+        emsdk_dir = self.emsdk_dir
+        upstream_emscripten = emsdk_dir / "upstream" / "emscripten"
+
+        # Find actual node directory
+        node_paths = list(emsdk_dir.glob("node/*/bin"))
+        if node_paths:
+            node_bin = str(node_paths[0])
+        else:
+            node_bin = ""
+
+        # Update PATH to include EMSDK tools
+        current_path = env_vars.get("PATH", "")
+        new_path_parts = [
+            str(upstream_emscripten),
+            str(emsdk_dir),
+        ]
+        if node_bin:
+            new_path_parts.append(node_bin)
+
+        if current_path:
+            new_path_parts.append(current_path)
+
+        # Add our specific paths and settings
+        env_vars.update(
+            {
+                "EMSDK": str(self.emsdk_dir),
+                "EMSDK_NODE": node_bin if node_bin else str(emsdk_dir / "node"),
+                "PATH": os.pathsep.join(new_path_parts),
+                "CCACHE_DIR": str(Path.home() / ".fastled-ccache"),
+                "CCACHE_MAXSIZE": "1G",
+            }
         )
-
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to source EMSDK environment: {result.stderr}")
-
-        # Parse environment variables
-        env_vars = {}
-        for line in result.stdout.strip().split("\n"):
-            if "=" in line:
-                key, value = line.split("=", 1)
-                env_vars[key] = value
 
         return env_vars
 
@@ -432,9 +476,11 @@ exec ccache {tool_path} "$@"
         return wrapper_scripts
 
 
-def get_emsdk_manager(install_dir: Optional[Path] = None) -> EmsdkManager:
+def get_emsdk_manager(
+    install_dir: Optional[Path] = None, cache_dir: Optional[Path] = None
+) -> EmsdkManager:
     """Get a configured EMSDK manager instance."""
-    return EmsdkManager(install_dir)
+    return EmsdkManager(install_dir, cache_dir)
 
 
 if __name__ == "__main__":
