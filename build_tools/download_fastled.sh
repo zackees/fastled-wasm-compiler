@@ -28,6 +28,10 @@ done
 
 cd "${FASTLED_ROOT}/src"
 
+# Remove *.cpp files but keep *.hpp.cpp files
+echo "Removing *.cpp files (but keeping *.hpp.cpp files)..."
+find . -name "*.cpp" -not -name "*.hpp.cpp" -type f -delete
+
 # now normalize all file endings encase they aren't unix.
 find . \( \
   -name "*.c*" -o \

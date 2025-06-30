@@ -98,6 +98,10 @@ _FILTER_SRC = FilterList(
     file_glob=[],
     filter_list=[
         FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**"]),
+        # Include *.hpp.cpp files first (more specific pattern wins)
+        FilterOp(filter=FilterType.INCLUDE, glob=["**/*.hpp.cpp"]),
+        # Then exclude other *.cpp files
+        FilterOp(filter=FilterType.EXCLUDE, glob=["**/*.cpp"]),
     ],
 )
 
