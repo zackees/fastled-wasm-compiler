@@ -92,10 +92,10 @@ class ArgConverstionTester(unittest.TestCase):
 
         self.assertEqual(args, args2)
 
-    def test_default_no_platformio_behavior(self) -> None:
-        """Test that no_platformio defaults to True when not specified."""
+    def test_default_platformio_behavior(self) -> None:
+        """Test that platformio is used by default (no_platformio defaults to False)."""
 
-        # Test with minimal required args - should default to no_platformio=True
+        # Test with minimal required args - should default to using platformio
         cmd_args = [
             "--compiler-root",
             str(COMPILER_ROOT),
@@ -107,8 +107,8 @@ class ArgConverstionTester(unittest.TestCase):
 
         args = Args.parse_args(cmd_args)
 
-        # Verify the default is True (no PlatformIO)
-        self.assertTrue(args.no_platformio, "no_platformio should default to True")
+        # Verify the default behavior is to use PlatformIO
+        self.assertFalse(args.no_platformio, "Should use platformio by default")
 
 
 if __name__ == "__main__":

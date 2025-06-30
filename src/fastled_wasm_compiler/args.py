@@ -40,7 +40,7 @@ class Args:
             "--only-compile" if self.only_compile else "",
             "--profile" if self.profile else "",
             "--disable-auto-clean" if self.disable_auto_clean else "",
-            "--no-platformio" if self.no_platformio else "--use-platformio",
+            "--no-platformio" if self.no_platformio else "",
             "--debug" if self.debug else "",
             "--quick" if self.quick else "",
             "--release" if self.release else "",
@@ -147,17 +147,10 @@ def _parse_args(args: list[str] | None = None) -> Args:
         help="Massaive speed improvement to not have to rebuild everything, but flakes out sometimes.",
         default=os.getenv("DISABLE_AUTO_CLEAN", "0") == "1",
     )
-    # Use mutually exclusive group for platformio options
-    platformio_group = parser.add_mutually_exclusive_group()
-    platformio_group.add_argument(
+    parser.add_argument(
         "--no-platformio",
         action="store_true",
         help="Don't use platformio to compile the project, use the new system of direct emcc calls.",
-    )
-    platformio_group.add_argument(
-        "--use-platformio",
-        action="store_true",
-        help="Use platformio to compile the project (legacy mode).",
     )
     parser.add_argument(
         "--clear-ccache",
@@ -193,7 +186,7 @@ def _parse_args(args: list[str] | None = None) -> Args:
         only_compile=tmp.only_compile,
         profile=tmp.profile,
         disable_auto_clean=tmp.disable_auto_clean,
-        no_platformio=not tmp.use_platformio,  # Default to True unless --use-platformio is specified
+        no_platformio=tmp.no_platformio,  # Default to False (use platformio) unless --no-platformio is specified
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,
