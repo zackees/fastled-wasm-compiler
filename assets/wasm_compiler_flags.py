@@ -90,6 +90,10 @@ compile_flags = [
     "-Werror=cast-function-type",
     "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
     "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
+    # Threading disabled flags
+    "-fno-threadsafe-statics",  # Disable thread-safe static initialization
+    "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
+    "-D_REENTRANT=0",  # Disable reentrant code
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
     f"-I{FASTLED_SRC.as_posix()}",
@@ -124,8 +128,10 @@ link_flags = [
     "-sINITIAL_MEMORY=134217728",  # start with 128 MB heap
     "-sAUTO_NATIVE_LIBRARIES=0",
     "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
-
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
+    # Threading disabled flags
+    "-sUSE_PTHREADS=0",  # Disable POSIX threads
+    "-sEXIT_RUNTIME=0",  # Don't exit runtime (not thread-related but often paired)
     "--no-entry",
 ]
 

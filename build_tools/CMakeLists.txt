@@ -38,6 +38,10 @@ set(SHARED_FLAGS
   -Wnon-c-typedef-for-linkage
   -Werror=bad-function-cast
   -Werror=cast-function-type
+  # Threading disabled flags
+  -fno-threadsafe-statics  # Disable thread-safe static initialization
+  -DEMSCRIPTEN_NO_THREADS  # Define to disable threading
+  -D_REENTRANT=0  # Disable reentrant code
 )
 
 set(CXX_ONLY_FLAGS
