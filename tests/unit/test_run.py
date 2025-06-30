@@ -40,8 +40,8 @@ class MainTester(unittest.TestCase):
 
     @unittest.skipIf(not _ENABLED, "Skipping test as it is not enabled.")
     @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
-    def test_run(self, mock_pio_compile: MagicMock) -> None:
-        """Test command line interface (CLI)."""
+    def test_run_with_no_platformio(self, mock_pio_compile: MagicMock) -> None:
+        """Test command line interface (CLI) with no_platformio=True."""
 
         mock_pio_compile.return_value = ["echo", "fake compile"]
 
@@ -55,7 +55,56 @@ class MainTester(unittest.TestCase):
             only_compile=False,
             profile=False,
             disable_auto_clean=False,
-            no_platformio=False,
+            no_platformio=True,
+            debug=False,
+            quick=False,
+            release=False,
+            clear_ccache=False,
+            strict=False,
+        )
+        rtn = run(args)
+        self.assertEqual(0, rtn)
+
+        # verify that the expected output artifacts exist
+        output_artifact_dir = SKETCH_DIR / "fastled_js"
+        self.assertTrue(
+            output_artifact_dir.exists(), "Output artifact directory does not exist"
+        )
+        # known artifacts are
+        output_files = [
+            "files.json",
+            "index.html",
+            "index.css",
+            "index.js",
+            # "fastled.wasm",  # not present in mock env
+            "modules/module1.js",
+            "modules/module2.js",
+        ]
+
+        for file in output_files:
+            file_path = output_artifact_dir / file
+            self.assertTrue(
+                file_path.exists(), f"Output artifact {file} does not exist"
+            )
+
+    @unittest.skipIf(not _ENABLED, "Skipping test as it is not enabled.")
+    @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
+    def test_run_with_platformio(self, mock_pio_compile: MagicMock) -> None:
+        """Test command line interface (CLI) with no_platformio=False."""
+
+        mock_pio_compile.return_value = ["echo", "fake compile"]
+
+        args: Args = Args(
+            compiler_root=COMPILER_ROOT,
+            assets_dirs=ASSETS_DIR,
+            mapped_dir=MAPPED_DIR,
+            keep_files=False,
+            only_copy=False,
+            only_insert_header=False,
+            only_compile=False,
+            profile=False,
+            disable_auto_clean=False,
+            no_platformio=False,  # Explicitly test with PlatformIO enabled
             debug=False,
             quick=False,
             release=False,
