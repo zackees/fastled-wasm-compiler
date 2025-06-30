@@ -74,6 +74,7 @@ def _parse_args() -> CliArgs:
         "--no-platformio",
         action="store_true",
         help="Disable PlatformIO and use direct emcc calls instead",
+        default=os.environ.get("NO_PLATFORMIO", "0") == "1",
     )
     parser.add_argument(
         "--clear-ccache",
@@ -119,7 +120,7 @@ def _parse_args() -> CliArgs:
         debug=args.debug,
         quick=args.quick,
         release=args.release,
-        no_platformio=args.no_platformio,  # Restored: Use the parsed flag from command line
+        no_platformio=args.no_platformio,
         clear_ccache=args.clear_ccache,
         update_fastled_src=args.update_fastled_src,
         strict=args.strict,
@@ -140,12 +141,12 @@ def main() -> int:
         only_compile=False,
         profile=cli_args.profile,
         disable_auto_clean=False,
-        no_platformio=cli_args.no_platformio,  # Fixed: Use the parsed flag instead of hardcoded False
+        no_platformio=cli_args.no_platformio,
         debug=cli_args.debug,
         quick=cli_args.quick,
         release=cli_args.release,
         clear_ccache=cli_args.clear_ccache,
-        strict=cli_args.strict,  # Pass the strict flag through to the Args object
+        strict=cli_args.strict,
     )
     # Derive build modes from boolean flags
     build_libs = []

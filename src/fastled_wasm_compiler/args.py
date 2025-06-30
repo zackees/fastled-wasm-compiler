@@ -111,13 +111,23 @@ class Args:
 def _parse_args(args: list[str] | None = None) -> Args:
     parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
 
-    parser.add_argument("--compiler-root", type=Path, required=True)
-    parser.add_argument("--assets-dirs", type=Path, required=True)
+    parser.add_argument(
+        "--compiler-root",
+        type=Path,
+        help="Directory where the compiler will run",
+        required=True,
+    )
+    parser.add_argument(
+        "--assets-dirs",
+        type=Path,
+        help="Directory containing assets (index.html, etc)",
+        required=True,
+    )
     parser.add_argument(
         "--mapped-dir",
         type=Path,
-        default="/mapped",
-        help="Directory containing source files (default: /mapped)",
+        help="Directory containing source files",
+        required=True,
     )
     parser.add_argument(
         "--keep-files", action="store_true", help="Keep source files after compilation"
@@ -125,44 +135,45 @@ def _parse_args(args: list[str] | None = None) -> Args:
     parser.add_argument(
         "--only-copy",
         action="store_true",
-        help="Only copy files from mapped directory to container",
+        help="Only copy files, don't compile",
     )
     parser.add_argument(
         "--only-insert-header",
         action="store_true",
-        help="Only insert headers in source files",
+        help="Only insert header, don't compile",
     )
     parser.add_argument(
-        "--only-compile", action="store_true", help="Only compile the project"
+        "--only-compile",
+        action="store_true",
+        help="Only compile, don't copy files",
     )
     parser.add_argument(
         "--profile",
         action="store_true",
-        help="Enable profiling for compilation to see what's taking so long.",
+        help="Enable profiling of the build system",
     )
-
     parser.add_argument(
         "--disable-auto-clean",
         action="store_true",
-        help="Massaive speed improvement to not have to rebuild everything, but flakes out sometimes.",
-        default=os.getenv("DISABLE_AUTO_CLEAN", "0") == "1",
+        help="Disable auto clean before compilation",
     )
     parser.add_argument(
         "--no-platformio",
         action="store_true",
-        help="Don't use platformio to compile the project, use the new system of direct emcc calls.",
+        help="Disable PlatformIO and use direct emcc calls instead",
+        default=os.environ.get("NO_PLATFORMIO", "0") == "1",
     )
     parser.add_argument(
         "--clear-ccache",
         action="store_true",
-        help="Clear the ccache before compilation.",
+        help="Clear the ccache before compilation",
     )
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="Enable strict mode.",
+        help="Treat all compiler warnings as errors",
     )
-    # Add mutually exclusive build mode group
+
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
     build_mode.add_argument(
@@ -186,7 +197,7 @@ def _parse_args(args: list[str] | None = None) -> Args:
         only_compile=tmp.only_compile,
         profile=tmp.profile,
         disable_auto_clean=tmp.disable_auto_clean,
-        no_platformio=tmp.no_platformio,  # Default to False (use platformio) unless --no-platformio is specified
+        no_platformio=tmp.no_platformio,
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,
