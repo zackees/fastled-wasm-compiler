@@ -2,6 +2,7 @@
 Unit test file.
 """
 
+import os
 import shutil
 import unittest
 import zipfile
@@ -15,6 +16,10 @@ HERE = Path(__file__).parent
 SYNC_DATA = HERE / ".sync_data"
 SYNC_DATA_SRC = SYNC_DATA / "src"
 SYNC_DATA_DST = SYNC_DATA / "dst"
+
+# Cache downloaded file to speed up repeated test runs
+CACHE_DIR = Path.cwd() / ".cache" / "test-fastled-downloads"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 URL = "https://github.com/FastLED/FastLED/archive/refs/heads/master.zip"
 
@@ -30,20 +35,36 @@ def _get_first_directory(src: Path) -> Path:
 class SyncTester(unittest.TestCase):
     """Main tester class."""
 
+    def setUp(self):
+        """Set up test environment."""
+        # Skip if integration tests not enabled (this downloads large files)
+        if not os.environ.get("RUN_INTEGRATION_TESTS"):
+            self.skipTest("Integration tests not enabled. Set RUN_INTEGRATION_TESTS=1")
+
     def test_glob(self) -> None:
         """Test command line interface (CLI)."""
         # Define the glob pattern and the directory to search
         SYNC_DATA_SRC.mkdir(parents=True, exist_ok=True)
         # SYNC_DATA_DST.mkdir(parents=True, exist_ok=True)
 
+        # Use cached download to speed up repeated test runs
+        cached_zip = CACHE_DIR / "fastled-master.zip"
         src_zip = SYNC_DATA_SRC / "master.zip"
-        if not src_zip.exists():
+
+        if not cached_zip.exists():
+            print("Downloading FastLED repository (cached for future runs)...")
             response = httpx.get(URL, follow_redirects=True)
             content = response.content
             assert len(content) >= 10000, "Downloaded file is too small"
-            with open(src_zip, "wb") as f:
+            with open(cached_zip, "wb") as f:
                 f.write(content)
-            f.close()
+            print(f"Downloaded and cached: {cached_zip}")
+        else:
+            print(f"Using cached download: {cached_zip}")
+
+        # Copy from cache to test location
+        shutil.copy2(cached_zip, src_zip)
+
         # unzip the file
         # assert that the file exists
         assert (SYNC_DATA_SRC / "master.zip").exists(), "File not found"

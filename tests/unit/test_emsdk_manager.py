@@ -10,10 +10,8 @@ These tests validate:
 - Basic compilation functionality
 """
 
-import os
 import platform
 import shutil
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -198,80 +196,69 @@ class TestEmsdkManager(unittest.TestCase):
         download_dir.mkdir()
 
         base_pattern = "emsdk-test"
-        target_archive = download_dir / f"{base_pattern}.tar.xz"
-        reconstruct_script = download_dir / f"{base_pattern}-reconstruct.sh"
+        part1 = download_dir / f"{base_pattern}.tar.xz.partaa"
+        part2 = download_dir / f"{base_pattern}.tar.xz.partab"
 
-        # Create mock reconstruction script
-        script_content = f"""#!/bin/bash
-echo "test archive content" > {target_archive}
-"""
-        reconstruct_script.write_text(script_content)
-        reconstruct_script.chmod(0o755)
+        part1.write_bytes(b"part1content")
+        part2.write_bytes(b"part2content")
+
+        # Create a mock reconstruction script
+        script_path = download_dir / "reconstruct.sh"
+        script_path.write_text("cat *.part* > emsdk-test.tar.xz")
 
         # Reconstruct
         result = self.manager._reconstruct_archive(download_dir, base_pattern)
 
         # Check result
-        self.assertEqual(result, target_archive)
-        self.assertTrue(target_archive.exists())
-        self.assertIn("test archive content", target_archive.read_text())
+        expected_path = download_dir / f"{base_pattern}.tar.xz"
+        self.assertEqual(result, expected_path)
+        self.assertTrue(expected_path.exists())
+        self.assertEqual(expected_path.read_bytes(), b"part1contentpart2content")
 
     def test_get_tool_paths_not_installed(self):
-        """Test get_tool_paths raises error when not installed."""
+        """Test get_tool_paths when EMSDK not installed."""
         with self.assertRaises(RuntimeError) as cm:
             self.manager.get_tool_paths()
 
         self.assertIn("EMSDK not installed", str(cm.exception))
 
     def test_get_tool_paths_installed(self):
-        """Test get_tool_paths returns correct paths when installed."""
-        # Install EMSDK if not already installed
-        if not self.manager.is_installed():
-            self.manager.install()
+        """Test get_tool_paths when EMSDK is installed."""
+        with patch("platform.system", return_value="Linux"):
+            # Set up mock installation
+            self._setup_mock_installation()
 
-        # Get tool paths
-        tool_paths = self.manager.get_tool_paths()
+            tool_paths = self.manager.get_tool_paths()
 
-        # Verify paths
-        tools = ["emcc", "em++", "emar", "emranlib"]
-        self.assertEqual(len(tool_paths), 4)
-        for tool in tools:
-            self.assertIn(tool, tool_paths)
-            self.assertTrue(
-                tool_paths[tool].exists(),
-                f"Tool {tool} not found at {tool_paths[tool]}",
-            )
+            # Check that all expected tools are present
+            expected_tools = ["emcc", "em++", "emar", "emranlib"]
+            for tool in expected_tools:
+                self.assertIn(tool, tool_paths)
+                self.assertTrue(tool_paths[tool].exists())
 
     def test_get_tool_paths_windows_extensions(self):
-        """Test get_tool_paths adds .bat extension on Windows."""
+        """Test get_tool_paths on Windows with .bat extensions."""
         with patch("platform.system", return_value="Windows"):
             # Set up mock installation
-            emsdk_dir = self.manager.emsdk_dir
-            upstream_dir = emsdk_dir / "upstream" / "emscripten"
-            upstream_dir.mkdir(parents=True)
+            self._setup_mock_installation(windows=True)
 
-            # Create emsdk_env.sh
-            (emsdk_dir / "emsdk_env.sh").touch()
+            tool_paths = self.manager.get_tool_paths()
 
-            # Create tool files with .bat extension
-            tools = ["emcc", "em++", "emar", "emranlib"]
-            for tool in tools:
-                (upstream_dir / f"{tool}.bat").touch()
-
-            # Mock is_installed to return True
-            with patch.object(self.manager, "is_installed", return_value=True):
-                # Get tool paths
-                tool_paths = self.manager.get_tool_paths()
-
-                # Verify .bat extensions
-                for tool in tools:
-                    self.assertTrue(tool_paths[tool].name.endswith(".bat"))
+            # Check that all expected tools are present with .bat extensions
+            expected_tools = ["emcc", "em++", "emar", "emranlib"]
+            for tool in expected_tools:
+                self.assertIn(tool, tool_paths)
+                self.assertTrue(tool_paths[tool].exists())
+                self.assertTrue(tool_paths[tool].name.endswith(".bat"))
 
     def test_get_env_vars(self):
-        """Test getting environment variables from emsdk_env.sh."""
-        # Install EMSDK if not already installed
-        if not self.manager.is_installed():
-            self.manager.install()
+        """Test environment variable setup."""
+        # Set up mock installation
+        self._setup_mock_installation()
+
+        # Create a mock node directory
+        node_dir = self.manager.emsdk_dir / "node" / "18.0.0_64bit" / "bin"
+        node_dir.mkdir(parents=True)
 
         # Get environment variables
         env_vars = self.manager.get_env_vars()
@@ -341,86 +328,6 @@ echo "test archive content" > {target_archive}
                 (upstream_dir / f"{tool}.bat").touch()
             else:
                 (upstream_dir / tool).touch()
-
-
-class TestEmsdkManagerIntegration(unittest.TestCase):
-    """Integration tests for EMSDK Manager.
-
-    These tests require an actual EMSDK installation and are more expensive.
-    They are only run when explicitly enabled.
-    """
-
-    def setUp(self):
-        """Set up integration test environment."""
-        self.temp_dir = Path(tempfile.mkdtemp())
-        self.manager = EmsdkManager(install_dir=self.temp_dir)
-
-        # Skip if integration tests not enabled
-        if not os.environ.get("RUN_INTEGRATION_TESTS"):
-            self.skipTest("Integration tests not enabled. Set RUN_INTEGRATION_TESTS=1")
-
-    def tearDown(self):
-        """Clean up integration test environment."""
-        if self.temp_dir.exists():
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_full_installation(self):
-        """Test full EMSDK installation and setup."""
-        # This test actually downloads and installs EMSDK
-        self.manager.install()
-
-        # Verify installation
-        self.assertTrue(self.manager.is_installed())
-
-        # Test tool paths
-        tool_paths = self.manager.get_tool_paths()
-        self.assertIn("emcc", tool_paths)
-        self.assertTrue(tool_paths["emcc"].exists())
-
-        # Test environment setup
-        env_vars = self.manager.setup_environment()
-        self.assertIn("EMSDK", env_vars)
-        self.assertIn("PATH", env_vars)
-
-    def test_compilation_smoke_test(self):
-        """Test basic compilation with installed EMSDK."""
-        # Install EMSDK
-        self.manager.install()
-
-        # Create a simple test program
-        test_c = self.temp_dir / "test.c"
-        test_c.write_text(
-            """
-#include <stdio.h>
-int main() {
-    printf("Hello from EMSDK!\\n");
-    return 0;
-}
-"""
-        )
-
-        # Get tool paths and environment
-        tool_paths = self.manager.get_tool_paths()
-        env_vars = self.manager.setup_environment()
-
-        # Compile test program
-        cmd = [
-            str(tool_paths["emcc"]),
-            str(test_c),
-            "-o",
-            str(self.temp_dir / "test.js"),
-        ]
-
-        result = subprocess.run(
-            cmd, cwd=self.temp_dir, env=env_vars, capture_output=True, text=True
-        )
-
-        # Check compilation succeeded
-        self.assertEqual(result.returncode, 0, f"Compilation failed: {result.stderr}")
-
-        # Check output files exist
-        self.assertTrue((self.temp_dir / "test.js").exists())
-        self.assertTrue((self.temp_dir / "test.wasm").exists())
 
 
 class TestEmsdkManagerFactory(unittest.TestCase):

@@ -8,8 +8,62 @@ if ! command -v activate &> /dev/null; then
     bash install
 fi
 
+# Parse command line arguments
+RUN_UNIT_ONLY=false
+RUN_INTEGRATION_ONLY=false
 
-echo "Running unittests"
-uv run pytest -n auto tests/unit -v --durations=0
-# finally run the integration tests one by one.
-uv run pytest tests/integration -v --durations=0 -s
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --unit-only)
+            RUN_UNIT_ONLY=true
+            shift
+            ;;
+        --integration-only)
+            RUN_INTEGRATION_ONLY=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  --unit-only        Run only unit tests (fast)"
+            echo "  --integration-only Run only integration tests (slow, requires RUN_INTEGRATION_TESTS=1)"
+            echo "  --help            Show this help message"
+            echo ""
+            echo "By default, runs unit tests, full build test, and integration tests."
+            echo "Integration tests require RUN_INTEGRATION_TESTS=1 environment variable."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Run unit tests (fast)
+if [[ "$RUN_INTEGRATION_ONLY" == "false" ]]; then
+    echo "Running unit tests (fast)..."
+    uv run pytest -n auto tests/unit -v --durations=0
+fi
+
+# Always run the full build test (important integration test)
+if [[ "$RUN_UNIT_ONLY" == "false" ]]; then
+    echo ""
+    echo "Running full build test (Docker-based)..."
+    uv run pytest tests/integration/test_full_build.py -v --durations=0 -s
+fi
+
+# Run other integration tests (slow, require actual EMSDK installation)
+if [[ "$RUN_UNIT_ONLY" == "false" ]]; then
+    if [[ -z "$RUN_INTEGRATION_TESTS" ]]; then
+        echo ""
+        echo "Skipping EMSDK integration tests (set RUN_INTEGRATION_TESTS=1 to enable)"
+        echo "EMSDK integration tests require downloading EMSDK binaries and are slow."
+        echo "Run with: RUN_INTEGRATION_TESTS=1 $0"
+    else
+        echo ""
+        echo "Running EMSDK integration tests (slow, requires EMSDK binaries)..."
+        uv run pytest tests/integration/test_emsdk_manager_integration.py tests/integration/test_native_compilation_integration.py -v --durations=0 -s
+    fi
+fi
