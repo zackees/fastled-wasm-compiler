@@ -1,14 +1,14 @@
-
 # This will be set to arm64 to support MacOS M1+ devices (and Linux-based arm64 devices)
 ARG PLATFORM_TAG=""
 ARG EMSDK_VERSION_TAG="4.0.8"
+ARG NO_PLATFORMIO="1"
 # ARG EMSDK_VERSION_TAG="3.1.70"
 
 # Use only Emscripten base image
 FROM emscripten/emsdk:${EMSDK_VERSION_TAG}${PLATFORM_TAG}
 
-
 ENV DEBIAN_FRONTEND=noninteractive
+ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
 # Update the apt-get package list. This takes a long time, so we do it first to maximize cache hits.
 # Sometimes this fails so make sure we try a few times.
@@ -97,7 +97,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 
 
 RUN echo "update build 38"
-ENV NO_PLATFORMIO=1
+# The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
 COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
