@@ -105,12 +105,21 @@ def compile_cpp_to_obj(
     os.makedirs(build_dir, exist_ok=True)
 
     flags = CXX_FLAGS
+    mode_flags = []
     if build_mode.lower() == "debug":
+        mode_flags = DEBUG_CXX_FLAGS
         flags += DEBUG_CXX_FLAGS
     elif build_mode.lower() == "quick":
+        mode_flags = QUICK_CXX_FLAGS
         flags += QUICK_CXX_FLAGS
     elif build_mode.lower() == "release":
+        mode_flags = ["-Oz"]
         flags += ["-Oz"]
+
+    print(f"    📄 {src_file.name} → {obj_file.name}")
+    print(
+        f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
+    )
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
     cmd: list[str] = []
@@ -121,7 +130,7 @@ def compile_cpp_to_obj(
     cmd.extend(flags)
     cmd.append(str(src_file))
 
-    print("\nCompiling:", subprocess.list2cmdline(cmd))
+    print("    Compiling:", subprocess.list2cmdline(cmd))
     # subprocess.check_call(cmd)
     cp = subprocess.run(
         cmd,
@@ -135,24 +144,52 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     # Determine output directory first
     output_dir = BUILD_ROOT / build_mode.lower()
 
+    print("\n🚀 Starting FastLED sketch compilation (no-platformio mode)")
+    print(f"📁 Sketch directory: {sketch_dir}")
+    print(f"🔧 Build mode: {build_mode}")
+    print(f"📂 Output directory: {output_dir}")
+
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"✓ Output directory prepared: {output_dir}")
+
     # Add separate dwarf file for debug mode
     if build_mode.lower() == "debug":
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
+        print(f"🐛 Debug mode: DWARF debug info will be generated at {dwarf_file}")
 
     # Gather all .cpp and .ino files in sketch dir
     sources = list(sketch_dir.glob("*.cpp")) + list(sketch_dir.glob("*.ino"))
     if not sources:
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
+    print("\n📋 Source file discovery:")
+    print(f"✓ Found {len(sources)} source file(s):")
+    for i, src in enumerate(sources, 1):
+        print(f"  {i}. {src.name} ({src.stat().st_size} bytes)")
+
     # Now print out the entire build flags group:
+    print("\n🔧 Compilation configuration:")
     print("CXX_FLAGS:", " ".join(CXX_FLAGS))
     print("LINK_FLAGS:", " ".join(LINK_FLAGS))
     print("Sources:", " ".join(str(s) for s in sources))
     print("Sketch directory:", sketch_dir)
 
+    # Determine which FastLED library to link against
+    lib_path = f"/build/{build_mode.lower()}/libfastled.a"
+    print(f"📚 FastLED library: {lib_path}")
+
+    if not Path(lib_path).exists():
+        print(f"⚠️  Warning: FastLED library not found at {lib_path}")
+    else:
+        lib_size = Path(lib_path).stat().st_size
+        print(f"✓ FastLED library found ({lib_size} bytes)")
+
     obj_files: list[Path] = []
-    for src_file in sources:
+    print("\n🔨 Compiling source files:")
+    for i, src_file in enumerate(sources, 1):
+        print(f"\n  [{i}/{len(sources)}] Compiling {src_file.name}...")
         cp: subprocess.CompletedProcess
         obj_file: Path
         cp, obj_file = compile_cpp_to_obj(src_file, build_mode)
@@ -161,17 +198,25 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             stderr = cp.stderr
             assert isinstance(stdout, bytes)
             assert isinstance(stderr, bytes)
-            print(f"Error compiling {src_file}:")
+            print(f"❌ Error compiling {src_file}:")
             print(f"stdout: {stdout.decode()}")
             print(f"stderr: {stderr.decode()}")
             return RuntimeError(f"Error compiling {src_file}: {stderr.decode()}")
-        print(f"Compiled {src_file} to {obj_file}")
+        obj_size = obj_file.stat().st_size if obj_file.exists() else 0
+        print(f"  ✓ {src_file.name} → {obj_file.name} ({obj_size} bytes)")
         obj_files.append(obj_file)
 
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
+    output_wasm = output_dir / "fastled.wasm"
     # cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files)]
     # cmd_link[cmd_link.index("-o") + 1] = str(output_js)
+
+    print("\n🔗 Linking phase:")
+    print(f"✓ Linking {len(obj_files)} object file(s) into final output")
+
+    total_obj_size = sum(obj.stat().st_size for obj in obj_files if obj.exists())
+    print(f"✓ Total object file size: {total_obj_size} bytes")
 
     cmd_link: list[str] = []
     cmd_link.extend([CXX])
@@ -179,10 +224,13 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     cmd_link.extend(map(str, obj_files))
     if build_mode.lower() == "debug":
         cmd_link.append("/build/debug/libfastled.a")
+        print("🐛 Linking with debug FastLED library: /build/debug/libfastled.a")
     elif build_mode.lower() == "release":
         cmd_link.append("/build/release/libfastled.a")
+        print("🚀 Linking with release FastLED library: /build/release/libfastled.a")
     elif build_mode.lower() == "quick":
         cmd_link.append("/build/quick/libfastled.a")
+        print("⚡ Linking with quick FastLED library: /build/quick/libfastled.a")
     else:
         raise ValueError(f"Invalid build mode: {build_mode}")
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)
@@ -191,6 +239,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         cmd_link.append(f"-gseparate-dwarf={dwarf_file}")
 
     print("\nLinking:", subprocess.list2cmdline(cmd_link))
+    print(f"📤 Output JavaScript: {output_js}")
+    print(f"📤 Output WebAssembly: {output_wasm}")
+
     # subprocess.check_call(cmd_link)
     cp = subprocess.run(
         cmd_link,
@@ -202,10 +253,32 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         stderr = cp.stderr
         assert isinstance(stdout, bytes)
         assert isinstance(stderr, bytes)
-        print(f"Error linking {output_js}:")
+        print(f"❌ Error linking {output_js}:")
         print(f"stdout: {stdout.decode()}")
         print(f"stderr: {stderr.decode()}")
         return RuntimeError(f"Error linking {output_js}: {stderr.decode()}")
+
+    # Check and report output file sizes
+    if output_js.exists():
+        js_size = output_js.stat().st_size
+        print(f"✅ JavaScript output: {output_js} ({js_size} bytes)")
+    else:
+        print(f"⚠️  JavaScript output not found: {output_js}")
+
+    if output_wasm.exists():
+        wasm_size = output_wasm.stat().st_size
+        print(f"✅ WebAssembly output: {output_wasm} ({wasm_size} bytes)")
+    else:
+        print(f"⚠️  WebAssembly output not found: {output_wasm}")
+
+    # Check for debug files in debug mode
+    if build_mode.lower() == "debug":
+        dwarf_file = output_dir / "fastled.wasm.dwarf"
+        if dwarf_file.exists():
+            dwarf_size = dwarf_file.stat().st_size
+            print(f"🐛 Debug info: {dwarf_file} ({dwarf_size} bytes)")
+        else:
+            print(f"⚠️  Debug info not found: {dwarf_file}")
 
     print(f"\n✅ Program built at: {output_js}")
     return None
