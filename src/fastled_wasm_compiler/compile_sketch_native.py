@@ -310,7 +310,7 @@ class NativeCompiler:
             self.fastled_src / "platforms" / "wasm" / "timer.cpp",
             self.fastled_src / "platforms" / "wasm" / "ui.cpp",
         ]
-        
+
         # Add core FastLED source files needed for compilation
         core_fastled_files = [
             self.fastled_src / "FastLED.cpp",
@@ -328,7 +328,7 @@ class NativeCompiler:
             self.fastled_src / "transpose8x1_noinline.cpp",
             self.fastled_src / "wiring.cpp",
         ]
-        
+
         # Only add files that exist
         for wasm_file in wasm_platform_files + core_fastled_files:
             if wasm_file.exists():

@@ -33,9 +33,13 @@ class TestNativeCliModule(unittest.TestCase):
         """Test that the CLI entry point is properly installed."""
         # This tests that the entry point exists in the package
         result = subprocess.run(
-            [sys.executable, "-c", "import pkg_resources; print('fastled-wasm-compiler-native' in [ep.name for ep in pkg_resources.iter_entry_points('console_scripts')])"],
+            [
+                sys.executable,
+                "-c",
+                "import pkg_resources; print('fastled-wasm-compiler-native' in [ep.name for ep in pkg_resources.iter_entry_points('console_scripts')])",
+            ],
             capture_output=True,
-            text=True
+            text=True,
         )
         # We expect this to be True when properly installed, but in dev mode it might not be
         # So we'll just check that the import works without error
@@ -43,7 +47,7 @@ class TestNativeCliModule(unittest.TestCase):
 
     def test_help_argument(self):
         """Test that --help argument works."""
-        with patch('sys.argv', ['fastled-wasm-compiler-native', '--help']):
+        with patch("sys.argv", ["fastled-wasm-compiler-native", "--help"]):
             with self.assertRaises(SystemExit) as cm:
                 main()
             # Help should exit with code 0
@@ -53,9 +57,12 @@ class TestNativeCliModule(unittest.TestCase):
         """Test that argument parsing has the expected structure."""
         # Mock argv for a basic valid command
         test_sketch_dir = Path("/tmp/test_sketch")
-        
-        with patch('sys.argv', ['fastled-wasm-compiler-native', str(test_sketch_dir), '--mode', 'debug']):
-            with patch('fastled_wasm_compiler.cli_native._parse_args') as mock_parse:
+
+        with patch(
+            "sys.argv",
+            ["fastled-wasm-compiler-native", str(test_sketch_dir), "--mode", "debug"],
+        ):
+            with patch("fastled_wasm_compiler.cli_native._parse_args") as mock_parse:
                 # Create a mock args object
                 mock_args = NativeCliArgs(
                     sketch_dir=test_sketch_dir,
@@ -68,22 +75,24 @@ class TestNativeCliModule(unittest.TestCase):
                     strict=False,
                 )
                 mock_parse.return_value = mock_args
-                
+
                 # Mock the sketch directory exists check
-                with patch.object(Path, 'exists', return_value=True):
+                with patch.object(Path, "exists", return_value=True):
                     # Mock the compile_sketch_native function
-                    with patch('fastled_wasm_compiler.cli_native.compile_sketch_native') as mock_compile:
+                    with patch(
+                        "fastled_wasm_compiler.cli_native.compile_sketch_native"
+                    ) as mock_compile:
                         mock_compile.return_value = Path("/tmp/output/fastled.js")
-                        
+
                         # Run main
                         result = main()
-                        
+
                         # Should succeed
                         self.assertEqual(result, 0)
-                        
+
                         # Should have called parse_args
                         mock_parse.assert_called_once()
-                        
+
                         # Should have called compile with correct args
                         mock_compile.assert_called_once_with(
                             sketch_dir=test_sketch_dir,
@@ -95,16 +104,19 @@ class TestNativeCliModule(unittest.TestCase):
     def test_argument_validation(self):
         """Test argument validation for required parameters."""
         # Test with no arguments should fail (missing sketch_dir)
-        with patch('sys.argv', ['fastled-wasm-compiler-native']):
+        with patch("sys.argv", ["fastled-wasm-compiler-native"]):
             with self.assertRaises(SystemExit):
                 _parse_args()
 
     def test_install_emsdk_option(self):
         """Test that --install-emsdk option works as expected."""
         test_sketch_dir = Path("/tmp/test_sketch")
-        
-        with patch('sys.argv', ['fastled-wasm-compiler-native', str(test_sketch_dir), '--install-emsdk']):
-            with patch('fastled_wasm_compiler.cli_native._parse_args') as mock_parse:
+
+        with patch(
+            "sys.argv",
+            ["fastled-wasm-compiler-native", str(test_sketch_dir), "--install-emsdk"],
+        ):
+            with patch("fastled_wasm_compiler.cli_native._parse_args") as mock_parse:
                 # Create a mock args object with install_emsdk=True
                 mock_args = NativeCliArgs(
                     sketch_dir=test_sketch_dir,
@@ -117,18 +129,20 @@ class TestNativeCliModule(unittest.TestCase):
                     strict=False,
                 )
                 mock_parse.return_value = mock_args
-                
+
                 # Mock the get_emsdk_manager and install
-                with patch('fastled_wasm_compiler.cli_native.get_emsdk_manager') as mock_get_manager:
+                with patch(
+                    "fastled_wasm_compiler.cli_native.get_emsdk_manager"
+                ) as mock_get_manager:
                     mock_manager = MagicMock()
                     mock_get_manager.return_value = mock_manager
-                    
+
                     # Run main
                     result = main()
-                    
+
                     # Should succeed
                     self.assertEqual(result, 0)
-                    
+
                     # Should have called get_emsdk_manager and install
                     mock_get_manager.assert_called_once_with(None)
                     mock_manager.install.assert_called_once()
@@ -136,21 +150,29 @@ class TestNativeCliModule(unittest.TestCase):
     def test_build_modes(self):
         """Test that all build modes are supported."""
         supported_modes = ["debug", "quick", "release"]
-        
+
         for mode in supported_modes:
             with self.subTest(mode=mode):
                 test_sketch_dir = Path("/tmp/test_sketch")
-                
-                with patch('sys.argv', ['fastled-wasm-compiler-native', str(test_sketch_dir), '--mode', mode]):
+
+                with patch(
+                    "sys.argv",
+                    [
+                        "fastled-wasm-compiler-native",
+                        str(test_sketch_dir),
+                        "--mode",
+                        mode,
+                    ],
+                ):
                     args = _parse_args()
                     self.assertEqual(args.build_mode, mode)
 
     def test_error_handling_nonexistent_sketch(self):
         """Test error handling for non-existent sketch directory."""
         test_sketch_dir = Path("/nonexistent/sketch")
-        
-        with patch('sys.argv', ['fastled-wasm-compiler-native', str(test_sketch_dir)]):
-            with patch('fastled_wasm_compiler.cli_native._parse_args') as mock_parse:
+
+        with patch("sys.argv", ["fastled-wasm-compiler-native", str(test_sketch_dir)]):
+            with patch("fastled_wasm_compiler.cli_native._parse_args") as mock_parse:
                 mock_args = NativeCliArgs(
                     sketch_dir=test_sketch_dir,
                     build_mode="debug",
@@ -162,10 +184,10 @@ class TestNativeCliModule(unittest.TestCase):
                     strict=False,
                 )
                 mock_parse.return_value = mock_args
-                
+
                 # Don't mock exists() so it returns False for nonexistent path
                 result = main()
-                
+
                 # Should fail with error code 1
                 self.assertEqual(result, 1)
 

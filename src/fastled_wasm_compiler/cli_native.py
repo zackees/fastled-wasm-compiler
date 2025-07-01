@@ -37,9 +37,9 @@ def _parse_args() -> NativeCliArgs:
     )
 
     parser.add_argument(
-        "sketch_dir", 
-        type=Path, 
-        help="Directory containing sketch source files (.ino, .cpp)"
+        "sketch_dir",
+        type=Path,
+        help="Directory containing sketch source files (.ino, .cpp)",
     )
 
     parser.add_argument(
@@ -56,27 +56,21 @@ def _parse_args() -> NativeCliArgs:
     )
 
     parser.add_argument(
-        "--emsdk-dir", 
-        type=Path, 
-        help="Custom EMSDK installation directory"
+        "--emsdk-dir", type=Path, help="Custom EMSDK installation directory"
     )
 
     parser.add_argument(
-        "--install-emsdk", 
-        action="store_true", 
-        help="Install EMSDK if not present"
+        "--install-emsdk", action="store_true", help="Install EMSDK if not present"
     )
 
     parser.add_argument(
-        "--keep-files", 
-        action="store_true", 
-        help="Keep intermediate build files after compilation"
+        "--keep-files",
+        action="store_true",
+        help="Keep intermediate build files after compilation",
     )
 
     parser.add_argument(
-        "--profile", 
-        action="store_true", 
-        help="Enable profiling of the build system"
+        "--profile", action="store_true", help="Enable profiling of the build system"
     )
 
     parser.add_argument(
@@ -106,6 +100,7 @@ def _parse_args() -> NativeCliArgs:
 
 def main() -> int:
     """Main entry point for the native FastLED WASM compiler."""
+    cli_args = None
     try:
         cli_args = NativeCliArgs.parse_args()
 
@@ -146,6 +141,7 @@ def main() -> int:
             build_dir = js_file.parent / "build"
             if build_dir.exists():
                 import shutil
+
                 shutil.rmtree(build_dir, ignore_errors=True)
                 print(f"🧹 Cleaned up build directory: {build_dir}")
 
@@ -154,13 +150,14 @@ def main() -> int:
     except Exception as e:
         print(f"\n❌ Compilation failed: {e}")
         # Show traceback if profiling is enabled or if parsing failed
-        try:
-            if cli_args.profile:
-                import traceback
-                traceback.print_exc()
-        except NameError:
-            # cli_args not defined, likely a parsing error
+        if cli_args is not None and cli_args.profile:
             import traceback
+
+            traceback.print_exc()
+        elif cli_args is None:
+            # Argument parsing failed, show traceback anyway
+            import traceback
+
             traceback.print_exc()
         return 1
 
