@@ -35,6 +35,8 @@ class NativeCompiler:
 
         # Base compilation flags
         self.base_flags = [
+            "-D__EMSCRIPTEN__",  # Enable Emscripten-specific code
+            "-UFASTLED_ALL_SRC",  # Undefine FASTLED_ALL_SRC to enable individual file compilation
             "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
             "-DFASTLED_FORCE_NAMESPACE=1",
             "-DFASTLED_USE_PROGMEM=0",
@@ -296,6 +298,42 @@ class NativeCompiler:
             raise RuntimeError(f"No source files found in {sketch_dir}")
 
         print(f"Found {len(source_files)} source files in {sketch_dir}")
+
+        # Add required WASM platform files from FastLED
+        wasm_platform_files = [
+            self.fastled_src / "platforms" / "wasm" / "js.cpp",
+            self.fastled_src / "platforms" / "wasm" / "js_bindings.cpp",
+            self.fastled_src / "platforms" / "wasm" / "active_strip_data.cpp",
+            self.fastled_src / "platforms" / "wasm" / "engine_listener.cpp",
+            self.fastled_src / "platforms" / "wasm" / "fastspi_wasm.cpp",
+            self.fastled_src / "platforms" / "wasm" / "fs_wasm.cpp",
+            self.fastled_src / "platforms" / "wasm" / "timer.cpp",
+            self.fastled_src / "platforms" / "wasm" / "ui.cpp",
+        ]
+        
+        # Add core FastLED source files needed for compilation
+        core_fastled_files = [
+            self.fastled_src / "FastLED.cpp",
+            self.fastled_src / "bitswap.cpp",
+            self.fastled_src / "cled_controller.cpp",
+            self.fastled_src / "colorpalettes.cpp",
+            self.fastled_src / "crgb.cpp",
+            self.fastled_src / "hsv2rgb.cpp",
+            self.fastled_src / "lib8tion.cpp",
+            self.fastled_src / "noise.cpp",
+            self.fastled_src / "platforms.cpp",
+            self.fastled_src / "power_mgt.cpp",
+            self.fastled_src / "rgbw.cpp",
+            self.fastled_src / "simplex.cpp",
+            self.fastled_src / "transpose8x1_noinline.cpp",
+            self.fastled_src / "wiring.cpp",
+        ]
+        
+        # Only add files that exist
+        for wasm_file in wasm_platform_files + core_fastled_files:
+            if wasm_file.exists():
+                source_files.append(wasm_file)
+                print(f"Added FastLED file: {wasm_file.name}")
 
         # Create build directory
         build_dir = output_dir / "build" / build_mode.lower()
