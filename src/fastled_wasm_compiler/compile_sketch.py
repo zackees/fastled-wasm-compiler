@@ -1,6 +1,7 @@
 import argparse
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC
@@ -33,6 +34,8 @@ BASE_CXX_FLAGS = [
     "-Isrc",
     f"-I{FASTLED_SRC_STR}",
     f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
+    # Add verbose flags for --no-platformio builds
+    "-v",  # Verbose compilation output
 ]
 
 # Debug flags from platformio.ini [env:wasm-debug]
@@ -81,6 +84,9 @@ BASE_LINK_FLAGS = [
     "-sFILESYSTEM=0",
     "-Wl,--whole-archive",
     "--source-map-base=http://localhost:8000/",
+    # Add verbose flags for --no-platformio builds
+    "-v",  # Verbose linking output
+    "-Wl,--verbose",  # Verbose linker output
 ]
 
 # Debug link flags
@@ -130,13 +136,31 @@ def compile_cpp_to_obj(
     cmd.extend(flags)
     cmd.append(str(src_file))
 
-    print("    Compiling:", subprocess.list2cmdline(cmd))
-    # subprocess.check_call(cmd)
+    print("    🔨 Compiling with command:")
+    print(f"    {subprocess.list2cmdline(cmd)}")
+    print("    📤 Compiler output:")
+
+    # Use real-time output instead of capture_output=True for verbose builds
     cp = subprocess.run(
         cmd,
         check=False,
-        capture_output=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # Merge stderr into stdout
+        bufsize=1,
+        universal_newlines=True,
     )
+
+    # Print the output in real-time style
+    if cp.stdout:
+        for line in cp.stdout.splitlines():
+            print(f"    [emcc] {line}")
+
+    if cp.returncode == 0:
+        print(f"    ✅ Successfully compiled {src_file.name}")
+    else:
+        print(f"    ❌ Failed to compile {src_file.name} (exit code: {cp.returncode})")
+
     return (cp, obj_file)
 
 
@@ -145,6 +169,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     output_dir = BUILD_ROOT / build_mode.lower()
 
     print("\n🚀 Starting FastLED sketch compilation (no-platformio mode)")
+    print("🔊 VERBOSE MODE: Showing detailed emcc/linker output")
     print(f"📁 Sketch directory: {sketch_dir}")
     print(f"🔧 Build mode: {build_mode}")
     print(f"📂 Output directory: {output_dir}")
@@ -171,14 +196,18 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
 
     # Now print out the entire build flags group:
     print("\n🔧 Compilation configuration:")
-    print("CXX_FLAGS:", " ".join(CXX_FLAGS))
-    print("LINK_FLAGS:", " ".join(LINK_FLAGS))
-    print("Sources:", " ".join(str(s) for s in sources))
-    print("Sketch directory:", sketch_dir)
+    print("📋 CXX_FLAGS:")
+    for i, flag in enumerate(CXX_FLAGS):
+        print(f"  {i+1:2d}. {flag}")
+    print("\n📋 LINK_FLAGS:")
+    for i, flag in enumerate(LINK_FLAGS):
+        print(f"  {i+1:2d}. {flag}")
+    print(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
+    print(f"📋 Sketch directory: {sketch_dir}")
 
     # Determine which FastLED library to link against
     lib_path = f"/build/{build_mode.lower()}/libfastled.a"
-    print(f"📚 FastLED library: {lib_path}")
+    print(f"\n📚 FastLED library: {lib_path}")
 
     if not Path(lib_path).exists():
         print(f"⚠️  Warning: FastLED library not found at {lib_path}")
@@ -187,32 +216,29 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         print(f"✓ FastLED library found ({lib_size} bytes)")
 
     obj_files: list[Path] = []
-    print("\n🔨 Compiling source files:")
+    print(f"\n🔨 Compiling {len(sources)} source files with verbose output:")
+    print("=" * 80)
     for i, src_file in enumerate(sources, 1):
-        print(f"\n  [{i}/{len(sources)}] Compiling {src_file.name}...")
+        print(f"\n  📝 [{i}/{len(sources)}] Compiling {src_file.name}...")
         cp: subprocess.CompletedProcess
         obj_file: Path
         cp, obj_file = compile_cpp_to_obj(src_file, build_mode)
         if cp.returncode != 0:
-            stdout = cp.stdout
-            stderr = cp.stderr
-            assert isinstance(stdout, bytes)
-            assert isinstance(stderr, bytes)
             print(f"❌ Error compiling {src_file}:")
-            print(f"stdout: {stdout.decode()}")
-            print(f"stderr: {stderr.decode()}")
-            return RuntimeError(f"Error compiling {src_file}: {stderr.decode()}")
+            return RuntimeError(
+                f"Error compiling {src_file}: Compilation failed with exit code {cp.returncode}"
+            )
         obj_size = obj_file.stat().st_size if obj_file.exists() else 0
         print(f"  ✓ {src_file.name} → {obj_file.name} ({obj_size} bytes)")
         obj_files.append(obj_file)
+        print("-" * 60)
 
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
     output_wasm = output_dir / "fastled.wasm"
-    # cmd_link = [CC, *LINK_FLAGS, *map(str, obj_files)]
-    # cmd_link[cmd_link.index("-o") + 1] = str(output_js)
 
-    print("\n🔗 Linking phase:")
+    print("\n🔗 Linking phase - Creating final WASM output:")
+    print("=" * 80)
     print(f"✓ Linking {len(obj_files)} object file(s) into final output")
 
     total_obj_size = sum(obj.stat().st_size for obj in obj_files if obj.exists())
@@ -238,25 +264,38 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         cmd_link.append(f"-gseparate-dwarf={dwarf_file}")
 
-    print("\nLinking:", subprocess.list2cmdline(cmd_link))
+    print("\n🔗 Linking with command:")
+    print(f"{subprocess.list2cmdline(cmd_link)}")
     print(f"📤 Output JavaScript: {output_js}")
     print(f"📤 Output WebAssembly: {output_wasm}")
+    print("📤 Linker output:")
 
-    # subprocess.check_call(cmd_link)
+    # Use real-time output for linking as well
     cp = subprocess.run(
         cmd_link,
         check=False,
-        capture_output=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # Merge stderr into stdout
+        bufsize=1,
+        universal_newlines=True,
     )
+
+    # Print the linker output in real-time style
+    if cp.stdout:
+        for line in cp.stdout.splitlines():
+            print(f"[linker] {line}")
+
     if cp.returncode != 0:
-        stdout = cp.stdout
-        stderr = cp.stderr
-        assert isinstance(stdout, bytes)
-        assert isinstance(stderr, bytes)
         print(f"❌ Error linking {output_js}:")
-        print(f"stdout: {stdout.decode()}")
-        print(f"stderr: {stderr.decode()}")
-        return RuntimeError(f"Error linking {output_js}: {stderr.decode()}")
+        print(f"Linker failed with exit code: {cp.returncode}")
+        return RuntimeError(
+            f"Error linking {output_js}: Linking failed with exit code {cp.returncode}"
+        )
+    else:
+        print("✅ Linking completed successfully")
+
+    print("=" * 80)
 
     # Check and report output file sizes
     if output_js.exists():
@@ -281,6 +320,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             print(f"⚠️  Debug info not found: {dwarf_file}")
 
     print(f"\n✅ Program built at: {output_js}")
+    print("🔊 VERBOSE BUILD COMPLETED: All emcc/linker calls shown above")
     return None
 
 
@@ -314,6 +354,4 @@ def _main() -> int:
 
 
 if __name__ == "__main__":
-    import sys
-
     sys.exit(_main())
