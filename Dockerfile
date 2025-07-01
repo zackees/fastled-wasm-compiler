@@ -42,6 +42,7 @@ RUN apt-fast install -y \
     gcc \
     g++ \
     rsync \
+    coreutils \
     && rm -rf /var/lib/apt/lists/*
 
 
