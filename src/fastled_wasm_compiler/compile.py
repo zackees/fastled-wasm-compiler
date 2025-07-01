@@ -104,9 +104,19 @@ def compile(
     # copy platformio files here:
     cmd_list: list[str]
     if no_platformio:
+        print(banner("Using direct emcc compilation (--no-platformio enabled)"))
+        print("✓ PlatformIO bypassed - using direct emscripten compiler calls")
+        print(f"✓ Build mode: {build_mode.name}")
+        print(f"✓ Compiler root: {compiler_root}")
+        print("✓ Will use compile_sketch.py module for compilation")
         cmd_list = _new_compile_cmd_list(compiler_root, build_mode)
+        print(f"✓ Direct compilation command prepared: {subprocess.list2cmdline(cmd_list)}")
     else:
+        print(banner("Using PlatformIO compilation (default mode)"))
+        print("✓ Using PlatformIO build system")
         cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
+        print(f"✓ PlatformIO command prepared: {subprocess.list2cmdline(cmd_list)}")
+    
     print(f"Command: {subprocess.list2cmdline(cmd_list)}")
     print(f"Command cwd: {compiler_root.as_posix()}")
     process: subprocess.Popen = open_process(
