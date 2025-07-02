@@ -1,18 +1,15 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastled_wasm_compiler.compile_sketch_native import NativeCompilerImpl
-from fastled_wasm_compiler.compiler import CompilerImpl
-from fastled_wasm_compiler.args import Args
-
 
 class Compiler:
     """Forwarding class that delegates all calls to CompilerImpl."""
     
     def __init__(self, volume_mapped_src: Path | None = None, build_libs: list[str] | None = None) -> None:
+        from fastled_wasm_compiler.compiler import CompilerImpl
         self._impl = CompilerImpl(volume_mapped_src, build_libs)
     
-    def compile(self, args: Args) -> Exception | None:
+    def compile(self, args) -> Exception | None:
         return self._impl.compile(args)
     
     def update_src(self, builds: list[str] | None = None, src_to_merge_from: Path | None = None) -> list[Path] | Exception:
@@ -23,6 +20,7 @@ class CompilerNative:
     """Forwarding class that delegates all calls to NativeCompilerImpl."""
     
     def __init__(self, emsdk_install_dir: Optional[Path] = None):
+        from fastled_wasm_compiler.compile_sketch_native import NativeCompilerImpl
         self._impl = NativeCompilerImpl(emsdk_install_dir)
     
     def ensure_emsdk(self) -> None:
