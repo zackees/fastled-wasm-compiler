@@ -21,7 +21,7 @@ from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
 from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
 
 
-class NativeCompiler:
+class NativeCompilerImpl:
     """Native EMSDK-based compiler for FastLED sketches."""
 
     def __init__(self, emsdk_install_dir: Optional[Path] = None):
@@ -369,7 +369,7 @@ def compile_sketch_native(
     Returns:
         Path to generated JavaScript file
     """
-    compiler = NativeCompiler(emsdk_install_dir)
+    compiler = NativeCompilerImpl(emsdk_install_dir)
     return compiler.compile_sketch(sketch_dir, build_mode, output_dir)
 
 

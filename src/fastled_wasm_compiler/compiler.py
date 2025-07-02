@@ -14,7 +14,7 @@ from fastled_wasm_compiler.sync import sync_fastled
 _RW_LOCK = fasteners.ReaderWriterLock()
 
 
-class Compiler:
+class CompilerImpl:
 
     def __init__(
         self, volume_mapped_src: Path | None = None, build_libs: list[str] | None = None

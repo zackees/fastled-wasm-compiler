@@ -12,7 +12,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.compiler import Compiler
+from fastled_wasm_compiler.compiler import CompilerImpl
 from fastled_wasm_compiler.paths import FASTLED_SRC, SKETCH_ROOT
 from fastled_wasm_compiler.run_compile import Args
 
@@ -157,7 +157,7 @@ def main() -> int:
     if cli_args.release:
         build_libs.append("release")
 
-    compiler = Compiler(
+    compiler = CompilerImpl(
         volume_mapped_src=cli_args.update_fastled_src,
         build_libs=build_libs,
     )
