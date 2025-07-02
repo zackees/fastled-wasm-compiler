@@ -1,29 +1,19 @@
 #include <FastLED.h>
 
-#include "fl/audio.h"
-#include "fl/math.h"
-#include "lib/file.h"
+#define NUM_LEDS 60
+#define DATA_PIN 3
 
-UIAudio audio("Audio");
-TestClass testObj;
+CRGB leds[NUM_LEDS];
 
 void setup() {
-    testObj.doSomething();
-    testFunction();
+    FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
 }
 
-void loop()
-{
-
-    while (AudioSample sample = audio.next())
-    {
-        for (int i = 0; i < sample.pcm().size(); ++i)
-        {
-            int32_t x = ABS(sample.pcm()[i]);
-            if (x > max)
-            {
-                max = x;
-            }
-        }
+void loop() {
+    // Simple rainbow animation
+    for(int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CHSV(i * 255 / NUM_LEDS, 255, 255);
     }
+    FastLED.show();
+    delay(50);
 }

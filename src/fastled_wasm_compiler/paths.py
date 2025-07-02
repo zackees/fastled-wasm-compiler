@@ -7,7 +7,8 @@ def path_or_default(default: str, env_var: str) -> Path:
     return Path(os.environ.get(env_var, default))
 
 
-FASTLED_ROOT = path_or_default("/git/fastled", "ENV_FASTLED_ROOT")
+# Use more native-friendly default paths
+FASTLED_ROOT = path_or_default(str(Path.home() / ".fastled-wasm-compiler" / "fastled"), "ENV_FASTLED_ROOT")
 
 FASTLED_SRC = FASTLED_ROOT / "src"
 VOLUME_MAPPED_SRC = path_or_default("/host/fastled/src", "ENV_VOLUME_MAPPED_SRC")
