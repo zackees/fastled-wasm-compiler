@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import httpx
 
-from fastled_wasm_compiler.compiler import Compiler
+from fastled_wasm_compiler.compiler import CompilerImpl
 from fastled_wasm_compiler.paths import FASTLED_SRC
 from fastled_wasm_compiler.sync import sync_fastled
 
@@ -83,7 +83,7 @@ def main() -> int:
         src = tmp_src_root
         if _BUILD:
             logger.info(f"Creating compiler with source from {src}")
-            compiler = Compiler(volume_mapped_src=src)
+            compiler = CompilerImpl(volume_mapped_src=src)
             logger.info("Updating source code from master")
             result = compiler.update_src(src_to_merge_from=src)
             if result:

@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 from fastled_wasm_compiler.compile_sketch_native import (
-    NativeCompiler,
+    NativeCompilerImpl,
     compile_sketch_native,
 )
 from fastled_wasm_compiler.emsdk_manager import EmsdkManager
@@ -74,7 +74,7 @@ void loop() {
     def test_native_compilation_smoke_test(self):
         """Test basic native compilation functionality."""
         # Create compiler
-        compiler = NativeCompiler(self.emsdk_dir)
+        compiler = NativeCompilerImpl(self.emsdk_dir)
 
         # Compile the sketch
         output_dir = self.temp_dir / "output"

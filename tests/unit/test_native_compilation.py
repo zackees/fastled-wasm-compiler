@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastled_wasm_compiler.compile_sketch_native import (
-    NativeCompiler,
+    NativeCompilerImpl,
 )
 from fastled_wasm_compiler.emsdk_manager import EmsdkManager
 
@@ -65,9 +65,9 @@ void loop() {
         (mock_fastled_src / "FastLED.h").write_text("// Mock FastLED header")
         mock_fastled.return_value = mock_fastled_src
 
-        compiler = NativeCompiler(self.emsdk_dir)
+        compiler = NativeCompilerImpl(self.emsdk_dir)
 
-        self.assertIsInstance(compiler, NativeCompiler)
+        self.assertIsInstance(compiler, NativeCompilerImpl)
         self.assertEqual(compiler.emsdk_manager.install_dir, self.emsdk_dir)
 
 
@@ -94,9 +94,9 @@ class TestNativeCompilerUnit(unittest.TestCase):
         (mock_fastled_src / "FastLED.h").write_text("// Mock FastLED header")
         mock_fastled.return_value = mock_fastled_src
 
-        compiler = NativeCompiler(self.emsdk_dir)
+        compiler = NativeCompilerImpl(self.emsdk_dir)
 
-        self.assertIsInstance(compiler, NativeCompiler)
+        self.assertIsInstance(compiler, NativeCompilerImpl)
         self.assertEqual(compiler.emsdk_manager.install_dir, self.emsdk_dir)
 
     @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
@@ -109,12 +109,12 @@ class TestNativeCompilerUnit(unittest.TestCase):
         mock_fastled.return_value = mock_fastled_src
 
         # Should work with None (uses default)
-        compiler = NativeCompiler(None)
-        self.assertIsInstance(compiler, NativeCompiler)
+        compiler = NativeCompilerImpl(None)
+        self.assertIsInstance(compiler, NativeCompilerImpl)
 
         # Should work with custom path
-        compiler = NativeCompiler(self.emsdk_dir)
-        self.assertIsInstance(compiler, NativeCompiler)
+        compiler = NativeCompilerImpl(self.emsdk_dir)
+        self.assertIsInstance(compiler, NativeCompilerImpl)
 
 
 if __name__ == "__main__":
