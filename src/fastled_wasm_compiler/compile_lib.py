@@ -87,7 +87,8 @@ def build_static_lib(
         _locked_print(f"Error: '{src_dir}' is not a directory.")
         return 1
 
-    cwd = "/git/build"
+    import os
+    cwd = os.environ.get("ENV_BUILD_CWD", "/git/build")
     cmd = f"build_lib.sh --{build_mode.name}"
     print(f"Building {build_mode.name} in {cwd}")
     start = time.time()

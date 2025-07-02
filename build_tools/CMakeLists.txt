@@ -84,11 +84,24 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${CXX_ONLY_FLAGS}>)
 
 # ——— 5) Output Directory (absolute) ——————————————————————————————
 string(TOLOWER "${BUILD_MODE}" BUILD_MODE_LOWER)
-set(ABS_BUILD_OUTPUT_DIR "/build/${BUILD_MODE_LOWER}")
+# Use environment variable for build root with fallback
+if(DEFINED ENV{ENV_BUILD_ROOT})
+  set(BUILD_ROOT_BASE $ENV{ENV_BUILD_ROOT})
+else()
+  set(BUILD_ROOT_BASE "/build")
+endif()
+set(ABS_BUILD_OUTPUT_DIR "${BUILD_ROOT_BASE}/${BUILD_MODE_LOWER}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${ABS_BUILD_OUTPUT_DIR}" CACHE PATH "" FORCE)
 message(STATUS "Archive output directory: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 
 # ——— 6) Add FastLED Library ———————————————————————————————————————
-set(FASTLED_SOURCE_DIR "/git/fastled/src")
+# Use environment variable for FastLED source directory with fallback
+if(DEFINED ENV{ENV_FASTLED_SRC_CONTAINER})
+  set(FASTLED_SOURCE_DIR $ENV{ENV_FASTLED_SRC_CONTAINER})
+elseif(DEFINED ENV{ENV_FASTLED_ROOT})
+  set(FASTLED_SOURCE_DIR "$ENV{ENV_FASTLED_ROOT}/src")
+else()
+  set(FASTLED_SOURCE_DIR "/git/fastled/src")
+endif()
 message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
