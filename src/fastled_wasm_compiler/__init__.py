@@ -60,11 +60,7 @@ class CompilerNative:
         return self._impl.compile_sketch(sketch_dir, build_mode, output_dir)
 
 
-# For backward compatibility, also expose NativeCompiler as an alias
-NativeCompiler = CompilerNative
-
 __all__ = [
     "Compiler",
     "CompilerNative",
-    "NativeCompiler",  # Backward compatibility
 ]
