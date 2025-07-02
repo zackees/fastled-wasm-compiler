@@ -13,7 +13,7 @@ from fastled_wasm_compiler.dwarf_path_to_file_path import logger as dwarf_logger
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     prune_paths,
 )
-from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.paths import get_fastled_source_path
 
 # Set debug logging for the path resolution module
 dwarf_logger.setLevel(logging.DEBUG)
@@ -23,7 +23,8 @@ if not dwarf_logger.handlers:
     handler.setFormatter(logging.Formatter("%(name)s - %(levelname)s - %(message)s"))
     dwarf_logger.addHandler(handler)
 
-FASTLED_SRC_STR_RELATIVE = FASTLED_SRC.as_posix().lstrip("/")
+# Use environment-variable driven path instead of absolute system path
+FASTLED_SRC_STR_RELATIVE = get_fastled_source_path()
 
 
 class SourceFileResolverTester(unittest.TestCase):
@@ -32,6 +33,7 @@ class SourceFileResolverTester(unittest.TestCase):
     def test_prune_paths(self) -> None:
         """Test the path pruning function."""
 
+        # Test with environment-variable driven path
         path = (
             f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"
         )
@@ -39,7 +41,7 @@ class SourceFileResolverTester(unittest.TestCase):
         self.assertIsInstance(out, str)
         self.assertEqual(
             out,
-            "git/fastled/src/FastLED.h",
+            f"{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
         path = "sketchsource/js/sketchsource/emsdk/upstream/lib/clang/21/include/__stddef_max_align_t.h"
@@ -69,7 +71,7 @@ class SourceFileResolverTester(unittest.TestCase):
         )
 
         self.check_path(
-            "/dwarfsource/js/dwarfsource/git/fastled/src/pixel_iterator.h",
+            f"/dwarfsource/js/dwarfsource/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
             f"/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
         )
 

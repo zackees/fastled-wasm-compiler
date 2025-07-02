@@ -23,6 +23,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from fastled_wasm_compiler.paths import EMSDK_ROOT
+
 
 class EmsdkPlatform:
     """Platform information for EMSDK binary selection."""
@@ -66,10 +68,10 @@ class EmsdkManager:
         """Initialize EMSDK Manager.
 
         Args:
-            install_dir: Directory to install EMSDK to. Defaults to ~/.fastled-emsdk
+            install_dir: Directory to install EMSDK to. Defaults to environment-driven EMSDK_ROOT
             cache_dir: Directory to cache downloads. Defaults to .cache/emsdk-binaries
         """
-        self.install_dir = install_dir or (Path.home() / ".fastled-emsdk")
+        self.install_dir = install_dir or Path(EMSDK_ROOT).parent
         self.cache_dir = cache_dir or (Path.cwd() / ".cache" / "emsdk-binaries")
         self.emsdk_dir = self.install_dir / "emsdk"
         self.platform_info = self._detect_platform()

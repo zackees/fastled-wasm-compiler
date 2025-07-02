@@ -1,13 +1,20 @@
+#!/usr/bin/env python3
 # pylint: skip-file
 # flake8: noqa
 # type: ignore
+
+"""
+Flags that need to be imported into the platformio build.
+
+This adds flags for a sketch to compile.
+"""
 
 import os
 import shutil
 from pathlib import Path
 
 from SCons.Script import Import
-from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.paths import get_fastled_source_path
 
 _IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
@@ -73,6 +80,13 @@ def _remove_flags(curr_flags: list[str], remove_flags: list[str]) -> list[str]:
 # Paths for DWARF split
 wasm_name = f"{PROGRAM_NAME}.wasm"
 
+# Use environment-variable driven path for container compatibility
+FASTLED_SRC_STR = os.environ.get("ENV_FASTLED_SRC_CONTAINER", get_fastled_source_path())
+
+# Ensure it's an absolute path for Docker container
+if not FASTLED_SRC_STR.startswith("/"):
+    FASTLED_SRC_STR = f"/{FASTLED_SRC_STR}"
+
 # Base compile flags (CCFLAGS/CXXFLAGS)
 compile_flags = [
     "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
@@ -96,8 +110,8 @@ compile_flags = [
     "-D_REENTRANT=0",  # Disable reentrant code
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
-    f"-I{FASTLED_SRC.as_posix()}",
-    f"-I{FASTLED_SRC.as_posix()}/platforms/wasm/compiler",
+    f"-I{FASTLED_SRC_STR}",
+    f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
 ]

@@ -41,10 +41,30 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Run unit tests (fast)
-if [[ "$RUN_INTEGRATION_ONLY" == "false" ]]; then
+# Set environment variables for consistent cross-platform path resolution
+export ENV_FASTLED_SOURCE_PATH="git/fastled/src"
+export ENV_EMSDK_PATH="emsdk"
+export ENV_SKETCH_PATH="src"
+
+# Use uv if available, otherwise fall back to pip
+if command -v uv >/dev/null 2>&1; then
+    # Install the package in development mode with uv
+    uv pip install -e .
     echo "Running unit tests (fast)..."
-    uv run pytest -n auto tests/unit -v --durations=0
+    uv run pytest tests/unit -x -q --tb=short -n auto
+    echo ""
+    echo "Running integration tests (slow)..."
+    uv run pytest tests/integration -x -q --tb=short
+else
+    echo "uv not found, falling back to standard Python tools"
+    # Install the package in development mode
+    pip install -e .
+    
+    echo "Running unit tests (fast)..."
+    python -m pytest tests/unit -x -q --tb=short -n auto
+    echo ""
+    echo "Running integration tests (slow)..."
+    python -m pytest tests/integration -x -q --tb=short
 fi
 
 # Always run the full build test (important integration test)

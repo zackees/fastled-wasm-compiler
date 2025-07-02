@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastled_wasm_compiler.compile_sketch_native import (
     NativeCompiler,
@@ -55,8 +56,15 @@ void loop() {
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_native_compiler_creation(self):
+    @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
+    def test_native_compiler_creation(self, mock_fastled):
         """Test creating a native compiler instance."""
+        # Mock FastLED installation
+        mock_fastled_src = self.temp_dir / "fastled" / "src"
+        mock_fastled_src.mkdir(parents=True)
+        (mock_fastled_src / "FastLED.h").write_text("// Mock FastLED header")
+        mock_fastled.return_value = mock_fastled_src
+
         compiler = NativeCompiler(self.emsdk_dir)
 
         self.assertIsInstance(compiler, NativeCompiler)
@@ -77,15 +85,29 @@ class TestNativeCompilerUnit(unittest.TestCase):
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_compiler_initialization(self):
+    @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
+    def test_compiler_initialization(self, mock_fastled):
         """Test compiler initialization."""
+        # Mock FastLED installation
+        mock_fastled_src = self.temp_dir / "fastled" / "src"
+        mock_fastled_src.mkdir(parents=True)
+        (mock_fastled_src / "FastLED.h").write_text("// Mock FastLED header")
+        mock_fastled.return_value = mock_fastled_src
+
         compiler = NativeCompiler(self.emsdk_dir)
 
         self.assertIsInstance(compiler, NativeCompiler)
         self.assertEqual(compiler.emsdk_manager.install_dir, self.emsdk_dir)
 
-    def test_compiler_requires_emsdk_manager(self):
+    @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
+    def test_compiler_requires_emsdk_manager(self, mock_fastled):
         """Test that compiler can be initialized with or without emsdk_install_dir."""
+        # Mock FastLED installation
+        mock_fastled_src = self.temp_dir / "fastled" / "src"
+        mock_fastled_src.mkdir(parents=True)
+        (mock_fastled_src / "FastLED.h").write_text("// Mock FastLED header")
+        mock_fastled.return_value = mock_fastled_src
+
         # Should work with None (uses default)
         compiler = NativeCompiler(None)
         self.assertIsInstance(compiler, NativeCompiler)

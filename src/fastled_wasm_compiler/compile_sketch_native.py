@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
-from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
 
 
 class NativeCompiler:
@@ -31,11 +31,12 @@ class NativeCompiler:
             emsdk_install_dir: Custom EMSDK installation directory
         """
         self.emsdk_manager = get_emsdk_manager(emsdk_install_dir)
-        self.fastled_src = FASTLED_SRC
+        # Ensure FastLED is installed and get the actual source path
+        self.fastled_src = ensure_fastled_installed()
 
-        # Base compilation flags
+        # Base compilation flags - removed manual __EMSCRIPTEN__ definition
+        # emcc should define this automatically when using Emscripten
         self.base_flags = [
-            "-D__EMSCRIPTEN__",  # Enable Emscripten-specific code
             "-UFASTLED_ALL_SRC",  # Undefine FASTLED_ALL_SRC to enable individual file compilation
             "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
             "-DFASTLED_FORCE_NAMESPACE=1",

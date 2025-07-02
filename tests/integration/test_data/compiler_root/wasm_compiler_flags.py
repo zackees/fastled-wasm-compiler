@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # pylint: skip-file
 # flake8: noqa
 # type: ignore
@@ -6,7 +7,14 @@ import os
 
 from SCons.Script import Import
 
-from fastled_wasm_compiler.paths import FASTLED_SRC
+from fastled_wasm_compiler.paths import get_fastled_source_path
+
+# Use environment-variable driven path for container compatibility
+FASTLED_SRC_STR = os.environ.get("ENV_FASTLED_SRC_CONTAINER", get_fastled_source_path())
+
+# Ensure it's an absolute path for Docker container
+if not FASTLED_SRC_STR.startswith("/"):
+    FASTLED_SRC_STR = f"/{FASTLED_SRC_STR}"
 
 # For drawf support it needs a file server running at this point.
 # TODO: Emite this information as a src-map.json file to hold this
@@ -82,10 +90,13 @@ compile_flags = [
     "-Werror=cast-function-type",
     "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
     "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
+    "-fno-threadsafe-statics",
+    "-DEMSCRIPTEN_NO_THREADS",
+    "-D_REENTRANT=0",
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
-    f"-I{FASTLED_SRC.as_posix()}",
-    f"-I{FASTLED_SRC.as_posix()}/platforms/wasm/compiler",
+    f"-I{FASTLED_SRC_STR}",
+    f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
     # Add stricter compiler warnings.
     "-Wall",
 ]
@@ -195,3 +206,53 @@ for f in link_flags:
     print(f"  {f}")
 
 print_banner("End of Flags\nBegin compile/link using PlatformIO")
+
+
+def get_cpp_flags(build_mode: str = "debug") -> list[str]:
+    """Get compiler flags for the specified build mode."""
+
+    # Common flags for all builds
+    common_flags = [
+        # Error suppression and feature control
+        "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
+        "-emit-llvm",
+        "-fno-threadsafe-statics",
+        "-DEMSCRIPTEN_NO_THREADS",
+        "-D_REENTRANT=0",
+        "-I.",
+        "-Isrc",
+        f"-I{FASTLED_SRC_STR}",
+        f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
+        # ... rest of existing flags ...
+    ]
+
+    # Add additional flags based on the build mode
+    if build_mode == "debug":
+        common_flags.extend(
+            [
+                "-g3",
+                "-O0",
+                "-gsource-map",
+                "-ffile-prefix-map=/=dwarfsource/",
+                "-fsanitize=address",
+                "-fsanitize=undefined",
+                "-fno-inline",
+                "-O0",
+            ]
+        )
+    elif build_mode == "release":
+        common_flags.extend(
+            [
+                "-flto",
+                "-Oz",
+            ]
+        )
+    elif build_mode == "quick":
+        common_flags.extend(
+            [
+                "-flto=thin",
+                "-Oz",
+            ]
+        )
+
+    return common_flags

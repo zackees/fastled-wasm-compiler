@@ -334,11 +334,10 @@ class TestEmsdkManagerFactory(unittest.TestCase):
     """Test EMSDK Manager factory function."""
 
     def test_get_emsdk_manager_default(self):
-        """Test getting EMSDK manager with default settings."""
+        """Test getting EMSDK manager with default paths."""
         manager = get_emsdk_manager()
-
         self.assertIsInstance(manager, EmsdkManager)
-        self.assertEqual(manager.install_dir, Path.home() / ".fastled-emsdk")
+        self.assertEqual(manager.install_dir, Path.home() / ".fastled-wasm-compiler")
         self.assertEqual(manager.cache_dir, Path.cwd() / ".cache" / "emsdk-binaries")
 
     def test_get_emsdk_manager_custom_dirs(self):

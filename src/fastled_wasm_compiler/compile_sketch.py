@@ -4,9 +4,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC
+from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 
-FASTLED_SRC_STR = FASTLED_SRC.as_posix()
+# Use environment-variable driven FastLED source path
+# In Docker container, this should be set to "/git/fastled/src"
+# On host system, this will use the default from paths.py
+FASTLED_SRC_STR = os.environ.get("ENV_FASTLED_SRC_CONTAINER", get_fastled_source_path())
+
+# Ensure it's an absolute path for Docker container
+if not FASTLED_SRC_STR.startswith("/"):
+    FASTLED_SRC_STR = f"/{FASTLED_SRC_STR}"
 
 CC = "/build_tools/ccache-emcc.sh"
 CXX = "/build_tools/ccache-emcxx.sh"
