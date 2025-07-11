@@ -9,7 +9,7 @@ from pathlib import Path
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
-_LOGGING_ENABLED = False
+_LOGGING_ENABLED = True
 
 # Create formatter with filename and line number
 formatter = logging.Formatter(
@@ -136,19 +136,16 @@ _FILTER_EXAMPLES = FilterList(
 
 def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
     if not dst.exists():
-        # logger.info(f"Copying new file {src} to {dst}")
+        # New file - this is a change
         file_src_bytes = src.read_bytes()
         file_src_bytes = file_src_bytes.replace(b"\r\n", b"\n")
         if not dryrun:
-            # file_dst.write_bytes(file_src_bytes)
-            # open and write
             print(f"Copying new file {src} to {dst}")
             with open(dst, "wb") as f:
                 f.write(file_src_bytes)
         return dst
     else:
-        logger.info(f"File {dst} already exists")
-        # File already exists, but are the bytes the sames?
+        # File already exists, check if bytes are different
         file_src_bytes = src.read_bytes()
         file_dst_bytes = dst.read_bytes()
         # normalize line endings to \n
@@ -156,11 +153,9 @@ def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
         # source code is already guaranteed to have normalized line endings.
         # file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
         if file_src_bytes == file_dst_bytes:
-            logger.info(f"File {dst} already exists and is no different")
+            # No change - don't log anything
             return None
-        # replace
-        # overwrite the file
-        logger.info(f"Overwriting {dst} with {src}")
+        # File content is different - this is a change
         if not dryrun:
             print(f"Overwriting {dst} with {src} because bytes were different")
             dst.write_bytes(file_src_bytes)
@@ -173,11 +168,9 @@ def _sync_subdir(
     """Return true when source files changed. At this point we always turn true
     TODO: Check if the file is newer than the destination file
     """
-    logger.info(f"Syncing directories from {src} to {dst}")
     assert src.is_dir(), f"Source {src} is not a directory"
     # assert dst.is_dir(), f"Destination {dst} is not a directory"
     if not dst.exists():
-        logger.info(f"Creating destination directory {dst}")
         dst.mkdir(parents=True, exist_ok=True)
     src_list: list[Path] = list(src.rglob("*"))
     dst_list: list[Path] = list(dst.rglob("*"))
@@ -221,7 +214,6 @@ def _sync_subdir(
         for file in src_set:
             file_src = src / file
             file_dst = dst / file
-            logger.info(f"Copying {file_src} to {file_dst}")
 
             def _task_cpy(file_src=file_src, file_dst=file_dst) -> Path | None:
                 return _task_copy(file_src, file_dst, dryrun=dryrun)
@@ -268,7 +260,6 @@ def _sync_subdir(
         logger.error(f"Errors deleting files: {exceptions}")
         raise Exception(f"Errors deleting files: {exceptions}")
 
-    logger.info(f"Syncing directories from {src} to {dst} complete")
     return out_changed_files
 
 
@@ -335,9 +326,7 @@ def sync_fastled(
     """Sync the source directory to the destination directory."""
     start = time.time()
     # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
-    logger.info(f"Syncing {src} to {dst}")
     if not dst.exists():
-        logger.info(f"Creating destination directory {dst}")
         dst.mkdir(parents=True, exist_ok=True)
     changed = _sync_fastled_src(src, dst, dryrun=dryrun)
 
