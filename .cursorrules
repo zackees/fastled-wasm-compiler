@@ -1,0 +1,16 @@
+# Cursor Rules for FastLED WASM Compiler
+
+This project is designed to run with `uv run` instead of `python`.
+
+## Running Commands
+- Use `uv run` instead of `python` for executing Python scripts
+- Use `uv run -m` instead of `python -m` for running modules
+- Example: `uv run fastled-wasm-compiler` instead of `python -m fastled_wasm_compiler`
+
+## Testing
+- Run unit tests with `bash test` (as specified in user rules)
+
+## Dependencies
+- This project uses `uv` for dependency management
+- The `uv.lock` file contains the locked dependencies
+- Use `uv add` to add new dependencies instead of `pip install` 

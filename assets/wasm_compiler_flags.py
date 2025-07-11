@@ -18,7 +18,7 @@ from fastled_wasm_compiler.paths import get_fastled_source_path
 
 _IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
-# Use thin archive. Much faster.  
+# Use thin archive. Much faster.
 # Use environment variable for build tools path with fallback
 AR = os.environ.get("ENV_BUILD_TOOLS_DIR", "/build_tools") + "/emar-thin.sh"
 
