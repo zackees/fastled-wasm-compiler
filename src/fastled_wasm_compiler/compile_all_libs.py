@@ -4,7 +4,6 @@
 # RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/release --release
 
 import argparse
-import os
 import subprocess
 import sys
 import time
@@ -22,78 +21,44 @@ def _get_cmd(build: str) -> list[str]:
     return cmd_list
 
 
-@dataclass
-class Args:
-    src: str
-    out: str
-    builds: list[str]
+def _build_both_archives(build_mode: str) -> int:
+    """Build both thin and regular archives for the given build mode.
 
-    @staticmethod
-    def parse_args() -> "Args":
-        parser = argparse.ArgumentParser(description="Compile FastLED for WASM")
-        parser.add_argument(
-            "--src",
-            type=str,
-            required=True,
-            help="Path to FastLED source directory",
-        )
-        parser.add_argument(
-            "--out",
-            type=str,
-            required=True,
-            help="Output directory for build files",
-        )
-        parser.add_argument(
-            "--builds",
-            type=str,
-            default="debug,quick,release",
-        )
-        args = parser.parse_args()
-        args.builds = args.builds.split(",")
-        return Args(src=args.src, out=args.out, builds=args.builds)
+    Args:
+        build_mode: One of "debug", "quick", "release"
 
+    Returns:
+        0 if successful, non-zero if any build failed
+    """
+    import os
 
-# def compile_all_libs_old(
-#     src: str, out: str, build_modes: list[str] | None = None
-# ) -> int:
-#     start_time = time.time()
-#     build_modes = build_modes or ["debug", "quick", "release"]
-#     build_times: dict[str, float] = OrderedDict()
+    print(f"🏗️ Building both archive types for {build_mode} mode...")
 
-#     for build_mode in build_modes:
-#         build_start_time = time.time()
-#         print(f"Building {build_mode} in {out}/{build_mode}...")
-#         build_out = f"{out}/{build_mode}"
-#         cmd = _get_cmd(src=src, build=build_mode, build_dir=build_out)
-#         cmd_str = subprocess.list2cmdline(cmd)
-#         print(f"Running command: {cmd_str}")
-#         proc = subprocess.Popen(
-#             cmd,
-#             stdout=subprocess.PIPE,
-#             stderr=subprocess.STDOUT,
-#         )
-#         assert proc is not None, f"Failed to start process for {build_mode}"
-#         # stream out stdout
-#         assert proc.stdout is not None
-#         line: bytes
-#         for line in proc.stdout:
-#             linestr = line.decode(errors="replace")
-#             print(linestr, end="")
-#         proc.stdout.close()
-#         proc.wait()
-#         print(f"Process {proc.pid} finished with return code {proc.returncode}")
-#         if proc.returncode != 0:
-#             print(f"Process {proc.pid} failed with return code {proc.returncode}")
-#             return proc.returncode
-#         diff = time.time() - build_start_time
-#         build_times[build_mode] = diff
-#     print("All processes finished successfully.")
-#     end_time = time.time()
-#     elapsed_time = end_time - start_time
-#     print(f"Total time taken: {elapsed_time:.2f} seconds")
-#     for mode, duration in build_times.items():
-#         print(f"  {mode} build time: {duration:.2f} seconds")
-#     return 0
+    # Build thin archives (NO_THIN_LTO=0)
+    print(f"📦 Building thin archives for {build_mode}...")
+    env_thin = os.environ.copy()
+    env_thin["NO_THIN_LTO"] = "0"
+
+    cmd = _get_cmd(build_mode)
+    result_thin = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
+    if result_thin.returncode != 0:
+        print(f"❌ Failed to build thin archives for {build_mode}")
+        return result_thin.returncode
+    print(f"✅ Thin archives built successfully for {build_mode}")
+
+    # Build regular archives (NO_THIN_LTO=1)
+    print(f"📦 Building regular archives for {build_mode}...")
+    env_regular = os.environ.copy()
+    env_regular["NO_THIN_LTO"] = "1"
+
+    result_regular = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
+    if result_regular.returncode != 0:
+        print(f"❌ Failed to build regular archives for {build_mode}")
+        return result_regular.returncode
+    print(f"✅ Regular archives built successfully for {build_mode}")
+
+    print(f"🎉 Both archive types built successfully for {build_mode}")
+    return 0
 
 
 @dataclass
@@ -103,51 +68,63 @@ class BuildResult:
     stdout: str
 
 
+def main():
+    """Run all tests with --src and --out options."""
+    parser = argparse.ArgumentParser(
+        description="Compile FastLED for WASM in all modes"
+    )
+    parser.add_argument(
+        "--src", required=True, help="Source directory path for FastLED"
+    )
+    parser.add_argument("--out", required=True, help="Output directory path")
+    args = parser.parse_args()
+
+    src: str = args.src
+    out: str = args.out
+
+    # Use the updated compile_all_libs function
+    result = compile_all_libs(src, out)
+
+    if result.return_code == 0:
+        print("✅ All builds completed successfully")
+    else:
+        print(f"❌ Build failed with return code {result.return_code}")
+
+    return result.return_code
+
+
 def compile_all_libs(
-    src: str, out: str, build_modes: list[str] | None = None, thin_lto: bool = True
+    src: str, out: str, build_modes: list[str] | None = None
 ) -> BuildResult:
+    """Compile FastLED libraries for specified build modes.
+
+    Now builds both thin and regular archives for each mode.
+    """
     start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
     build_times: dict[str, float] = OrderedDict()
     captured_stdout: list[str] = []
-    env = os.environ.copy()
-    env["NO_THIN_LTO"] = "1" if thin_lto else "0"
 
     for build_mode in build_modes:
         build_start_time = time.time()
         print(f"Building {build_mode} in {out}/{build_mode}...")
-        cmd = _get_cmd(build=build_mode)
-        cmd_str = subprocess.list2cmdline(cmd)
-        print(f"Running command: {cmd_str}")
-        proc = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=env,
-        )
-        assert proc is not None, f"Failed to start process for {build_mode}"
-        # stream out stdout and capture it
-        assert proc.stdout is not None
-        line: bytes
-        for line in proc.stdout:
-            linestr = line.decode(errors="replace")
-            print(linestr, end="")
-            captured_stdout.append(linestr)
-        proc.stdout.close()
-        proc.wait()
-        print(f"Process {proc.pid} finished with return code {proc.returncode}")
-        if proc.returncode != 0:
-            print(f"Process {proc.pid} failed with return code {proc.returncode}")
+
+        # Build both archive types for this mode
+        result_code = _build_both_archives(build_mode)
+
+        if result_code != 0:
+            print(f"❌ Failed to build archives for {build_mode}")
             end_time = time.time()
             elapsed_time = end_time - start_time
             return BuildResult(
-                return_code=proc.returncode,
+                return_code=result_code,
                 duration=elapsed_time,
                 stdout="".join(captured_stdout),
             )
+
         diff = time.time() - build_start_time
         build_times[build_mode] = diff
+
     print("All processes finished successfully.")
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -157,21 +134,6 @@ def compile_all_libs(
     return BuildResult(
         return_code=0, duration=elapsed_time, stdout="".join(captured_stdout)
     )
-
-
-def main() -> int:
-    """Main entry point for the template_python_cmd package."""
-    args: Args = Args.parse_args()
-    src = args.src
-    out = args.out
-    print(f"Compiling all libraries from {src} to {out}")
-    # Compile all libraries
-    build_result = compile_all_libs(args.src, args.out, args.builds)
-    if build_result.return_code != 0:
-        print(f"Compilation failed with return code {build_result.return_code}")
-        return build_result.return_code
-    print("Compilation completed successfully.")
-    return 0
 
 
 if __name__ == "__main__":
