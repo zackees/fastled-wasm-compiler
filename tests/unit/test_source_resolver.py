@@ -85,10 +85,10 @@ class SourceFileResolverTester(unittest.TestCase):
             "/js/src/timer.h",
         )
 
-        # self.check_path(
-        #     "sketchsource/js/src/direct.h",
-        #     "/js/src/direct.h",
-        # )
+        self.check_path(
+            "sketchsource/js/src/direct.h",
+            "/js/src/direct.h",
+        )
 
 
 if __name__ == "__main__":

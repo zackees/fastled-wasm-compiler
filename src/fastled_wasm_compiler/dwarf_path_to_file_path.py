@@ -130,14 +130,21 @@ def _dwarf_path_to_file_path_inner(
     if request_path_pruned is None:
         print(f"Failed to prune path: {request_path}")
         return Exception(f"Invalid path: {request_path}")
+    else:
+        print(f"Pruned path: {request_path_pruned}")
 
     if request_path_pruned.startswith("headers"):
         # Special case this one.
+        print(f"Headers special case: {request_path_pruned}")
         result = request_path_pruned.replace("headers", FASTLED_SOURCE_PATH)
         logger.debug(f"Headers special case: {request_path_pruned} -> {result}")
         return result
 
-    for i, source_path in enumerate(SOURCE_PATHS_NO_LEADING_SLASH):
+    print(f"Doing the loop for the source {request_path_pruned}")
+
+    paths_to_check = list(SOURCE_PATHS_NO_LEADING_SLASH)
+
+    for i, source_path in enumerate(paths_to_check):
         print(f"Checking source path: {source_path} for {request_path_pruned}")
         if request_path_pruned.startswith(source_path):
             suffix_path = request_path_pruned[len(source_path) :]

@@ -55,5 +55,4 @@ def get_sketch_path() -> str:
         return env_path
 
     # Convert absolute path to relative if needed
-    sketch_path = SKETCH_ROOT.as_posix()
-    return sketch_path
+    return "/js/src"  # TODO: Come back to this.

@@ -47,9 +47,7 @@ QUICK_BUILD = BUILD_MODE == "QUICK"
 OPTIMIZED = BUILD_MODE == "RELEASE"
 
 # Choose WebAssembly (1), asm.js fallback (2)
-USE_WASM = 2
-if DEBUG or QUICK_BUILD:
-    USE_WASM = 1
+USE_WASM = 1
 
 # Optimization level
 # build_mode = "-O1" if QUICK_BUILD else "-Oz"

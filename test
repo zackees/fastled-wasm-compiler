@@ -44,7 +44,7 @@ done
 # Set environment variables for consistent cross-platform path resolution
 export ENV_FASTLED_SOURCE_PATH="git/fastled/src"
 export ENV_EMSDK_PATH="emsdk"
-# export ENV_SKETCH_PATH="/js/src"
+export ENV_SKETCH_ROOT="/js/src"
 
 # Use uv if available, otherwise fall back to pip
 if command -v uv >/dev/null 2>&1; then

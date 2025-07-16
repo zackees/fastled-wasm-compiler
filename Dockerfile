@@ -82,7 +82,7 @@ ENV CCACHE_MAXSIZE=1G
 ENV ENV_FASTLED_ROOT="/git/fastled"
 ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
 ENV ENV_EMSDK_PATH="/emsdk"
-ENV ENV_SKETCH_PATH="src"
+ENV ENV_SKETCH_PATH="/js/src"
 ENV ENV_VOLUME_MAPPED_SRC="/host/fastled/src"
 
 # Create a custom print script
@@ -157,7 +157,7 @@ RUN fastled-wasm-compiler-prewarm \
   --fastled-root=/git/fastled \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
-  --sketch-path=src \
+  --sketch-path=/js/src \
   --debug
 
 RUN fastled-wasm-compiler-prewarm \
@@ -166,7 +166,7 @@ RUN fastled-wasm-compiler-prewarm \
   --fastled-root=/git/fastled \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
-  --sketch-path=src \
+  --sketch-path=/js/src \
   --quick
 
 RUN fastled-wasm-compiler-prewarm \
@@ -175,7 +175,7 @@ RUN fastled-wasm-compiler-prewarm \
   --fastled-root=/git/fastled \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
-  --sketch-path=src \
+  --sketch-path=/js/src \
   --release
 
 ### Final entry point init.
