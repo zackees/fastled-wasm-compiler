@@ -10,7 +10,7 @@ from SCons.Script import Import
 from fastled_wasm_compiler.paths import get_fastled_source_path
 
 # Use environment-variable driven path for container compatibility
-FASTLED_SRC_STR = os.environ.get("ENV_FASTLED_SRC_CONTAINER", get_fastled_source_path())
+FASTLED_SRC_STR = get_fastled_source_path()
 
 # Ensure it's an absolute path for Docker container
 if not FASTLED_SRC_STR.startswith("/"):

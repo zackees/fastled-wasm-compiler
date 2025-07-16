@@ -80,7 +80,6 @@ ENV CCACHE_MAXSIZE=1G
 
 # Set container-specific environment variables for path resolution
 ENV ENV_FASTLED_ROOT="/git/fastled"
-ENV ENV_FASTLED_SRC_CONTAINER="/git/fastled/src"
 ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
 ENV ENV_EMSDK_PATH="/emsdk"
 ENV ENV_SKETCH_PATH="src"
@@ -156,7 +155,6 @@ RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --fastled-root=/git/fastled \
-  --fastled-src-container=/git/fastled/src \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
   --sketch-path=src \
@@ -166,7 +164,6 @@ RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --fastled-root=/git/fastled \
-  --fastled-src-container=/git/fastled/src \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
   --sketch-path=src \
@@ -176,7 +173,6 @@ RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
   --fastled-root=/git/fastled \
-  --fastled-src-container=/git/fastled/src \
   --fastled-source-path=/git/fastled/src \
   --emsdk-path=/emsdk \
   --sketch-path=src \

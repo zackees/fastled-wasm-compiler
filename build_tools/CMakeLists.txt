@@ -96,8 +96,8 @@ message(STATUS "Archive output directory: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 
 # ——— 6) Add FastLED Library ———————————————————————————————————————
 # Use environment variable for FastLED source directory with fallback
-if(DEFINED ENV{ENV_FASTLED_SRC_CONTAINER})
-  set(FASTLED_SOURCE_DIR $ENV{ENV_FASTLED_SRC_CONTAINER})
+if(DEFINED ENV{ENV_FASTLED_SOURCE_PATH})
+  set(FASTLED_SOURCE_DIR $ENV{ENV_FASTLED_SOURCE_PATH})
 elseif(DEFINED ENV{ENV_FASTLED_ROOT})
   set(FASTLED_SOURCE_DIR "$ENV{ENV_FASTLED_ROOT}/src")
 else()

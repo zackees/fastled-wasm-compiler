@@ -17,7 +17,6 @@ class EnvironmentConfig:
     """Configuration for environment variables used by the compiler."""
 
     fastled_root: str
-    fastled_src_container: str
     fastled_source_path: str
     emsdk_path: str
     sketch_path: str
@@ -26,7 +25,6 @@ class EnvironmentConfig:
     def apply_to_environment(self) -> None:
         """Apply these settings to the current environment."""
         os.environ["ENV_FASTLED_ROOT"] = self.fastled_root
-        os.environ["ENV_FASTLED_SRC_CONTAINER"] = self.fastled_src_container
         os.environ["ENV_FASTLED_SOURCE_PATH"] = self.fastled_source_path
         os.environ["ENV_EMSDK_PATH"] = self.emsdk_path
         os.environ["ENV_SKETCH_PATH"] = self.sketch_path
@@ -43,11 +41,6 @@ def add_environment_arguments(parser: argparse.ArgumentParser) -> None:
     env_group.add_argument(
         "--fastled-root",
         help="FastLED root directory (ENV_FASTLED_ROOT)",
-    )
-
-    env_group.add_argument(
-        "--fastled-src-container",
-        help="FastLED source container path (ENV_FASTLED_SRC_CONTAINER)",
     )
 
     env_group.add_argument(
@@ -115,11 +108,6 @@ def validate_and_get_environment(args: argparse.Namespace) -> EnvironmentConfig:
     fastled_root = get_env_value(
         "fastled-root", "ENV_FASTLED_ROOT", "FastLED root directory"
     )
-    fastled_src_container = get_env_value(
-        "fastled-src-container",
-        "ENV_FASTLED_SRC_CONTAINER",
-        "FastLED source container path",
-    )
     fastled_source_path = get_env_value(
         "fastled-source-path", "ENV_FASTLED_SOURCE_PATH", "FastLED source path"
     )
@@ -138,8 +126,6 @@ def validate_and_get_environment(args: argparse.Namespace) -> EnvironmentConfig:
     missing_values = []
     if not fastled_root:
         missing_values.append("fastled-root (ENV_FASTLED_ROOT)")
-    if not fastled_src_container:
-        missing_values.append("fastled-src-container (ENV_FASTLED_SRC_CONTAINER)")
     if not fastled_source_path:
         missing_values.append("fastled-source-path (ENV_FASTLED_SOURCE_PATH)")
     if not emsdk_path:
@@ -154,24 +140,22 @@ def validate_and_get_environment(args: argparse.Namespace) -> EnvironmentConfig:
         print("\nSet these via command line arguments or environment variables.")
         print("Example:")
         print(
-            "  fastled-wasm-compiler --fastled-root=/git/fastled --fastled-src-container=/git/fastled/src ..."
+            "  fastled-wasm-compiler --fastled-root=/git/fastled --fastled-source-path=/git/fastled/src ..."
         )
         print("  OR")
         print("  export ENV_FASTLED_ROOT=/git/fastled")
-        print("  export ENV_FASTLED_SRC_CONTAINER=/git/fastled/src")
+        print("  export ENV_FASTLED_SOURCE_PATH=/git/fastled/src")
         print("  ...")
         print("\nNote: ENV_VOLUME_MAPPED_SRC is optional and can be omitted.")
         sys.exit(1)
 
     assert fastled_root is not None
-    assert fastled_src_container is not None
     assert fastled_source_path is not None
     assert emsdk_path is not None
     assert sketch_path is not None
 
     return EnvironmentConfig(
         fastled_root=fastled_root,
-        fastled_src_container=fastled_src_container,
         fastled_source_path=fastled_source_path,
         emsdk_path=emsdk_path,
         sketch_path=sketch_path,

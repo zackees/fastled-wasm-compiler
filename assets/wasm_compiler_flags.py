@@ -82,7 +82,7 @@ def _remove_flags(curr_flags: list[str], remove_flags: list[str]) -> list[str]:
 wasm_name = f"{PROGRAM_NAME}.wasm"
 
 # Use environment-variable driven path for container compatibility
-FASTLED_SRC_STR = os.environ.get("ENV_FASTLED_SRC_CONTAINER", get_fastled_source_path())
+FASTLED_SRC_STR = get_fastled_source_path()
 
 # Ensure it's an absolute path for Docker container
 if not FASTLED_SRC_STR.startswith("/"):

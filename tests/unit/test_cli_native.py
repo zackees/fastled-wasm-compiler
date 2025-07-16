@@ -122,7 +122,6 @@ class TestNativeCliModule(unittest.TestCase):
             original_env = {}
             env_vars = [
                 "ENV_FASTLED_ROOT",
-                "ENV_FASTLED_SRC_CONTAINER",
                 "ENV_FASTLED_SOURCE_PATH",
                 "ENV_EMSDK_PATH",
                 "ENV_SKETCH_PATH",
@@ -134,7 +133,6 @@ class TestNativeCliModule(unittest.TestCase):
             try:
                 # Set test environment variables
                 os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
-                os.environ["ENV_FASTLED_SRC_CONTAINER"] = str(fastled_src_temp)
                 os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
                 os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
                 os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
@@ -216,7 +214,6 @@ class TestNativeCliModule(unittest.TestCase):
                     original_env = {}
                     env_vars = [
                         "ENV_FASTLED_ROOT",
-                        "ENV_FASTLED_SRC_CONTAINER",
                         "ENV_FASTLED_SOURCE_PATH",
                         "ENV_EMSDK_PATH",
                         "ENV_SKETCH_PATH",
@@ -228,7 +225,6 @@ class TestNativeCliModule(unittest.TestCase):
                     try:
                         # Set test environment variables
                         os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
-                        os.environ["ENV_FASTLED_SRC_CONTAINER"] = str(fastled_src_temp)
                         os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
                         os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
                         os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
