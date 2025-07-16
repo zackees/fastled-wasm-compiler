@@ -69,31 +69,27 @@ def _build_archives(
         print(f"✅ Regular archives built successfully for {build_mode}")
 
     elif archive_type == ArchiveType.BOTH:
-        print(f"🏗️ Building both archive types for {build_mode} mode...")
+        print(f"🚀 Building both archive types for {build_mode} mode...")
+        print("⚡ Using optimized compile-once-link-twice strategy")
 
-        # Build thin archives (NO_THIN_LTO=0)
-        print(f"📦 Building thin archives for {build_mode}...")
-        env_thin = os.environ.copy()
-        env_thin["NO_THIN_LTO"] = "0"
+        # The optimized build_lib.sh script now handles building both archive types
+        # in a single invocation using the compile-once-link-twice pattern:
+        # 1. Compile object files once (NO_LINK=ON)
+        # 2. Link thin archive (NO_BUILD=ON, NO_THIN_LTO=0)
+        # 3. Link regular archive (NO_BUILD=ON, NO_THIN_LTO=1)
 
-        result_thin = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
-        if result_thin.returncode != 0:
-            print(f"❌ Failed to build thin archives for {build_mode}")
-            return result_thin.returncode
-        print(f"✅ Thin archives built successfully for {build_mode}")
+        # No need to set NO_THIN_LTO here - the script manages it internally
+        env = os.environ.copy()
+        # Remove any existing NO_THIN_LTO to let the script control it
+        env.pop("NO_THIN_LTO", None)
 
-        # Build regular archives (NO_THIN_LTO=1)
-        print(f"📦 Building regular archives for {build_mode}...")
-        env_regular = os.environ.copy()
-        env_regular["NO_THIN_LTO"] = "1"
-
-        result_regular = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
-        if result_regular.returncode != 0:
-            print(f"❌ Failed to build regular archives for {build_mode}")
-            return result_regular.returncode
-        print(f"✅ Regular archives built successfully for {build_mode}")
+        result = subprocess.run(cmd, env=env, cwd="/git/fastled-wasm")
+        if result.returncode != 0:
+            print(f"❌ Failed to build archives for {build_mode}")
+            return result.returncode
 
         print(f"🎉 Both archive types built successfully for {build_mode}")
+        print("✨ Object files compiled once, archives linked separately")
 
     return 0
 

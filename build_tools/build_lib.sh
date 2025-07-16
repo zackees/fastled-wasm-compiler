@@ -43,13 +43,19 @@ for MODE in "${UNIQUE_MODES[@]}"; do
 
   export BUILD_MODE="$MODE"
   
-  if [ "${NO_THIN_LTO:-0}" = "1" ]; then
-    echo ">>> NO_THIN_LTO=1: Building libfastled.a"
-  else
-    echo ">>> NO_THIN_LTO=0: Building libfastled-thin.a"
-  fi
+  echo ">>> Step 1/3: Compiling object files (NO_LINK=ON)"
+  export NO_THIN_LTO=0  # Use thin LTO for compilation step
+  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_LINK=ON
+  ninja -v
   
-  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja
+  echo ">>> Step 2/3: Linking thin archive (NO_BUILD=ON, NO_THIN_LTO=0)"
+  export NO_THIN_LTO=0
+  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
+  ninja -v
+  
+  echo ">>> Step 3/3: Linking regular archive (NO_BUILD=ON, NO_THIN_LTO=1)"
+  export NO_THIN_LTO=1
+  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
   ninja -v
 
   cd -
