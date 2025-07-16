@@ -6,7 +6,11 @@ from pathlib import Path
 import fasteners
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.compile_all_libs import BuildResult, compile_all_libs
+from fastled_wasm_compiler.compile_all_libs import (
+    ArchiveType,
+    BuildResult,
+    compile_all_libs,
+)
 from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC, VOLUME_MAPPED_SRC
 from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
@@ -17,6 +21,8 @@ _RW_LOCK = fasteners.ReaderWriterLock()
 
 @dataclass
 class UpdateSrcResult:
+    """Result from updating source directory."""
+
     files_changed: list[Path]
     stdout: str
     error: Exception | None
@@ -241,11 +247,13 @@ class CompilerImpl:
                 )
 
             # Compile the libraries (either because files changed or libraries are missing)
+            # Use ArchiveType.BOTH to ensure both thin and regular archives are built
             print_banner("Compiling libraries with updated source...")
             result: BuildResult = compile_all_libs(
                 FASTLED_SRC.as_posix(),
                 str(BUILD_ROOT),
                 build_modes=build_modes,
+                archive_type=ArchiveType.BOTH,
             )
 
             if result.return_code != 0:
@@ -256,11 +264,19 @@ class CompilerImpl:
                 print_banner(f"Error: {stdout}")
                 return RuntimeError(stdout)
 
-            # Verify the build output
+            # Verify the build output - check for both archive types
             for mode in build_modes:
-                lib_path = BUILD_ROOT / mode / "libfastled.a"
-                if not lib_path.exists():
-                    error_msg = f"Expected library not found at {lib_path}"
+                # Check for regular archive
+                regular_lib = BUILD_ROOT / mode / "libfastled.a"
+                thin_lib = BUILD_ROOT / mode / "libfastled-thin.a"
+
+                if not regular_lib.exists():
+                    error_msg = f"Expected regular library not found at {regular_lib}"
+                    print_banner(f"Error: {error_msg}")
+                    return FileNotFoundError(error_msg)
+
+                if not thin_lib.exists():
+                    error_msg = f"Expected thin library not found at {thin_lib}"
                     print_banner(f"Error: {error_msg}")
                     return FileNotFoundError(error_msg)
 

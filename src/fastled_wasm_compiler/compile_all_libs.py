@@ -9,6 +9,15 @@ import sys
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
+from enum import Enum
+
+
+class ArchiveType(Enum):
+    """Enum for specifying which archive types to build."""
+
+    THIN = "thin"
+    REGULAR = "regular"
+    BOTH = "both"
 
 
 def _get_cmd(build: str) -> list[str]:
@@ -21,43 +30,71 @@ def _get_cmd(build: str) -> list[str]:
     return cmd_list
 
 
-def _build_both_archives(build_mode: str) -> int:
-    """Build both thin and regular archives for the given build mode.
+def _build_archives(
+    build_mode: str, archive_type: ArchiveType = ArchiveType.THIN
+) -> int:
+    """Build specified archive types for the given build mode.
 
     Args:
         build_mode: One of "debug", "quick", "release"
+        archive_type: Which archive types to build (thin, regular, or both)
 
     Returns:
         0 if successful, non-zero if any build failed
     """
     import os
 
-    print(f"🏗️ Building both archive types for {build_mode} mode...")
-
-    # Build thin archives (NO_THIN_LTO=0)
-    print(f"📦 Building thin archives for {build_mode}...")
-    env_thin = os.environ.copy()
-    env_thin["NO_THIN_LTO"] = "0"
-
     cmd = _get_cmd(build_mode)
-    result_thin = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
-    if result_thin.returncode != 0:
-        print(f"❌ Failed to build thin archives for {build_mode}")
-        return result_thin.returncode
-    print(f"✅ Thin archives built successfully for {build_mode}")
 
-    # Build regular archives (NO_THIN_LTO=1)
-    print(f"📦 Building regular archives for {build_mode}...")
-    env_regular = os.environ.copy()
-    env_regular["NO_THIN_LTO"] = "1"
+    if archive_type == ArchiveType.THIN:
+        print(f"📦 Building thin archives for {build_mode}...")
+        env_thin = os.environ.copy()
+        env_thin["NO_THIN_LTO"] = "0"
 
-    result_regular = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
-    if result_regular.returncode != 0:
-        print(f"❌ Failed to build regular archives for {build_mode}")
-        return result_regular.returncode
-    print(f"✅ Regular archives built successfully for {build_mode}")
+        result = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
+        if result.returncode != 0:
+            print(f"❌ Failed to build thin archives for {build_mode}")
+            return result.returncode
+        print(f"✅ Thin archives built successfully for {build_mode}")
 
-    print(f"🎉 Both archive types built successfully for {build_mode}")
+    elif archive_type == ArchiveType.REGULAR:
+        print(f"📦 Building regular archives for {build_mode}...")
+        env_regular = os.environ.copy()
+        env_regular["NO_THIN_LTO"] = "1"
+
+        result = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
+        if result.returncode != 0:
+            print(f"❌ Failed to build regular archives for {build_mode}")
+            return result.returncode
+        print(f"✅ Regular archives built successfully for {build_mode}")
+
+    elif archive_type == ArchiveType.BOTH:
+        print(f"🏗️ Building both archive types for {build_mode} mode...")
+
+        # Build thin archives (NO_THIN_LTO=0)
+        print(f"📦 Building thin archives for {build_mode}...")
+        env_thin = os.environ.copy()
+        env_thin["NO_THIN_LTO"] = "0"
+
+        result_thin = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
+        if result_thin.returncode != 0:
+            print(f"❌ Failed to build thin archives for {build_mode}")
+            return result_thin.returncode
+        print(f"✅ Thin archives built successfully for {build_mode}")
+
+        # Build regular archives (NO_THIN_LTO=1)
+        print(f"📦 Building regular archives for {build_mode}...")
+        env_regular = os.environ.copy()
+        env_regular["NO_THIN_LTO"] = "1"
+
+        result_regular = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
+        if result_regular.returncode != 0:
+            print(f"❌ Failed to build regular archives for {build_mode}")
+            return result_regular.returncode
+        print(f"✅ Regular archives built successfully for {build_mode}")
+
+        print(f"🎉 Both archive types built successfully for {build_mode}")
+
     return 0
 
 
@@ -94,11 +131,18 @@ def main():
 
 
 def compile_all_libs(
-    src: str, out: str, build_modes: list[str] | None = None
+    src: str,
+    out: str,
+    build_modes: list[str] | None = None,
+    archive_type: ArchiveType = ArchiveType.BOTH,
 ) -> BuildResult:
     """Compile FastLED libraries for specified build modes.
 
-    Now builds both thin and regular archives for each mode.
+    Args:
+        src: Source directory path
+        out: Output directory path
+        build_modes: List of build modes to compile
+        archive_type: Which archive types to build (thin, regular, or both)
     """
     start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
@@ -109,8 +153,8 @@ def compile_all_libs(
         build_start_time = time.time()
         print(f"Building {build_mode} in {out}/{build_mode}...")
 
-        # Build both archive types for this mode
-        result_code = _build_both_archives(build_mode)
+        # Build specified archive types for this mode
+        result_code = _build_archives(build_mode, archive_type)
 
         if result_code != 0:
             print(f"❌ Failed to build archives for {build_mode}")

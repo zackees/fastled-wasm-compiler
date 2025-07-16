@@ -9,12 +9,12 @@ This cli simplifies it with a layer of abstraction.
 import argparse
 import os
 import shutil
-import subprocess
 import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+from fastled_wasm_compiler.compile_all_libs import ArchiveType, compile_all_libs
 from fastled_wasm_compiler.env_validation import (
     add_environment_arguments,
     ensure_environment_configured,
@@ -33,47 +33,6 @@ class CliArgs:
     @staticmethod
     def parse_args() -> "CliArgs":
         return _parse_args()
-
-
-def _build_fastled_libraries(build_mode: str) -> int:
-    """Build both thin and regular FastLED libraries for the given build mode.
-
-    Args:
-        build_mode: One of "debug", "quick", "release"
-
-    Returns:
-        0 if successful, non-zero if any build failed
-    """
-    print(f"\n🏗️  Building FastLED libraries for {build_mode} mode...")
-
-    # Build thin archives (NO_THIN_LTO=0)
-    print(f"📦 Building thin archives for {build_mode}...")
-    env_thin = os.environ.copy()
-    env_thin["NO_THIN_LTO"] = "0"
-
-    cmd_thin = ["/build/build_lib.sh", f"--{build_mode}"]
-    result_thin = subprocess.run(cmd_thin, env=env_thin, cwd="/git/fastled-wasm")
-    if result_thin.returncode != 0:
-        print(f"❌ Failed to build thin archives for {build_mode}")
-        return result_thin.returncode
-    print(f"✅ Thin archives built successfully for {build_mode}")
-
-    # Build regular archives (NO_THIN_LTO=1)
-    print(f"📦 Building regular archives for {build_mode}...")
-    env_regular = os.environ.copy()
-    env_regular["NO_THIN_LTO"] = "1"
-
-    cmd_regular = ["/build/build_lib.sh", f"--{build_mode}"]
-    result_regular = subprocess.run(
-        cmd_regular, env=env_regular, cwd="/git/fastled-wasm"
-    )
-    if result_regular.returncode != 0:
-        print(f"❌ Failed to build regular archives for {build_mode}")
-        return result_regular.returncode
-    print(f"✅ Regular archives built successfully for {build_mode}")
-
-    print(f"🎉 Both archive types built successfully for {build_mode}")
-    return 0
 
 
 def _parse_args() -> CliArgs:
@@ -144,12 +103,21 @@ def main() -> int:
     build = cli_args.build
     build_mode_str = build.name.lower()
 
-    # First, build both thin and regular FastLED libraries
+    # Build both thin and regular FastLED libraries using centralized function
     print(f"\n🚀 Prewarm: Building FastLED libraries for {build_mode_str} mode...")
-    lib_result = _build_fastled_libraries(build_mode_str)
-    if lib_result != 0:
+
+    from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC
+
+    result = compile_all_libs(
+        src=str(FASTLED_SRC),
+        out=str(BUILD_ROOT),
+        build_modes=[build_mode_str],
+        archive_type=ArchiveType.BOTH,
+    )
+
+    if result.return_code != 0:
         print(f"❌ Failed to build FastLED libraries for {build_mode_str}")
-        return lib_result
+        return result.return_code
 
     # Then compile the sketch (this will use thin archives since NO_THIN_LTO defaults to 0)
     print(f"\n🔨 Prewarm: Compiling sketch for {build_mode_str} mode...")

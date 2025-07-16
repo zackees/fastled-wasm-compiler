@@ -1,80 +1,73 @@
 import argparse
+import os
 import subprocess
-import sys
-import threading
 import time
 from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
-from queue import Queue
+
+from fastled_wasm_compiler.compile_all_libs import (
+    ArchiveType,
+    BuildResult,
+    compile_all_libs,
+)
+from fastled_wasm_compiler.paths import BUILD_ROOT
+from fastled_wasm_compiler.types import BuildMode
 
 
-class BuildMode(Enum):
-    DEBUG = auto()
-    QUICK = auto()
-    RELEASE = auto()
-
-    @classmethod
-    def from_string(cls, mode_str: str) -> "BuildMode":
-        mode_str = mode_str.upper()
-        if mode_str == "DEBUG":
-            return cls.DEBUG
-        elif mode_str == "QUICK":
-            return cls.QUICK
-        elif mode_str == "RELEASE":
-            return cls.RELEASE
-        else:
-            raise ValueError(f"Unknown build mode: {mode_str}")
+def _locked_print(msg: str) -> None:
+    print(msg)
 
 
 @dataclass
 class Args:
     src: Path
-    out: Path
-    build_mode: BuildMode = BuildMode.DEBUG
+    build_dir: Path
+    build_mode: BuildMode
 
     @staticmethod
-    def parse_args(cmd_list: list[str] | None = None) -> "Args":
-        args: argparse.Namespace = _parse_args(cmd_list)
+    def parse_args() -> "Args":
+        """Parse command line arguments."""
+        parser = argparse.ArgumentParser(description="Compile FastLED library")
+        parser.add_argument(
+            "--src",
+            type=Path,
+            required=True,
+            help="Path to FastLED source directory",
+        )
+        parser.add_argument(
+            "--build-dir",
+            type=Path,
+            required=True,
+            help="Build directory for output",
+        )
+        build_group = parser.add_mutually_exclusive_group(required=True)
+        build_group.add_argument(
+            "--debug", action="store_true", help="Build in debug mode"
+        )
+        build_group.add_argument(
+            "--quick", action="store_true", help="Build in quick mode"
+        )
+        build_group.add_argument(
+            "--release", action="store_true", help="Build in release mode"
+        )
+
+        args = parser.parse_args()
 
         # Determine build mode
-        if args.release:
-            build_mode = BuildMode.RELEASE
+        if args.debug:
+            build_mode = BuildMode.DEBUG
         elif args.quick:
             build_mode = BuildMode.QUICK
-        elif args.debug:
-            build_mode = BuildMode.DEBUG
+        elif args.release:
+            build_mode = BuildMode.RELEASE
         else:
-            # Default to debug if no mode specified
-            raise ValueError(
-                "No build mode specified. Use --debug, --quick, or --release."
-            )
+            raise ValueError("Must specify one of --debug, --quick, or --release")
 
-        return Args(src=args.src, out=args.out, build_mode=build_mode)
-
-
-# _PRINT_LOCK = Lock()
-_PRINT_QUEUE = Queue()
-
-
-def _print_worker():
-    while True:
-        msg = _PRINT_QUEUE.get()
-        if msg is None:
-            break
-        print(msg)
-        _PRINT_QUEUE.task_done()
-
-
-_THREADED_PRINT = threading.Thread(
-    target=_print_worker, daemon=True, name="PrintWorker"
-)
-_THREADED_PRINT.start()
-
-
-def _locked_print(s: str) -> None:
-    """Thread-safe print function."""
-    _PRINT_QUEUE.put(s)
+        return Args(
+            src=args.src,
+            build_dir=args.build_dir,
+            build_mode=build_mode,
+        )
 
 
 def build_static_lib(
@@ -86,8 +79,6 @@ def build_static_lib(
     if not src_dir.is_dir():
         _locked_print(f"Error: '{src_dir}' is not a directory.")
         return 1
-
-    import os
 
     cwd = os.environ.get("ENV_BUILD_CWD", "/git/build")
     cmd = f"build_lib.sh --{build_mode.name}"
@@ -105,47 +96,42 @@ def build_static_lib(
     return rtn
 
 
-def _parse_args(cmd_list: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Build static .a library from source files."
-    )
-    parser.add_argument(
-        "--src",
-        type=Path,
-        required=True,
-        help="Source directory containing .cpp/.ino files",
-    )
-    parser.add_argument(
-        "--out", type=Path, required=True, help="Output directory for .o and .a files"
-    )
-
-    # Build mode arguments (mutually exclusive)
-    build_mode_group = parser.add_mutually_exclusive_group()
-    build_mode_group.add_argument(
-        "--debug", action="store_true", help="Build with debug flags (default)"
-    )
-    build_mode_group.add_argument(
-        "--quick", action="store_true", help="Build with light optimization (O1)"
-    )
-    build_mode_group.add_argument(
-        "--release", action="store_true", help="Build with aggressive optimization (Oz)"
-    )
-
-    # Parse arguments
-    args = parser.parse_args(cmd_list)
-    return args
-
-
 def main() -> int:
+    """Main entry point for compile_lib."""
     args = Args.parse_args()
 
-    _locked_print(f"Building with mode: {args.build_mode.name}")
-    rtn = build_static_lib(args.src, args.out, args.build_mode)
-    _PRINT_QUEUE.put(None)  # Signal the print worker to exit
-    # _PRINT_QUEUE.join()  # Wait for all queued prints to finish
-    _THREADED_PRINT.join()  # Wait for the print worker to finish
-    return rtn
+    print("Compiling FastLED library")
+    print(f"Source: {args.src}")
+    print(f"Build directory: {args.build_dir}")
+    print(f"Build mode: {args.build_mode.name}")
+
+    # Use the centralized compile_all_libs function with THIN archives for command line usage
+    result: BuildResult = compile_all_libs(
+        src=str(args.src),
+        out=str(BUILD_ROOT),  # Use standard build root
+        build_modes=[args.build_mode.name.lower()],
+        archive_type=ArchiveType.THIN,  # Command line usage only builds thin archives
+    )
+
+    if result.return_code == 0:
+        print("✅ Library compilation completed successfully")
+
+        # Verify the thin archive was created
+        mode_str = args.build_mode.name.lower()
+        thin_lib = BUILD_ROOT / mode_str / "libfastled-thin.a"
+        if thin_lib.exists():
+            size = thin_lib.stat().st_size
+            print(f"✅ Thin archive created: {thin_lib} ({size} bytes)")
+        else:
+            print(f"❌ Expected thin archive not found: {thin_lib}")
+            return 1
+    else:
+        print(f"❌ Library compilation failed with exit code {result.return_code}")
+
+    return result.return_code
 
 
 if __name__ == "__main__":
+    import sys
+
     sys.exit(main())
