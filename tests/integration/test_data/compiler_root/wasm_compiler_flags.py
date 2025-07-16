@@ -34,6 +34,9 @@ valid_modes = ["DEBUG", "QUICK", "RELEASE"]
 if BUILD_MODE not in valid_modes:
     raise ValueError(f"BUILD_MODE must be one of {valid_modes}, got {BUILD_MODE}")
 
+# Linker selection
+LINKER = os.environ.get("LINKER", "lld")  # Default to lld, can be set to "mold" etc
+
 DEBUG = BUILD_MODE == "DEBUG"
 QUICK_BUILD = BUILD_MODE == "QUICK"
 OPTIMIZED = BUILD_MODE == "RELEASE"
@@ -101,7 +104,7 @@ compile_flags = [
 
 # Base link flags (LINKFLAGS)
 link_flags = [
-    "-fuse-ld=lld",  # use LLD at link time
+    f"-fuse-ld={LINKER}",  # Configurable linker (lld, mold, etc.)
     f"-sWASM={USE_WASM}",  # Wasm vs asm.js
     "-sALLOW_MEMORY_GROWTH=1",  # enable dynamic heap growth
     "-sINITIAL_MEMORY=134217728",  # start with 128 MB heap

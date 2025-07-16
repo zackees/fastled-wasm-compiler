@@ -13,6 +13,7 @@ Key differences from compile_sketch.py:
 """
 
 import argparse
+import os
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -94,7 +95,7 @@ class NativeCompilerImpl:
 
         # Base linker flags
         self.base_link_flags = [
-            "-fuse-ld=lld",
+            f"-fuse-ld={os.environ.get('LINKER', 'lld')}",  # Configurable linker
             "-sWASM=1",
             "--no-entry",
             "--emit-symbol-map",

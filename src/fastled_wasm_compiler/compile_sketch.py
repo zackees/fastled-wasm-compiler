@@ -1,3 +1,10 @@
+"""
+Direct emscripten toolchain compilation bypassing platformio.
+
+This module provides functions to compile sketches directly using emscripten tools,
+which is faster and more reliable than using platformio for WASM compilation.
+"""
+
 import argparse
 import os
 import subprocess
@@ -74,7 +81,7 @@ CXX_FLAGS = BASE_CXX_FLAGS
 
 # Base link flags (used during linking)
 BASE_LINK_FLAGS = [
-    "-fuse-ld=lld",
+    f"-fuse-ld={os.environ.get('LINKER', 'lld')}",  # Configurable linker
     "-sWASM=1",
     "--no-entry",
     "--emit-symbol-map",

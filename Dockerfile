@@ -39,6 +39,7 @@ RUN apt-fast install -y \
     cmake \
     ninja-build \
     ccache \
+    mold \
     zlib1g \
     zlib1g-dev \
     gcc \
@@ -80,6 +81,9 @@ ENV PATH="/container/bin:/usr/local/bin:/usr/bin:/emsdk:/emsdk/upstream/emscript
 ENV CCACHE_DIR=/ccache
 ENV CCACHE_MAXSIZE=1G
 
+# Set mold as the default linker
+ENV LINKER=mold
+
 ARG NO_PLATFORMIO="0"
 ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
@@ -99,6 +103,7 @@ RUN echo '#!/bin/sh' > /usr/bin/print && \
 RUN echo 'print() { echo "$@"; }' >> /etc/profile && \
     echo 'export -f print' >> /etc/profile && \
     echo 'export PATH="/container/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:$PATH"' >> /etc/profile && \
+    echo 'export LINKER=mold' >> /etc/profile && \
     echo 'source /emsdk/emsdk_env.sh' >> /etc/profile
 
 # This was added to try and fix formatting issues. It didn't fix it but it's better to force everything to use

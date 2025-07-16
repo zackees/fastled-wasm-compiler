@@ -21,7 +21,39 @@ string(TOUPPER "${BUILD_MODE}" BUILD_MODE)
 set(CMAKE_BUILD_TYPE "${BUILD_MODE}" CACHE STRING "" FORCE)
 message(STATUS "Build mode: ${CMAKE_BUILD_TYPE}")
 
-# ——— 3) Compiler Standards ———————————————————————————————————————
+# ——— 3) Linker Selection ———————————————————————————————————————————
+# Check for LINKER environment variable first
+if(DEFINED ENV{LINKER})
+  set(SELECTED_LINKER $ENV{LINKER})
+  message(STATUS "Using linker from LINKER environment variable: ${SELECTED_LINKER}")
+else()
+  # Auto-detect linker (same logic as FastLED CMakeLists.txt)
+  find_program(MOLD_EXECUTABLE mold)
+  if(MOLD_EXECUTABLE)
+    set(SELECTED_LINKER "mold")
+    message(STATUS "Auto-detected mold linker: ${MOLD_EXECUTABLE}")
+  else()
+    find_program(LLDLINK_EXECUTABLE lld-link)
+    if(LLDLINK_EXECUTABLE)
+      set(SELECTED_LINKER "lld")
+      message(STATUS "Auto-detected lld-link linker: ${LLDLINK_EXECUTABLE}")
+    else()
+      set(SELECTED_LINKER "lld")  # Default for emscripten
+      message(STATUS "No specific linker found, using emscripten default: lld")
+    endif()
+  endif()
+endif()
+
+# Set linker flags for the selected linker
+set(LINKER_FLAGS "-fuse-ld=${SELECTED_LINKER}")
+message(STATUS "Using linker flags: ${LINKER_FLAGS}")
+
+# Set linker flags globally for all link operations
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LINKER_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
+
+# ——— 4) Compiler Standards ———————————————————————————————————————
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -34,8 +66,9 @@ else()
   message(STATUS "NO_THIN_LTO=0: Thin LTO enabled")
 endif()
 
-# ——— 4) Compiler Flags ——————————————————————————————————————————
+# ——— 5) Compiler Flags ——————————————————————————————————————————
 set(SHARED_FLAGS
+  ${LINKER_FLAGS}  # Add linker flags to all builds
   -emit-llvm  # Generate LLVM bitcode instead of object files for faster builds
   -DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50
   -DFASTLED_FORCE_NAMESPACE=1
@@ -90,7 +123,7 @@ endif()
 add_compile_options(${SHARED_FLAGS})
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${CXX_ONLY_FLAGS}>)
 
-# ——— 5) Output Directory (absolute) ——————————————————————————————
+# ——— 6) Output Directory (absolute) ——————————————————————————————
 string(TOLOWER "${BUILD_MODE}" BUILD_MODE_LOWER)
 # Use environment variable for build root with fallback
 if(DEFINED ENV{ENV_BUILD_ROOT})
@@ -102,7 +135,7 @@ set(ABS_BUILD_OUTPUT_DIR "${BUILD_ROOT_BASE}/${BUILD_MODE_LOWER}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${ABS_BUILD_OUTPUT_DIR}" CACHE PATH "" FORCE)
 message(STATUS "Archive output directory: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 
-# ——— 6) Add FastLED Library ———————————————————————————————————————
+# ——— 7) Add FastLED Library ———————————————————————————————————————
 # Use environment variable for FastLED source directory with fallback
 if(DEFINED ENV{ENV_FASTLED_SOURCE_PATH})
   set(FASTLED_SOURCE_DIR $ENV{ENV_FASTLED_SOURCE_PATH})
@@ -114,7 +147,7 @@ endif()
 message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
 
-# ——— 7) Control Library Name Based on NO_THIN_LTO ——————————————————————
+# ——— 8) Control Library Name Based on NO_THIN_LTO ——————————————————————
 if(DEFINED ENV{NO_THIN_LTO} AND "$ENV{NO_THIN_LTO}" STREQUAL "1")
   message(STATUS "NO_THIN_LTO=1: Building libfastled.a")
   set_target_properties(fastled PROPERTIES OUTPUT_NAME "fastled")

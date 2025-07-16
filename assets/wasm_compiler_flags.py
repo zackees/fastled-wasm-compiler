@@ -16,11 +16,48 @@ from pathlib import Path
 from SCons.Script import Import
 from fastled_wasm_compiler.paths import get_fastled_source_path
 
+print("Loading wasm_compiler_flags.py")
+
+# Determine the build environment
 _IS_GITHUB = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 
-# Use thin archive. Much faster.
-# Use environment variable for build tools path with fallback
+# Check if we're in Docker using the presence of platform-specific tooling
 AR = os.environ.get("ENV_BUILD_TOOLS_DIR", "/build_tools") + "/emar-thin.sh"
+
+# Wasm output format selection
+USE_WASM = 1  # 0 for asm.js, 1 for WebAssembly
+
+# ==============================================================================
+# Build settings from environment
+# ==============================================================================
+
+# Linker selection
+LINKER = os.environ.get("LINKER", "lld")  # Default to lld, can be set to "mold" etc
+
+# Check for forced namespace (to prevent global namespace pollution)
+FASTLED_FORCE_NAMESPACE = 1  # force all FastLED code into fl:: namespace
+
+# Build mode from environment variable (default: QUICK)
+BUILD_MODE = os.environ.get("BUILD_MODE", "QUICK").upper()
+print(f"Build mode: {BUILD_MODE}")
+
+# Strict mode from environment variable
+STRICT_MODE = os.environ.get("STRICT", "").lower() in ("1", "true")
+print(f"Strict mode: {STRICT_MODE}")
+
+# Compilation flags
+COMPILER_FLAGS = [
+    f"-DPLATFORMIO={60118}",
+    f"-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS={50}",
+    f"-DFASTLED_FORCE_NAMESPACE={FASTLED_FORCE_NAMESPACE}",
+    "-DFASTLED_USE_PROGMEM=0",
+    "-DUSE_OFFSET_CONVERTER=0",
+    "-DSKETCH_COMPILE=1",
+    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
+    "-DIDF_CCACHE_ENABLE=1",
+    "-DEMSCRIPTEN_NO_THREADS",  # Important: disable threads
+    "-D_REENTRANT=0",  # Don't use reentrant code
+]
 
 # For drawf support it needs a file server running at this point.
 # TODO: Emite this information as a src-map.json file to hold this
@@ -34,21 +71,16 @@ SOURCE_MAP_BASE = f"--source-map-base={SRC_SERVER_HOST}"
 USE_CCACHE = True
 
 # Get build mode from environment variable, default to QUICK if not set
-BUILD_MODE = os.environ.get("BUILD_MODE", "QUICK").upper()
 valid_modes = ["DEBUG", "QUICK", "RELEASE"]
 if BUILD_MODE not in valid_modes:
     raise ValueError(f"BUILD_MODE must be one of {valid_modes}, got {BUILD_MODE}")
 
 # Check if STRICT mode is enabled (treat warnings as errors)
-STRICT_MODE = os.environ.get("STRICT", "").lower() in ("1", "true")
-
 DEBUG = BUILD_MODE == "DEBUG"
 QUICK_BUILD = BUILD_MODE == "QUICK"
 OPTIMIZED = BUILD_MODE == "RELEASE"
 
 # Choose WebAssembly (1), asm.js fallback (2)
-USE_WASM = 1
-
 # Optimization level
 # build_mode = "-O1" if QUICK_BUILD else "-Oz"
 
@@ -135,7 +167,7 @@ if STRICT_MODE:
 
 # Base link flags (LINKFLAGS)
 link_flags = [
-    "-fuse-ld=lld",  # use LLD at link time
+    f"-fuse-ld={LINKER}",  # Configurable linker (lld, mold, etc.)
     f"-sWASM={USE_WASM}",  # Wasm vs asm.js
     "-sALLOW_MEMORY_GROWTH=1",  # enable dynamic heap growth
     "-sINITIAL_MEMORY=134217728",  # start with 128 MB heap
