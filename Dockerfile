@@ -78,6 +78,14 @@ ENV PATH="/container/bin:/usr/local/bin:/usr/bin:/emsdk:/emsdk/upstream/emscript
 ENV CCACHE_DIR=/ccache
 ENV CCACHE_MAXSIZE=1G
 
+# Set container-specific environment variables for path resolution
+ENV ENV_FASTLED_ROOT="/git/fastled"
+ENV ENV_FASTLED_SRC_CONTAINER="/git/fastled/src"
+ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
+ENV ENV_EMSDK_PATH="/emsdk"
+ENV ENV_SKETCH_PATH="src"
+ENV ENV_VOLUME_MAPPED_SRC="/host/fastled/src"
+
 # Create a custom print script
 RUN echo '#!/bin/sh' > /usr/bin/print && \
     echo 'echo "$@"' >> /usr/bin/print && \
