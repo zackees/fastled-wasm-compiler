@@ -25,7 +25,10 @@ class UpdateSrcResult:
 class CompilerImpl:
 
     def __init__(
-        self, volume_mapped_src: Path | None = None, build_libs: list[str] | None = None
+        self,
+        volume_mapped_src: Path | None = None,
+        build_libs: list[str] | None = None,
+        thin_lto: bool = True,
     ) -> None:
         # At this time we always use exclusive locks, but want
         # to keep the reader/writer lock for future use
@@ -35,6 +38,7 @@ class CompilerImpl:
         self.rwlock = _RW_LOCK
         # Default to all modes if none specified
         self.build_libs = build_libs if build_libs else ["debug", "quick", "release"]
+        self.thin_lto = thin_lto
 
     def _check_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
         """Check for and delete existing libfastled.a files for the specified build modes.
@@ -43,9 +47,9 @@ class CompilerImpl:
             build_modes: List of build modes to check ("debug", "quick", "release")
             reason: Reason for deletion (for logging)
         """
-        import os
 
-        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        # no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        no_thin_lto = not self.thin_lto
 
         for mode in build_modes:
             if no_thin_lto:
@@ -76,10 +80,10 @@ class CompilerImpl:
         Returns:
             List of build modes that are missing their expected archive files
         """
-        import os
 
         missing_modes = []
-        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        # no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        no_thin_lto = not self.thin_lto
 
         for mode in build_modes:
             if no_thin_lto:

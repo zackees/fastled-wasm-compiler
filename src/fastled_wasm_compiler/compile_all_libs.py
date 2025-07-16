@@ -4,6 +4,7 @@
 # RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/release --release
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -103,12 +104,14 @@ class BuildResult:
 
 
 def compile_all_libs(
-    src: str, out: str, build_modes: list[str] | None = None
+    src: str, out: str, build_modes: list[str] | None = None, thin_lto: bool = True
 ) -> BuildResult:
     start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
     build_times: dict[str, float] = OrderedDict()
     captured_stdout: list[str] = []
+    env = os.environ.copy()
+    env["NO_THIN_LTO"] = "1" if thin_lto else "0"
 
     for build_mode in build_modes:
         build_start_time = time.time()
@@ -121,6 +124,7 @@ def compile_all_libs(
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=env,
         )
         assert proc is not None, f"Failed to start process for {build_mode}"
         # stream out stdout and capture it
