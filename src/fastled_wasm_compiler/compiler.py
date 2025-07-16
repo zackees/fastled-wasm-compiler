@@ -7,7 +7,7 @@ import fasteners
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compile_all_libs import BuildResult, compile_all_libs
-from fastled_wasm_compiler.paths import FASTLED_SRC, VOLUME_MAPPED_SRC
+from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC, VOLUME_MAPPED_SRC
 from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 from fastled_wasm_compiler.sync import sync_fastled
@@ -44,7 +44,7 @@ class CompilerImpl:
             reason: Reason for deletion (for logging)
         """
         for mode in build_modes:
-            lib_path = Path(f"/build/{mode}/libfastled.a")
+            lib_path = BUILD_ROOT / mode / "libfastled.a"
             if lib_path.exists():
                 print(f"Deleting existing library {lib_path} ({reason})")
                 try:
@@ -66,7 +66,7 @@ class CompilerImpl:
         """
         missing_modes = []
         for mode in build_modes:
-            lib_path = Path(f"/build/{mode}/libfastled.a")
+            lib_path = BUILD_ROOT / mode / "libfastled.a"
             if not lib_path.exists():
                 missing_modes.append(mode)
                 print(f"⚠️  Missing library: {lib_path}")
@@ -215,7 +215,7 @@ class CompilerImpl:
             print_banner("Compiling libraries with updated source...")
             result: BuildResult = compile_all_libs(
                 FASTLED_SRC.as_posix(),
-                "/build",
+                str(BUILD_ROOT),
                 build_modes=build_modes,
             )
 
@@ -229,7 +229,7 @@ class CompilerImpl:
 
             # Verify the build output
             for mode in build_modes:
-                lib_path = Path(f"/build/{mode}/libfastled.a")
+                lib_path = BUILD_ROOT / mode / "libfastled.a"
                 if not lib_path.exists():
                     error_msg = f"Expected library not found at {lib_path}"
                     print_banner(f"Error: {error_msg}")

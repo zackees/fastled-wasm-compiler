@@ -213,13 +213,13 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     print(f"📋 Sketch directory: {sketch_dir}")
 
     # Determine which FastLED library to link against
-    lib_path = f"/build/{build_mode.lower()}/libfastled.a"
+    lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
     print(f"\n📚 FastLED library: {lib_path}")
 
-    if not Path(lib_path).exists():
+    if not lib_path.exists():
         print(f"⚠️  Warning: FastLED library not found at {lib_path}")
     else:
-        lib_size = Path(lib_path).stat().st_size
+        lib_size = lib_path.stat().st_size
         print(f"✓ FastLED library found ({lib_size} bytes)")
 
     obj_files: list[Path] = []
@@ -256,14 +256,17 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     cmd_link.extend(LINK_FLAGS)
     cmd_link.extend(map(str, obj_files))
     if build_mode.lower() == "debug":
-        cmd_link.append("/build/debug/libfastled.a")
-        print("🐛 Linking with debug FastLED library: /build/debug/libfastled.a")
+        debug_lib = BUILD_ROOT / "debug" / "libfastled.a"
+        cmd_link.append(str(debug_lib))
+        print(f"🐛 Linking with debug FastLED library: {debug_lib}")
     elif build_mode.lower() == "release":
-        cmd_link.append("/build/release/libfastled.a")
-        print("🚀 Linking with release FastLED library: /build/release/libfastled.a")
+        release_lib = BUILD_ROOT / "release" / "libfastled.a"
+        cmd_link.append(str(release_lib))
+        print(f"🚀 Linking with release FastLED library: {release_lib}")
     elif build_mode.lower() == "quick":
-        cmd_link.append("/build/quick/libfastled.a")
-        print("⚡ Linking with quick FastLED library: /build/quick/libfastled.a")
+        quick_lib = BUILD_ROOT / "quick" / "libfastled.a"
+        cmd_link.append(str(quick_lib))
+        print(f"⚡ Linking with quick FastLED library: {quick_lib}")
     else:
         raise ValueError(f"Invalid build mode: {build_mode}")
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)

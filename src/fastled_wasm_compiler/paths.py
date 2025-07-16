@@ -1,5 +1,9 @@
 import os
+import platform
 from pathlib import Path
+
+_IS_WINDOWS = platform.system() == "Windows"
+_DEFAULT_BUILD_ROOT = "/build" if not _IS_WINDOWS else "build"
 
 
 def path_or_default(default: str, env_var: str) -> Path:
@@ -24,7 +28,7 @@ VOLUME_MAPPED_SRC = path_or_default(str(FASTLED_SRC), "ENV_VOLUME_MAPPED_SRC")
 
 # Sketch and build paths - use relative paths when possible
 SKETCH_ROOT = path_or_default("src", "ENV_SKETCH_ROOT")
-BUILD_ROOT = path_or_default("build", "ENV_BUILD_ROOT")
+BUILD_ROOT = path_or_default(_DEFAULT_BUILD_ROOT, "ENV_BUILD_ROOT")
 
 # Container paths - these are the paths inside the Docker container
 CONTAINER_JS_ROOT = "/js"
