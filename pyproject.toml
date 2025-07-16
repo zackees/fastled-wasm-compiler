@@ -16,11 +16,7 @@ dependencies = [
     "httpx>=0.28.1",
 ]
 
-# ALSO CHANGE THE VERSION IN THE DOCKER TO MATCH!
-# Step one, bump this version up.
-# Submit
-# Then bump up the version in dockerfile and submit.
-version = "1.0.106"
+version = "1.0.107"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

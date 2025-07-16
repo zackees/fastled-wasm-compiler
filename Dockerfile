@@ -1,17 +1,16 @@
 # This will be set to arm64 to support MacOS M1+ devices (and Linux-based arm64 devices)
 ARG PLATFORM_TAG=""
 ARG EMSDK_VERSION_TAG="4.0.8"
-ARG NO_PLATFORMIO="1"
+
 # ARG EMSDK_VERSION_TAG="3.1.70"
 
 # Use only Emscripten base image
 FROM emscripten/emsdk:${EMSDK_VERSION_TAG}${PLATFORM_TAG}
 
 # Re-declare ARG after FROM to make it available in this stage
-ARG NO_PLATFORMIO="1"
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NO_PLATFORMIO=${NO_PLATFORMIO}
+
 
 # Update the apt-get package list. This takes a long time, so we do it first to maximize cache hits.
 # Sometimes this fails so make sure we try a few times.
@@ -80,6 +79,9 @@ ENV UV_COMPILE_BYTECODE=1
 ENV PATH="/container/bin:/usr/local/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:${PATH}"
 ENV CCACHE_DIR=/ccache
 ENV CCACHE_MAXSIZE=1G
+
+ARG NO_PLATFORMIO="0"
+ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
 # Set container-specific environment variables for path resolution
 ENV ENV_FASTLED_ROOT="/git/fastled"
