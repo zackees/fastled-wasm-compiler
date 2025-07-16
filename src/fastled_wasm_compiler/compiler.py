@@ -36,6 +36,45 @@ class CompilerImpl:
         # Default to all modes if none specified
         self.build_libs = build_libs if build_libs else ["debug", "quick", "release"]
 
+    def _check_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
+        """Check for and delete existing libfastled.a files for the specified build modes.
+
+        Args:
+            build_modes: List of build modes to check ("debug", "quick", "release")
+            reason: Reason for deletion (for logging)
+        """
+        for mode in build_modes:
+            lib_path = Path(f"/build/{mode}/libfastled.a")
+            if lib_path.exists():
+                print(f"Deleting existing library {lib_path} ({reason})")
+                try:
+                    lib_path.unlink()
+                    print(f"✓ Successfully deleted {lib_path}")
+                except OSError as e:
+                    print(f"⚠️  Warning: Could not delete {lib_path}: {e}")
+            else:
+                print(f"Library {lib_path} does not exist, nothing to delete")
+
+    def _check_missing_libraries(self, build_modes: list[str]) -> list[str]:
+        """Check which libfastled.a files are missing for the specified build modes.
+
+        Args:
+            build_modes: List of build modes to check ("debug", "quick", "release")
+
+        Returns:
+            List of build modes that are missing their libfastled.a files
+        """
+        missing_modes = []
+        for mode in build_modes:
+            lib_path = Path(f"/build/{mode}/libfastled.a")
+            if not lib_path.exists():
+                missing_modes.append(mode)
+                print(f"⚠️  Missing library: {lib_path}")
+            else:
+                lib_size = lib_path.stat().st_size
+                print(f"✓ Found library: {lib_path} ({lib_size} bytes)")
+        return missing_modes
+
     def compile(self, args: Args) -> Exception | None:
         clear_cache = args.clear_ccache
         volume_is_mapped_in = self.volume_mapped_src.exists()
@@ -113,44 +152,66 @@ class CompilerImpl:
                 print_banner(f"Error: {error_msg}")
                 return FileNotFoundError(error_msg)
 
+            # Determine build modes - use the modes specified during initialization
+            build_modes = builds if builds is not None else self.build_libs
+
+            # Check for missing libraries and force recompile if any are missing
+            missing_modes = self._check_missing_libraries(build_modes)
+            force_recompile = len(missing_modes) > 0
+            if force_recompile:
+                print_banner(f"Missing libraries detected for modes: {missing_modes}")
+                print("Forcing recompilation of all libraries")
+
             # First check what files will change
             files_will_change: list[Path] = sync_fastled(
                 src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
             )
 
-            if not files_will_change:
-                print("No files changed, skipping rsync")
+            # If no files will change and no libraries are missing, skip everything
+            if not files_will_change and not force_recompile:
+                print(
+                    "No files changed and all libraries present, skipping sync and rebuild"
+                )
                 # return []
                 return UpdateSrcResult(
                     files_changed=[],
-                    stdout="No files changed, skipping sync and rebuild",
+                    stdout="No files changed and all libraries present, skipping sync and rebuild",
                     error=None,
                 )
 
-            print_banner(f"There were {len(files_will_change)} files changed")
-            for file in files_will_change:
-                print(f"File changed: {file.as_posix()}")
+            # If files will change, show what changed
+            if files_will_change:
+                print_banner(f"There were {len(files_will_change)} files changed")
+                for file in files_will_change:
+                    print(f"File changed: {file.as_posix()}")
 
-            # Perform the actual sync, this time behind the write lock
-            with self.rwlock.write_lock():
-                print("Performing code sync and rebuild")
-                files_changed = sync_fastled(
-                    src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                # Delete existing libraries when files have changed
+                self._check_and_delete_libraries(build_modes, "source files changed")
+
+                # Perform the actual sync, this time behind the write lock
+                with self.rwlock.write_lock():
+                    print("Performing code sync and rebuild")
+                    files_changed = sync_fastled(
+                        src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                    )
+
+                if not files_changed:
+                    msg = "No files changed after sync and rebuild, but files were expected to change"
+                    print(msg)
+                    return UpdateSrcResult(
+                        files_changed=[],
+                        stdout="msg",
+                        error=None,
+                    )
+            else:
+                # If we reach here, force_recompile is True but no files changed
+                # We still need to compile because libraries are missing
+                files_changed = []
+                print(
+                    "No source files changed, but recompiling due to missing libraries"
                 )
 
-            if not files_changed:
-                msg = "No files changed after sync and rebuild, but files were expected to change"
-                print(msg)
-                return UpdateSrcResult(
-                    files_changed=[],
-                    stdout="msg",
-                    error=None,
-                )
-
-            # Determine build modes - use the modes specified during initialization
-            build_modes = builds if builds is not None else self.build_libs
-
-            # Compile the libraries
+            # Compile the libraries (either because files changed or libraries are missing)
             print_banner("Compiling libraries with updated source...")
             result: BuildResult = compile_all_libs(
                 FASTLED_SRC.as_posix(),
@@ -175,7 +236,6 @@ class CompilerImpl:
                     return FileNotFoundError(error_msg)
 
             print_banner("Library compilation completed successfully")
-            # return files_changed
             return UpdateSrcResult(
                 files_changed=files_changed,
                 stdout="Library compilation completed successfully",
