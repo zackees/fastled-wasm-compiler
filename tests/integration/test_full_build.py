@@ -225,6 +225,80 @@ class FullBuildTester(unittest.TestCase):
         )
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_symbol_resolution(self) -> None:
+        """Test the symbol resolution command and validate DWARF path resolution."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-symbol-resolution-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        print("\nRunning container with symbol resolution command...")
+        run_proc = subprocess.Popen(
+            [
+                "docker",
+                "run",
+                "--name",
+                "fastled-symbol-resolution-container",
+                "--entrypoint",
+                "fastled-wasm-compiler-symbol-resolution",
+                IMAGE_NAME,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert run_proc.stdout is not None
+
+        # Capture the output for validation
+        output_lines = []
+        for line in run_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            print(line_str)
+            output_lines.append(line_str)
+
+        run_proc.wait()
+        run_proc.stdout.close()
+        run_proc.terminate()
+
+        # The symbol resolution command should exit with code 0
+        self.assertEqual(run_proc.returncode, 0, "symbol resolution command failed")
+
+        # Join all output lines to search for expected content
+        full_output = "\n".join(output_lines)
+
+        # Validate that the test case is present in the output
+        self.assertIn(
+            "dwarfsource/js/src/test.h",
+            full_output,
+            "Test input 'dwarfsource/js/src/test.h' not found in output",
+        )
+
+        # Check that the expected resolution is present
+        # The output should show the resolution to /js/src/test.h (with leading slash)
+        self.assertIn(
+            "/js/src/test.h",
+            full_output,
+            "Expected resolution '/js/src/test.h' not found in output",
+        )
+
+        # Verify that the test passed
+        self.assertIn(
+            "✅ Symbol resolution test PASSED",
+            full_output,
+            "Symbol resolution test did not pass",
+        )
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-symbol-resolution-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_compile_sketch_in_debug(self) -> None:
         """Test compiling the sketch folder using the command line arguments with the full build environment."""
 

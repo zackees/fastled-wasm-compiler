@@ -20,7 +20,7 @@ dependencies = [
 # Step one, bump this version up.
 # Submit
 # Then bump up the version in dockerfile and submit.
-version = "1.0.105"
+version = "1.0.106"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -55,3 +55,4 @@ fastled-wasm-compiler = "fastled_wasm_compiler.cli:main"
 fastled-wasm-compiler-prewarm = "fastled_wasm_compiler.cli_prewarm:main"
 fastled-wasm-compiler-native = "fastled_wasm_compiler.cli_native:main"
 fastled-wasm-compiler-printenv = "fastled_wasm_compiler.cli_printenv:main"
+fastled-wasm-compiler-symbol-resolution = "fastled_wasm_compiler.cli_symbol_resolution:main"
