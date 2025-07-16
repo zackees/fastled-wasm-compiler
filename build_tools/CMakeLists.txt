@@ -24,6 +24,7 @@ message(STATUS "Build mode: ${CMAKE_BUILD_TYPE}")
 # ——— 3) Compiler Standards ———————————————————————————————————————
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(NO_THIN_LTO ON)
 
 # ——— 4) Compiler Flags ——————————————————————————————————————————
 set(SHARED_FLAGS
@@ -66,7 +67,6 @@ if(BUILD_MODE STREQUAL "DEBUG")
 elseif(BUILD_MODE STREQUAL "QUICK")
   list(APPEND SHARED_FLAGS
     -O1
-    -flto=thin
     -fno-inline
     -fno-strict-aliasing
     -fno-inline-functions
