@@ -7,6 +7,9 @@ ARG NO_PLATFORMIO="1"
 # Use only Emscripten base image
 FROM emscripten/emsdk:${EMSDK_VERSION_TAG}${PLATFORM_TAG}
 
+# Re-declare ARG after FROM to make it available in this stage
+ARG NO_PLATFORMIO="1"
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
@@ -82,7 +85,7 @@ ENV CCACHE_MAXSIZE=1G
 ENV ENV_FASTLED_ROOT="/git/fastled"
 ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
 ENV ENV_EMSDK_PATH="/emsdk"
-ENV ENV_SKETCH_PATH="/js/src"
+ENV ENV_SKETCH_ROOT="/js/src"
 ENV ENV_VOLUME_MAPPED_SRC="/host/fastled/src"
 
 # Create a custom print script

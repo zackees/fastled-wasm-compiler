@@ -27,7 +27,7 @@ class EnvironmentConfig:
         os.environ["ENV_FASTLED_ROOT"] = self.fastled_root
         os.environ["ENV_FASTLED_SOURCE_PATH"] = self.fastled_source_path
         os.environ["ENV_EMSDK_PATH"] = self.emsdk_path
-        os.environ["ENV_SKETCH_PATH"] = self.sketch_path
+        os.environ["ENV_SKETCH_ROOT"] = self.sketch_path
 
         # Only set ENV_VOLUME_MAPPED_SRC if it has a value (it's optional)
         if self.volume_mapped_src:
@@ -55,7 +55,7 @@ def add_environment_arguments(parser: argparse.ArgumentParser) -> None:
 
     env_group.add_argument(
         "--sketch-path",
-        help="Sketch path (ENV_SKETCH_PATH)",
+        help="Sketch path (ENV_SKETCH_ROOT)",
     )
 
     env_group.add_argument(
@@ -112,7 +112,7 @@ def validate_and_get_environment(args: argparse.Namespace) -> EnvironmentConfig:
         "fastled-source-path", "ENV_FASTLED_SOURCE_PATH", "FastLED source path"
     )
     emsdk_path = get_env_value("emsdk-path", "ENV_EMSDK_PATH", "EMSDK path")
-    sketch_path = get_env_value("sketch-path", "ENV_SKETCH_PATH", "Sketch path")
+    sketch_path = get_env_value("sketch-path", "ENV_SKETCH_ROOT", "Sketch path")
 
     # Optional environment variable
     volume_mapped_src = get_env_value(
@@ -131,7 +131,7 @@ def validate_and_get_environment(args: argparse.Namespace) -> EnvironmentConfig:
     if not emsdk_path:
         missing_values.append("emsdk-path (ENV_EMSDK_PATH)")
     if not sketch_path:
-        missing_values.append("sketch-path (ENV_SKETCH_PATH)")
+        missing_values.append("sketch-path (ENV_SKETCH_ROOT)")
 
     if missing_values:
         print("\n❌ Missing required environment configuration:")

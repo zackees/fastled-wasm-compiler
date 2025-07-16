@@ -124,7 +124,7 @@ class TestNativeCliModule(unittest.TestCase):
                 "ENV_FASTLED_ROOT",
                 "ENV_FASTLED_SOURCE_PATH",
                 "ENV_EMSDK_PATH",
-                "ENV_SKETCH_PATH",
+                "ENV_SKETCH_ROOT",
             ]
 
             for var in env_vars:
@@ -135,7 +135,7 @@ class TestNativeCliModule(unittest.TestCase):
                 os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
                 os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
                 os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
-                os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
+                os.environ["ENV_SKETCH_ROOT"] = str(sketch_temp)
 
                 # Test with no arguments should fail (missing sketch_dir)
                 with patch("sys.argv", ["fastled-wasm-compiler-native"]):
@@ -216,7 +216,7 @@ class TestNativeCliModule(unittest.TestCase):
                         "ENV_FASTLED_ROOT",
                         "ENV_FASTLED_SOURCE_PATH",
                         "ENV_EMSDK_PATH",
-                        "ENV_SKETCH_PATH",
+                        "ENV_SKETCH_ROOT",
                     ]
 
                     for var in env_vars:
@@ -227,7 +227,7 @@ class TestNativeCliModule(unittest.TestCase):
                         os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
                         os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
                         os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
-                        os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
+                        os.environ["ENV_SKETCH_ROOT"] = str(sketch_temp)
 
                         with patch(
                             "sys.argv",

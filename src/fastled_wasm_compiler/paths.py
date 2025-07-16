@@ -49,10 +49,6 @@ def get_emsdk_path() -> str:
 
 def get_sketch_path() -> str:
     """Get the sketch path for path resolution."""
-    # Use environment variable or convert SKETCH_ROOT to relative
-    env_path = os.environ.get("ENV_SKETCH_PATH")
-    if env_path:
-        return env_path
-
-    # Convert absolute path to relative if needed
-    return "/js/src"  # TODO: Come back to this.
+    # Use the same environment variable as SKETCH_ROOT for consistency
+    # Always use forward slashes for cross-platform compatibility
+    return str(SKETCH_ROOT).replace("\\", "/")

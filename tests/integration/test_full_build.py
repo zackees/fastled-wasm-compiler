@@ -152,6 +152,79 @@ class FullBuildTester(unittest.TestCase):
         self.assertEqual(run_proc.returncode, 0, "Docker run failed")
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_printenv(self) -> None:
+        """Test the printenv command and validate container environment variables."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-printenv-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        print("\nRunning container with printenv command...")
+        run_proc = subprocess.Popen(
+            [
+                "docker",
+                "run",
+                "--name",
+                "fastled-printenv-container",
+                "--entrypoint",
+                "fastled-wasm-compiler-printenv",
+                IMAGE_NAME,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert run_proc.stdout is not None
+
+        # Capture the output for validation
+        output_lines = []
+        for line in run_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            print(line_str)
+            output_lines.append(line_str)
+
+        run_proc.wait()
+        run_proc.stdout.close()
+        run_proc.terminate()
+
+        # The printenv command should exit with code 0
+        self.assertEqual(run_proc.returncode, 0, "printenv command failed")
+
+        # Convert output lines to a dict for easier validation
+        env_vars = {}
+        for line in output_lines:
+            if "=" in line and not line.startswith("==="):
+                key, value = line.split("=", 1)
+                env_vars[key] = value
+
+        # Validate critical environment variables are set correctly
+        expected_env_vars = {
+            "ENV_FASTLED_ROOT": "/git/fastled",
+            "ENV_FASTLED_SOURCE_PATH": "/git/fastled/src",
+            "ENV_EMSDK_PATH": "/emsdk",
+            "ENV_SKETCH_ROOT": "/js/src",
+            "ENV_VOLUME_MAPPED_SRC": "/host/fastled/src",
+        }
+
+        for key, expected_value in expected_env_vars.items():
+            self.assertIn(key, env_vars, f"Environment variable {key} not found")
+            self.assertEqual(
+                env_vars[key],
+                expected_value,
+                f"Environment variable {key} has incorrect value. Expected: {expected_value}, Got: {env_vars[key]}",
+            )
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-printenv-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_compile_sketch_in_debug(self) -> None:
         """Test compiling the sketch folder using the command line arguments with the full build environment."""
 

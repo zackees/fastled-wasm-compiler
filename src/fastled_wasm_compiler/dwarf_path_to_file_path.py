@@ -1,4 +1,5 @@
 import logging
+import platform
 import warnings
 from pathlib import Path
 
@@ -11,11 +12,46 @@ from fastled_wasm_compiler.paths import (
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_windows_path(path_str: str) -> str:
+    """Normalize Windows paths that were converted by Git Bash.
+
+    On Windows with Git Bash, paths like '/js/src' get converted to
+    'C:/Program Files/Git/js/src'. This function converts them back
+    to the intended relative paths.
+    """
+    if platform.system() != "Windows":
+        return path_str
+
+    # Check if this looks like a Git Bash converted path
+    git_bash_prefix = "C:/Program Files/Git/"
+    if path_str.startswith(git_bash_prefix):
+        # Convert back to relative path by removing the Git Bash prefix
+        relative_path = path_str[len(git_bash_prefix) :]
+        logger.debug(f"Converted Git Bash path {path_str} -> {relative_path}")
+        return relative_path
+
+    # Also handle other common Git Bash conversions
+    msys_prefixes = [
+        "C:/Program Files (x86)/Git/",
+        "/c/Program Files/Git/",
+        "/c/Program Files (x86)/Git/",
+    ]
+
+    for prefix in msys_prefixes:
+        if path_str.startswith(prefix):
+            relative_path = path_str[len(prefix) :]
+            logger.debug(f"Converted MSYS path {path_str} -> {relative_path}")
+            return relative_path
+
+    return path_str
+
+
 # Use environment-variable driven paths for cross-platform compatibility
-FASTLED_SOURCE_PATH = get_fastled_source_path()
-SKETCH_PATH = get_sketch_path()
-FASTLED_HEADERS_PATH = get_fastled_source_path()
-EMSDK_PATH = get_emsdk_path()
+FASTLED_SOURCE_PATH = _normalize_windows_path(get_fastled_source_path())
+SKETCH_PATH = _normalize_windows_path(get_sketch_path())
+FASTLED_HEADERS_PATH = _normalize_windows_path(get_fastled_source_path())
+EMSDK_PATH = _normalize_windows_path(get_emsdk_path())
 
 # As defined in the fastled-wasm-compiler.
 FASTLED_PREFIX = "fastledsource"
