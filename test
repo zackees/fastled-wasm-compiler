@@ -50,26 +50,38 @@ export ENV_SKETCH_PATH="src"
 if command -v uv >/dev/null 2>&1; then
     # Install the package in development mode with uv
     uv pip install -e .
-    echo "Running unit tests (fast)..."
-    uv run pytest tests/unit -x -q --tb=short -n auto
-    echo ""
-    echo "Running integration tests (slow)..."
-    uv run pytest tests/integration -x -q --tb=short
+    
+    if [[ "$RUN_INTEGRATION_ONLY" == "false" ]]; then
+        echo "Running unit tests (fast)..."
+        uv run pytest tests/unit -x -q --tb=short -n auto --durations=10
+        echo ""
+    fi
+    
+    if [[ "$RUN_UNIT_ONLY" == "false" ]]; then
+        echo "Running integration tests (slow)..."
+        uv run pytest tests/integration -x -q --tb=short --durations=10
+        echo ""
+    fi
 else
     echo "uv not found, falling back to standard Python tools"
     # Install the package in development mode
     pip install -e .
     
-    echo "Running unit tests (fast)..."
-    python -m pytest tests/unit -x -q --tb=short -n auto
-    echo ""
-    echo "Running integration tests (slow)..."
-    python -m pytest tests/integration -x -q --tb=short
+    if [[ "$RUN_INTEGRATION_ONLY" == "false" ]]; then
+        echo "Running unit tests (fast)..."
+        python -m pytest tests/unit -x -q --tb=short -n auto --durations=0
+        echo ""
+    fi
+    
+    if [[ "$RUN_UNIT_ONLY" == "false" ]]; then
+        echo "Running integration tests (slow)..."
+        python -m pytest tests/integration -x -q --tb=short --durations=0
+        echo ""
+    fi
 fi
 
 # Always run the full build test (important integration test)
 if [[ "$RUN_UNIT_ONLY" == "false" ]]; then
-    echo ""
     echo "Running full build test (Docker-based)..."
     uv run pytest tests/integration/test_full_build.py -v --durations=0 -s
 fi
