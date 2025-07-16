@@ -117,7 +117,7 @@ def _dwarf_path_to_file_path_inner(
     request_path: str,
 ) -> str | Exception:
     """Resolve the path for dwarfsource."""
-    logger.debug(f"Inner path resolution for: {request_path}")
+    print(f"Inner path resolution for: {request_path}")
     if (
         ".." in request_path
     ):  # we never have .. in the path so someone is trying weird stuff.
@@ -128,7 +128,7 @@ def _dwarf_path_to_file_path_inner(
 
     request_path_pruned = prune_paths(request_path)
     if request_path_pruned is None:
-        logger.error(f"Failed to prune path: {request_path}")
+        print(f"Failed to prune path: {request_path}")
         return Exception(f"Invalid path: {request_path}")
 
     if request_path_pruned.startswith("headers"):
@@ -138,6 +138,7 @@ def _dwarf_path_to_file_path_inner(
         return result
 
     for i, source_path in enumerate(SOURCE_PATHS_NO_LEADING_SLASH):
+        print(f"Checking source path: {source_path} for {request_path_pruned}")
         if request_path_pruned.startswith(source_path):
             suffix_path = request_path_pruned[len(source_path) :]
             if suffix_path.startswith("/"):
@@ -150,6 +151,8 @@ def _dwarf_path_to_file_path_inner(
             if not result.startswith("/"):
                 result = "/" + result
             return result
+        else:
+            print(f"{request_path_pruned} does not start with {source_path}")
 
     logger.error(f"No matching source path found for: {request_path_pruned}")
     return Exception(f"Invalid path: {request_path}")

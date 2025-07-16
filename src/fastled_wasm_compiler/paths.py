@@ -27,7 +27,7 @@ EMSDK_ROOT = path_or_default(
 VOLUME_MAPPED_SRC = path_or_default(str(FASTLED_SRC), "ENV_VOLUME_MAPPED_SRC")
 
 # Sketch and build paths - use relative paths when possible
-SKETCH_ROOT = path_or_default("src", "ENV_SKETCH_ROOT")
+SKETCH_ROOT = path_or_default("/js/src", "ENV_SKETCH_ROOT")
 BUILD_ROOT = path_or_default(_DEFAULT_BUILD_ROOT, "ENV_BUILD_ROOT")
 
 # Container paths - these are the paths inside the Docker container
@@ -55,12 +55,5 @@ def get_sketch_path() -> str:
         return env_path
 
     # Convert absolute path to relative if needed
-    sketch_path = str(SKETCH_ROOT)
-    if os.path.isabs(sketch_path):
-        # For absolute paths, try to make them relative to current working directory
-        try:
-            return os.path.relpath(sketch_path)
-        except ValueError:
-            # If that fails (e.g., different drive on Windows), use as-is
-            return sketch_path
+    sketch_path = SKETCH_ROOT.as_posix()
     return sketch_path

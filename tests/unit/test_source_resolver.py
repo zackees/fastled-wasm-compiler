@@ -80,6 +80,11 @@ class SourceFileResolverTester(unittest.TestCase):
             f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
         )
 
+        self.check_path(
+            "dwarfsource/js/src/timer.h",
+            "/js/src/timer.h",
+        )
+
         # self.check_path(
         #     "sketchsource/js/src/direct.h",
         #     "/js/src/direct.h",
