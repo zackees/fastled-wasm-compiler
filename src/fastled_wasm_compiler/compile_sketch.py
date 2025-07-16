@@ -212,15 +212,26 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     print(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
     print(f"📋 Sketch directory: {sketch_dir}")
 
-    # Determine which FastLED library to link against
-    lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
+    # Determine which FastLED library to link against - explicit choice based on NO_THIN_LTO
+    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+
+    if no_thin_lto:
+        # NO_THIN_LTO=1: Explicitly use regular archives
+        lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
+        print("NO_THIN_LTO=1: Using regular archive")
+    else:
+        # NO_THIN_LTO=0 or unset: Explicitly use thin archives
+        lib_path = BUILD_ROOT / build_mode.lower() / "libfastled-thin.a"
+        print("NO_THIN_LTO=0: Using thin archive")
+
     print(f"\n📚 FastLED library: {lib_path}")
 
     if not lib_path.exists():
         print(f"⚠️  Warning: FastLED library not found at {lib_path}")
     else:
         lib_size = lib_path.stat().st_size
-        print(f"✓ FastLED library found ({lib_size} bytes)")
+        archive_type = "thin" if "thin" in lib_path.name else "regular"
+        print(f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)")
 
     obj_files: list[Path] = []
     print(f"\n🔨 Compiling {len(sources)} source files with verbose output:")
@@ -255,18 +266,36 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     cmd_link.extend([CXX])
     cmd_link.extend(LINK_FLAGS)
     cmd_link.extend(map(str, obj_files))
+
+    # Use explicit archive selection based on NO_THIN_LTO (no fallback)
+    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+
     if build_mode.lower() == "debug":
-        debug_lib = BUILD_ROOT / "debug" / "libfastled.a"
+        if no_thin_lto:
+            debug_lib = BUILD_ROOT / "debug" / "libfastled.a"
+        else:
+            debug_lib = BUILD_ROOT / "debug" / "libfastled-thin.a"
         cmd_link.append(str(debug_lib))
-        print(f"🐛 Linking with debug FastLED library: {debug_lib}")
+        archive_type = "regular" if no_thin_lto else "thin"
+        print(f"🐛 Linking with debug FastLED library: {debug_lib} ({archive_type})")
     elif build_mode.lower() == "release":
-        release_lib = BUILD_ROOT / "release" / "libfastled.a"
+        if no_thin_lto:
+            release_lib = BUILD_ROOT / "release" / "libfastled.a"
+        else:
+            release_lib = BUILD_ROOT / "release" / "libfastled-thin.a"
         cmd_link.append(str(release_lib))
-        print(f"🚀 Linking with release FastLED library: {release_lib}")
+        archive_type = "regular" if no_thin_lto else "thin"
+        print(
+            f"🚀 Linking with release FastLED library: {release_lib} ({archive_type})"
+        )
     elif build_mode.lower() == "quick":
-        quick_lib = BUILD_ROOT / "quick" / "libfastled.a"
+        if no_thin_lto:
+            quick_lib = BUILD_ROOT / "quick" / "libfastled.a"
+        else:
+            quick_lib = BUILD_ROOT / "quick" / "libfastled-thin.a"
         cmd_link.append(str(quick_lib))
-        print(f"⚡ Linking with quick FastLED library: {quick_lib}")
+        archive_type = "regular" if no_thin_lto else "thin"
+        print(f"⚡ Linking with quick FastLED library: {quick_lib} ({archive_type})")
     else:
         raise ValueError(f"Invalid build mode: {build_mode}")
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)

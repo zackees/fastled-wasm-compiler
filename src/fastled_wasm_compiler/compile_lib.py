@@ -91,9 +91,15 @@ def build_static_lib(
 
     cwd = os.environ.get("ENV_BUILD_CWD", "/git/build")
     cmd = f"build_lib.sh --{build_mode.name}"
-    print(f"Building {build_mode.name} in {cwd}")
+
+    # Set environment variables for command line usage
+    env = os.environ.copy()
+    # Ensure thin archives are built (NO_THIN_LTO not set)
+    env.pop("NO_THIN_LTO", None)
+
+    print(f"Building {build_mode.name} thin archive for command line usage in {cwd}")
     start = time.time()
-    rtn = subprocess.call(cmd, shell=True, cwd=cwd)
+    rtn = subprocess.call(cmd, shell=True, cwd=cwd, env=env)
     end = time.time()
     print(f"Build {build_mode.name} took {end - start:.2f} seconds")
     return rtn

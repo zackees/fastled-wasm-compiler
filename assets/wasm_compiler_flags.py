@@ -209,6 +209,32 @@ if export_name:
     if DEBUG:
         link_flags.append("--source-map-base=http://localhost:8000/")
 
+# Explicit archive selection based on NO_THIN_LTO flag
+def get_fastled_library_path(build_mode_lower):
+    """Get the FastLED library path based on NO_THIN_LTO flag."""
+    build_root = os.environ.get("ENV_BUILD_ROOT", "/build")
+    thin_lib = f"{build_root}/{build_mode_lower}/libfastled-thin.a"
+    regular_lib = f"{build_root}/{build_mode_lower}/libfastled.a"
+    
+    # Check NO_THIN_LTO flag for explicit selection
+    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+    
+    if no_thin_lto:
+        # NO_THIN_LTO=1: Explicitly use regular archives
+        print(f"NO_THIN_LTO=1: Using regular FastLED library: {regular_lib}")
+        return regular_lib
+    else:
+        # NO_THIN_LTO=0 or unset: Explicitly use thin archives
+        print(f"NO_THIN_LTO=0: Using thin FastLED library: {thin_lib}")
+        return thin_lib
+
+# Get the appropriate library path based on build mode
+build_mode_lower = BUILD_MODE.lower()
+fastled_lib_path = get_fastled_library_path(build_mode_lower)
+
+# Note: Library linking is handled by platformio.ini, not here
+print(f"FastLED library will be: {fastled_lib_path}")
+
 # Append flags to environment
 env.Append(CCFLAGS=compile_flags)
 env.Append(CXXFLAGS=compile_flags)

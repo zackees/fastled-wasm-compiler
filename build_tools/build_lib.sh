@@ -13,10 +13,10 @@ MODES=()
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
-    --debug)   MODES+=("DEBUG") ;;
-    --quick)   MODES+=("QUICK") ;;
-    --release) MODES+=("RELEASE") ;;
-    --all)     MODES=("DEBUG" "QUICK" "RELEASE"); break ;;
+    --debug)     MODES+=("DEBUG") ;;
+    --quick)     MODES+=("QUICK") ;;
+    --release)   MODES+=("RELEASE") ;;
+    --all)       MODES=("DEBUG" "QUICK" "RELEASE"); break ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -42,6 +42,13 @@ for MODE in "${UNIQUE_MODES[@]}"; do
   cd "$BUILD_DIR"
 
   export BUILD_MODE="$MODE"
+  
+  if [ "${NO_THIN_LTO:-0}" = "1" ]; then
+    echo ">>> NO_THIN_LTO=1: Building libfastled.a"
+  else
+    echo ">>> NO_THIN_LTO=0: Building libfastled-thin.a"
+  fi
+  
   emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja
   ninja -v
 

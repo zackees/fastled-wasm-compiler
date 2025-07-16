@@ -117,7 +117,9 @@ COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
 RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
-    
+
+RUN echo "update build 39"
+
 # BEGIN BUILDING STATIC libfastled.a
 # Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt

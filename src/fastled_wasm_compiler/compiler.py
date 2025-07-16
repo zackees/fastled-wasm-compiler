@@ -43,17 +43,29 @@ class CompilerImpl:
             build_modes: List of build modes to check ("debug", "quick", "release")
             reason: Reason for deletion (for logging)
         """
+        import os
+
+        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+
         for mode in build_modes:
-            lib_path = BUILD_ROOT / mode / "libfastled.a"
+            if no_thin_lto:
+                lib_path = BUILD_ROOT / mode / "libfastled.a"
+                archive_type = "regular"
+            else:
+                lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
+                archive_type = "thin"
+
             if lib_path.exists():
-                print(f"Deleting existing library {lib_path} ({reason})")
+                print(f"Deleting existing {archive_type} library {lib_path} ({reason})")
                 try:
                     lib_path.unlink()
                     print(f"✓ Successfully deleted {lib_path}")
                 except OSError as e:
                     print(f"⚠️  Warning: Could not delete {lib_path}: {e}")
             else:
-                print(f"Library {lib_path} does not exist, nothing to delete")
+                print(
+                    f"{archive_type.capitalize()} library {lib_path} does not exist, nothing to delete"
+                )
 
     def _check_missing_libraries(self, build_modes: list[str]) -> list[str]:
         """Check which libfastled.a files are missing for the specified build modes.
@@ -62,17 +74,30 @@ class CompilerImpl:
             build_modes: List of build modes to check ("debug", "quick", "release")
 
         Returns:
-            List of build modes that are missing their libfastled.a files
+            List of build modes that are missing their expected archive files
         """
+        import os
+
         missing_modes = []
+        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+
         for mode in build_modes:
-            lib_path = BUILD_ROOT / mode / "libfastled.a"
-            if not lib_path.exists():
-                missing_modes.append(mode)
-                print(f"⚠️  Missing library: {lib_path}")
+            if no_thin_lto:
+                # NO_THIN_LTO=1: Only check for regular archives
+                lib_path = BUILD_ROOT / mode / "libfastled.a"
+                archive_type = "regular"
             else:
+                # NO_THIN_LTO=0 or unset: Only check for thin archives
+                lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
+                archive_type = "thin"
+
+            if lib_path.exists():
                 lib_size = lib_path.stat().st_size
-                print(f"✓ Found library: {lib_path} ({lib_size} bytes)")
+                print(f"✓ Found {archive_type} library: {lib_path} ({lib_size} bytes)")
+            else:
+                missing_modes.append(mode)
+                print(f"⚠️  Missing {archive_type} library for mode {mode}: {lib_path}")
+
         return missing_modes
 
     def compile(self, args: Args) -> Exception | None:

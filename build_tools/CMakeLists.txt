@@ -24,7 +24,15 @@ message(STATUS "Build mode: ${CMAKE_BUILD_TYPE}")
 # ——— 3) Compiler Standards ———————————————————————————————————————
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(NO_THIN_LTO ON)
+
+# Control thin LTO via environment variable
+if(DEFINED ENV{NO_THIN_LTO} AND "$ENV{NO_THIN_LTO}" STREQUAL "1")
+  set(NO_THIN_LTO ON)
+  message(STATUS "NO_THIN_LTO=1: Thin LTO disabled")
+else()
+  set(NO_THIN_LTO OFF)
+  message(STATUS "NO_THIN_LTO=0: Thin LTO enabled")
+endif()
 
 # ——— 4) Compiler Flags ——————————————————————————————————————————
 set(SHARED_FLAGS
@@ -105,3 +113,12 @@ else()
 endif()
 message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
+
+# ——— 7) Control Library Name Based on NO_THIN_LTO ——————————————————————
+if(DEFINED ENV{NO_THIN_LTO} AND "$ENV{NO_THIN_LTO}" STREQUAL "1")
+  message(STATUS "NO_THIN_LTO=1: Building libfastled.a")
+  set_target_properties(fastled PROPERTIES OUTPUT_NAME "fastled")
+else()
+  message(STATUS "NO_THIN_LTO=0: Building libfastled-thin.a")
+  set_target_properties(fastled PROPERTIES OUTPUT_NAME "fastled-thin")
+endif()
