@@ -95,10 +95,20 @@ class Args:
 #     return 0
 
 
-def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -> int:
+@dataclass
+class BuildResult:
+    return_code: int
+    duration: float
+    stdout: str
+
+
+def compile_all_libs(
+    src: str, out: str, build_modes: list[str] | None = None
+) -> BuildResult:
     start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
     build_times: dict[str, float] = OrderedDict()
+    captured_stdout: list[str] = []
 
     for build_mode in build_modes:
         build_start_time = time.time()
@@ -113,18 +123,25 @@ def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -
             stderr=subprocess.STDOUT,
         )
         assert proc is not None, f"Failed to start process for {build_mode}"
-        # stream out stdout
+        # stream out stdout and capture it
         assert proc.stdout is not None
         line: bytes
         for line in proc.stdout:
             linestr = line.decode(errors="replace")
             print(linestr, end="")
+            captured_stdout.append(linestr)
         proc.stdout.close()
         proc.wait()
         print(f"Process {proc.pid} finished with return code {proc.returncode}")
         if proc.returncode != 0:
             print(f"Process {proc.pid} failed with return code {proc.returncode}")
-            return proc.returncode
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            return BuildResult(
+                return_code=proc.returncode,
+                duration=elapsed_time,
+                stdout="".join(captured_stdout),
+            )
         diff = time.time() - build_start_time
         build_times[build_mode] = diff
     print("All processes finished successfully.")
@@ -133,7 +150,9 @@ def compile_all_libs(src: str, out: str, build_modes: list[str] | None = None) -
     print(f"Total time taken: {elapsed_time:.2f} seconds")
     for mode, duration in build_times.items():
         print(f"  {mode} build time: {duration:.2f} seconds")
-    return 0
+    return BuildResult(
+        return_code=0, duration=elapsed_time, stdout="".join(captured_stdout)
+    )
 
 
 def main() -> int:
@@ -143,10 +162,10 @@ def main() -> int:
     out = args.out
     print(f"Compiling all libraries from {src} to {out}")
     # Compile all libraries
-    return_code = compile_all_libs(args.src, args.out, args.builds)
-    if return_code != 0:
-        print(f"Compilation failed with return code {return_code}")
-        return return_code
+    build_result = compile_all_libs(args.src, args.out, args.builds)
+    if build_result.return_code != 0:
+        print(f"Compilation failed with return code {build_result.return_code}")
+        return build_result.return_code
     print("Compilation completed successfully.")
     return 0
 
