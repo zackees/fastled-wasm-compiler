@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastled_wasm_compiler.compiler import CompilerImpl
+from fastled_wasm_compiler.env_validation import (
+    add_environment_arguments,
+    ensure_environment_configured,
+)
 from fastled_wasm_compiler.paths import FASTLED_SRC, SKETCH_ROOT
 from fastled_wasm_compiler.run_compile import Args
 
@@ -93,7 +97,13 @@ def _parse_args() -> CliArgs:
         help="Treat all compiler warnings as errors",
     )
 
+    # Add environment variable arguments
+    add_environment_arguments(parser)
+
     args = parser.parse_args()
+
+    # Validate and configure environment variables
+    ensure_environment_configured(args)
 
     # Set STRICT environment variable if --strict flag is used
     if args.strict:

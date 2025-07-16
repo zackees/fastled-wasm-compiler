@@ -13,6 +13,10 @@ from pathlib import Path
 
 from fastled_wasm_compiler.compile_sketch_native import compile_sketch_native
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
+from fastled_wasm_compiler.env_validation import (
+    add_environment_arguments,
+    ensure_environment_configured,
+)
 
 
 @dataclass
@@ -79,7 +83,14 @@ def _parse_args() -> NativeCliArgs:
         help="Treat all compiler warnings as errors",
     )
 
+    # Add environment variable arguments
+    add_environment_arguments(parser)
+
     args = parser.parse_args()
+
+    # Validate and configure environment variables (only if not just installing EMSDK)
+    if not args.install_emsdk:
+        ensure_environment_configured(args)
 
     # Set STRICT environment variable if --strict flag is used
     if args.strict:

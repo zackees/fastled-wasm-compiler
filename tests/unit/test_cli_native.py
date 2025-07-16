@@ -5,8 +5,10 @@ These tests verify that the CLI interface exists and is properly structured.
 They do not require actual EMSDK installation.
 """
 
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -103,10 +105,52 @@ class TestNativeCliModule(unittest.TestCase):
 
     def test_argument_validation(self):
         """Test argument validation for required parameters."""
-        # Test with no arguments should fail (missing sketch_dir)
-        with patch("sys.argv", ["fastled-wasm-compiler-native"]):
-            with self.assertRaises(SystemExit):
-                _parse_args()
+        # Set up required environment variables
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            fastled_temp = temp_path / "fastled"
+            fastled_src_temp = fastled_temp / "src"
+            emsdk_temp = temp_path / "emsdk"
+            sketch_temp = temp_path / "src"
+
+            # Create directories
+            fastled_src_temp.mkdir(parents=True, exist_ok=True)
+            emsdk_temp.mkdir(parents=True, exist_ok=True)
+            sketch_temp.mkdir(parents=True, exist_ok=True)
+
+            # Save original environment
+            original_env = {}
+            env_vars = [
+                "ENV_FASTLED_ROOT",
+                "ENV_FASTLED_SRC_CONTAINER",
+                "ENV_FASTLED_SOURCE_PATH",
+                "ENV_EMSDK_PATH",
+                "ENV_SKETCH_PATH",
+            ]
+
+            for var in env_vars:
+                original_env[var] = os.environ.get(var)
+
+            try:
+                # Set test environment variables
+                os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
+                os.environ["ENV_FASTLED_SRC_CONTAINER"] = str(fastled_src_temp)
+                os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
+                os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
+                os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
+
+                # Test with no arguments should fail (missing sketch_dir)
+                with patch("sys.argv", ["fastled-wasm-compiler-native"]):
+                    with self.assertRaises(SystemExit):
+                        _parse_args()
+
+            finally:
+                # Restore original environment
+                for var, value in original_env.items():
+                    if value is None:
+                        os.environ.pop(var, None)
+                    else:
+                        os.environ[var] = value
 
     def test_install_emsdk_option(self):
         """Test that --install-emsdk option works as expected."""
@@ -155,17 +199,59 @@ class TestNativeCliModule(unittest.TestCase):
             with self.subTest(mode=mode):
                 test_sketch_dir = Path("/tmp/test_sketch")
 
-                with patch(
-                    "sys.argv",
-                    [
-                        "fastled-wasm-compiler-native",
-                        str(test_sketch_dir),
-                        "--mode",
-                        mode,
-                    ],
-                ):
-                    args = _parse_args()
-                    self.assertEqual(args.build_mode, mode)
+                # Set up required environment variables
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir)
+                    fastled_temp = temp_path / "fastled"
+                    fastled_src_temp = fastled_temp / "src"
+                    emsdk_temp = temp_path / "emsdk"
+                    sketch_temp = temp_path / "src"
+
+                    # Create directories
+                    fastled_src_temp.mkdir(parents=True, exist_ok=True)
+                    emsdk_temp.mkdir(parents=True, exist_ok=True)
+                    sketch_temp.mkdir(parents=True, exist_ok=True)
+
+                    # Save original environment
+                    original_env = {}
+                    env_vars = [
+                        "ENV_FASTLED_ROOT",
+                        "ENV_FASTLED_SRC_CONTAINER",
+                        "ENV_FASTLED_SOURCE_PATH",
+                        "ENV_EMSDK_PATH",
+                        "ENV_SKETCH_PATH",
+                    ]
+
+                    for var in env_vars:
+                        original_env[var] = os.environ.get(var)
+
+                    try:
+                        # Set test environment variables
+                        os.environ["ENV_FASTLED_ROOT"] = str(fastled_temp)
+                        os.environ["ENV_FASTLED_SRC_CONTAINER"] = str(fastled_src_temp)
+                        os.environ["ENV_FASTLED_SOURCE_PATH"] = str(fastled_src_temp)
+                        os.environ["ENV_EMSDK_PATH"] = str(emsdk_temp)
+                        os.environ["ENV_SKETCH_PATH"] = str(sketch_temp)
+
+                        with patch(
+                            "sys.argv",
+                            [
+                                "fastled-wasm-compiler-native",
+                                str(test_sketch_dir),
+                                "--mode",
+                                mode,
+                            ],
+                        ):
+                            args = _parse_args()
+                            self.assertEqual(args.build_mode, mode)
+
+                    finally:
+                        # Restore original environment
+                        for var, value in original_env.items():
+                            if value is None:
+                                os.environ.pop(var, None)
+                            else:
+                                os.environ[var] = value
 
     def test_error_handling_nonexistent_sketch(self):
         """Test error handling for non-existent sketch directory."""

@@ -155,16 +155,31 @@ COPY ./assets/platformio.ini /platformio/platformio.ini
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+  --fastled-root=/git/fastled \
+  --fastled-src-container=/git/fastled/src \
+  --fastled-source-path=/git/fastled/src \
+  --emsdk-path=/emsdk \
+  --sketch-path=src \
   --debug
 
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+  --fastled-root=/git/fastled \
+  --fastled-src-container=/git/fastled/src \
+  --fastled-source-path=/git/fastled/src \
+  --emsdk-path=/emsdk \
+  --sketch-path=src \
   --quick
 
 RUN fastled-wasm-compiler-prewarm \
   --sketch=/examples/Blink \
   --assets-dir=/git/fastled/src/platforms/wasm/compiler \
+  --fastled-root=/git/fastled \
+  --fastled-src-container=/git/fastled/src \
+  --fastled-source-path=/git/fastled/src \
+  --emsdk-path=/emsdk \
+  --sketch-path=src \
   --release
 
 ### Final entry point init.

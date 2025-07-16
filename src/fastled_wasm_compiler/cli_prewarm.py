@@ -14,6 +14,10 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+from fastled_wasm_compiler.env_validation import (
+    add_environment_arguments,
+    ensure_environment_configured,
+)
 from fastled_wasm_compiler.paths import SKETCH_ROOT
 from fastled_wasm_compiler.run_compile import Args, run_compile
 from fastled_wasm_compiler.types import BuildMode
@@ -55,7 +59,13 @@ def _parse_args() -> CliArgs:
         "--release", action="store_true", help="Enable release mode"
     )
 
+    # Add environment variable arguments
+    add_environment_arguments(parser)
+
     args = parser.parse_args()
+
+    # Validate and configure environment variables
+    ensure_environment_configured(args)
     build_mode: BuildMode
 
     if args.debug:
