@@ -1,17 +1,25 @@
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import fasteners
 
 from fastled_wasm_compiler.args import Args
-from fastled_wasm_compiler.compile_all_libs import compile_all_libs
+from fastled_wasm_compiler.compile_all_libs import BuildResult, compile_all_libs
 from fastled_wasm_compiler.paths import FASTLED_SRC, VOLUME_MAPPED_SRC
 from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 from fastled_wasm_compiler.sync import sync_fastled
 
 _RW_LOCK = fasteners.ReaderWriterLock()
+
+
+@dataclass
+class UpdateSrcResult:
+    files_changed: list[Path]
+    stdout: str
+    error: Exception | None
 
 
 class CompilerImpl:
@@ -73,7 +81,7 @@ class CompilerImpl:
 
     def update_src(
         self, builds: list[str] | None = None, src_to_merge_from: Path | None = None
-    ) -> list[Path] | Exception:
+    ) -> UpdateSrcResult | Exception:
         """
         Update the source directory.
 
@@ -91,8 +99,14 @@ class CompilerImpl:
                 return ValueError(error_msg)
 
             if not src_to_merge_from.exists():
-                print("Skipping fastled src update: no source directory")
-                return []  # Nothing to do
+                msg = f"Skipping fastled src update: no source directory in {src_to_merge_from}"
+                print(msg)
+                # return []  # Nothing to do
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout=msg,
+                    error=None,
+                )
 
             if not (src_to_merge_from / "FastLED.h").exists():
                 error_msg = f"FastLED.h not found in {src_to_merge_from}"
@@ -106,7 +120,12 @@ class CompilerImpl:
 
             if not files_will_change:
                 print("No files changed, skipping rsync")
-                return []
+                # return []
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout="No files changed, skipping sync and rebuild",
+                    error=None,
+                )
 
             print_banner(f"There were {len(files_will_change)} files changed")
             for file in files_will_change:
@@ -120,26 +139,32 @@ class CompilerImpl:
                 )
 
             if not files_changed:
-                print(
-                    "Warning: No files changed after rsync, but files were expected to change"
+                msg = "No files changed after sync and rebuild, but files were expected to change"
+                print(msg)
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout="msg",
+                    error=None,
                 )
-                return []
 
             # Determine build modes - use the modes specified during initialization
             build_modes = builds if builds is not None else self.build_libs
 
             # Compile the libraries
             print_banner("Compiling libraries with updated source...")
-            rtn = compile_all_libs(
+            result: BuildResult = compile_all_libs(
                 FASTLED_SRC.as_posix(),
                 "/build",
                 build_modes=build_modes,
             )
 
-            if rtn != 0:
-                error_msg = f"Failed to compile libraries with exit code: {rtn}"
-                print_banner(f"Error: {error_msg}")
-                return RuntimeError(error_msg)
+            if result.return_code != 0:
+                error_msg = (
+                    f"Failed to compile libraries with exit code: {result.return_code}"
+                )
+                stdout = result.stdout
+                print_banner(f"Error: {stdout}")
+                return RuntimeError(stdout)
 
             # Verify the build output
             for mode in build_modes:
@@ -150,7 +175,12 @@ class CompilerImpl:
                     return FileNotFoundError(error_msg)
 
             print_banner("Library compilation completed successfully")
-            return files_changed
+            # return files_changed
+            return UpdateSrcResult(
+                files_changed=files_changed,
+                stdout="Library compilation completed successfully",
+                error=None,
+            )
 
         except Exception as e:
             error_msg = f"Unexpected error during source update: {str(e)}"

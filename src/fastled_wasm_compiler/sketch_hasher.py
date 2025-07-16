@@ -40,7 +40,7 @@ def _testing_verbose() -> bool:
 
 
 def hash_string(s: str) -> str:
-    return hashlib.sha256(s.encode()).hexdigest()
+    return hashlib.md5(s.encode()).hexdigest()
 
 
 def is_source_file(filename: str, src_file_extensions: list[str]) -> bool:
@@ -303,7 +303,7 @@ def generate_hash_of_project_files(root_dir: Path) -> str:
 
     other_files = project_files.other_files
     # for all other files, don't pre-process them, just hash them
-    hash_object = hashlib.sha256()
+    hash_object = hashlib.md5()
     for file in other_files:
         hash_object.update(file.read_bytes())
     other_files_hash = hash_object.hexdigest()

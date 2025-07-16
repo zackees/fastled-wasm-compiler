@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from fastled_wasm_compiler.compiler import UpdateSrcResult
+
 
 class Compiler:
     """Forwarding class that delegates all calls to CompilerImpl."""
@@ -17,7 +19,7 @@ class Compiler:
 
     def update_src(
         self, builds: list[str] | None = None, src_to_merge_from: Path | None = None
-    ) -> list[Path] | Exception:
+    ) -> UpdateSrcResult | Exception:
         return self._impl.update_src(builds, src_to_merge_from)
 
 
