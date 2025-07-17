@@ -623,6 +623,8 @@ class FullBuildTester(unittest.TestCase):
 
             # Copy the original mapped directory structure
             shutil.copytree(MAPPED_DIR, mapped_test_dir)
+            # Set 777 permissions to avoid Docker permission issues
+            subprocess.run(["chmod", "-R", "777", str(mapped_test_dir)], check=False)
 
             # The output will be in the fastled_js subdirectory of the sketch
             output_dir = mapped_test_dir / "sketch" / "fastled_js"
@@ -802,9 +804,10 @@ class FullBuildTester(unittest.TestCase):
 
         print("\n✅ PlatformIO and No-PlatformIO builds produce equivalent artifacts!")
 
-        # Clean up temporary mapped directories
+        # Clean up temporary mapped directories with proper permissions
         platformio_mapped = MAPPED_DIR.parent / "mapped_platformio"
         no_platformio_mapped = MAPPED_DIR.parent / "mapped_no_platformio"
+
         if platformio_mapped.exists():
             shutil.rmtree(platformio_mapped)
         if no_platformio_mapped.exists():
@@ -830,6 +833,8 @@ class FullBuildTester(unittest.TestCase):
 
             # Copy the original mapped directory structure
             shutil.copytree(MAPPED_DIR, mapped_test_dir)
+            # Set 777 permissions to avoid Docker permission issues
+            subprocess.run(["chmod", "-R", "777", str(mapped_test_dir)], check=False)
 
             # Clear any existing output
             output_dir = mapped_test_dir / "sketch" / "fastled_js"
