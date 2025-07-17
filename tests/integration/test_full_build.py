@@ -602,6 +602,214 @@ class FullBuildTester(unittest.TestCase):
         # In a real test, we might compare this to other build modes
         # or have a maximum size threshold, but for now we just report it
 
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_platformio_vs_no_platformio_artifacts(self) -> None:
+        """Test that PlatformIO and no-PlatformIO builds produce equivalent artifacts."""
+        import json
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-compare-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        def run_compilation(use_platformio: bool, output_subdir: str) -> Path:
+            """Run compilation and return the output directory path."""
+            # Create separate mapped directories for comparison
+            mapped_test_dir = MAPPED_DIR.parent / f"mapped_{output_subdir}"
+            if mapped_test_dir.exists():
+                shutil.rmtree(mapped_test_dir)
+
+            # Copy the original mapped directory structure
+            shutil.copytree(MAPPED_DIR, mapped_test_dir)
+
+            # The output will be in the fastled_js subdirectory of the sketch
+            output_dir = mapped_test_dir / "sketch" / "fastled_js"
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+
+            cmd_list: list[str] = [
+                "docker",
+                "run",
+                "--name",
+                "fastled-compare-container",
+                # Mount the test data directories
+                "-v",
+                f"{mapped_test_dir.absolute()}:/mapped",
+                "-v",
+                f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+                "-v",
+                f"{ASSETS_DIR.absolute()}:/assets",
+                IMAGE_NAME,
+                # Required arguments
+                "--compiler-root",
+                CONTAINER_JS_ROOT,
+                "--assets-dirs",
+                "/assets",
+                "--mapped-dir",
+                "/mapped",
+                # Optional arguments
+                "--quick",  # Use quick mode for faster testing
+                "--keep-files",  # Keep intermediate files for debugging
+            ]
+
+            if not use_platformio:
+                cmd_list.append("--no-platformio")
+
+            build_type = "PlatformIO" if use_platformio else "No-PlatformIO"
+            print(f"\nCompiling sketch using {build_type} build...")
+
+            compile_proc = subprocess.Popen(
+                cmd_list,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            assert compile_proc.stdout is not None
+
+            # Print output in real-time
+            for line in compile_proc.stdout:
+                line_str = line.decode("utf-8", errors="replace")
+                print(line_str.strip())
+
+            compile_proc.wait()
+            compile_proc.stdout.close()
+            compile_proc.terminate()
+
+            # Clean up the container
+            subprocess.run(
+                ["docker", "rm", "-f", "fastled-compare-container"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            # Check if compilation was successful
+            self.assertEqual(
+                compile_proc.returncode, 0, f"{build_type} compilation failed"
+            )
+
+            return output_dir
+
+        # Run both compilations
+        platformio_output = run_compilation(
+            use_platformio=True, output_subdir="platformio"
+        )
+        no_platformio_output = run_compilation(
+            use_platformio=False, output_subdir="no_platformio"
+        )
+
+        # Verify both output directories exist and have files
+        self.assertTrue(
+            platformio_output.exists(), "PlatformIO output directory missing"
+        )
+        self.assertTrue(
+            no_platformio_output.exists(), "No-PlatformIO output directory missing"
+        )
+
+        # Get list of files in both directories
+        platformio_files = set(
+            f.name for f in platformio_output.glob("**/*") if f.is_file()
+        )
+        no_platformio_files = set(
+            f.name for f in no_platformio_output.glob("**/*") if f.is_file()
+        )
+
+        print(f"\nPlatformIO files: {sorted(platformio_files)}")
+        print(f"No-PlatformIO files: {sorted(no_platformio_files)}")
+
+        # Assert both builds have the same set of files
+        self.assertEqual(
+            platformio_files,
+            no_platformio_files,
+            "File sets differ between PlatformIO and no-PlatformIO builds",
+        )
+
+        # Compare critical artifacts
+        critical_files = [
+            "fastled.wasm",
+            "fastled.js",
+            "index.html",
+            "index.css",
+            "files.json",
+        ]
+
+        for filename in critical_files:
+            platformio_file = platformio_output / filename
+            no_platformio_file = no_platformio_output / filename
+
+            self.assertTrue(
+                platformio_file.exists(), f"PlatformIO build missing {filename}"
+            )
+            self.assertTrue(
+                no_platformio_file.exists(), f"No-PlatformIO build missing {filename}"
+            )
+
+        # Compare WASM file sizes (should be similar, allowing for small differences)
+        platformio_wasm = platformio_output / "fastled.wasm"
+        no_platformio_wasm = no_platformio_output / "fastled.wasm"
+
+        platformio_size = platformio_wasm.stat().st_size
+        no_platformio_size = no_platformio_wasm.stat().st_size
+
+        print("\nWASM file sizes:")
+        print(f"  PlatformIO: {platformio_size} bytes")
+        print(f"  No-PlatformIO: {no_platformio_size} bytes")
+
+        # Allow up to 5% size difference (compilation variations are normal)
+        size_diff_ratio = abs(platformio_size - no_platformio_size) / max(
+            platformio_size, no_platformio_size
+        )
+        self.assertLess(
+            size_diff_ratio,
+            0.05,
+            f"WASM file sizes differ significantly: {platformio_size} vs {no_platformio_size}",
+        )
+
+        # Compare manifest files (should contain similar structure)
+        platformio_manifest = platformio_output / "files.json"
+        no_platformio_manifest = no_platformio_output / "files.json"
+
+        if platformio_manifest.exists() and no_platformio_manifest.exists():
+            with open(platformio_manifest) as f:
+                platformio_data = json.load(f)
+            with open(no_platformio_manifest) as f:
+                no_platformio_data = json.load(f)
+
+            # Both should have the same manifest structure
+            if isinstance(platformio_data, dict) and isinstance(
+                no_platformio_data, dict
+            ):
+                self.assertEqual(
+                    set(platformio_data.keys()),
+                    set(no_platformio_data.keys()),
+                    "Manifest file structures differ",
+                )
+            elif isinstance(platformio_data, list) and isinstance(
+                no_platformio_data, list
+            ):
+                self.assertEqual(
+                    len(platformio_data),
+                    len(no_platformio_data),
+                    "Manifest file list lengths differ",
+                )
+            else:
+                self.assertEqual(
+                    type(platformio_data),
+                    type(no_platformio_data),
+                    "Manifest file types differ",
+                )
+
+        print("\n✅ PlatformIO and No-PlatformIO builds produce equivalent artifacts!")
+
+        # Clean up temporary mapped directories
+        platformio_mapped = MAPPED_DIR.parent / "mapped_platformio"
+        no_platformio_mapped = MAPPED_DIR.parent / "mapped_no_platformio"
+        if platformio_mapped.exists():
+            shutil.rmtree(platformio_mapped)
+        if no_platformio_mapped.exists():
+            shutil.rmtree(no_platformio_mapped)
+
 
 if __name__ == "__main__":
     unittest.main()

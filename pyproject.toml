@@ -16,7 +16,7 @@ dependencies = [
     "httpx>=0.28.1",
 ]
 
-version = "1.0.108"
+version = "1.0.109"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
