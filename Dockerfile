@@ -84,7 +84,7 @@ ENV CCACHE_MAXSIZE=1G
 # Set mold as the default linker
 ENV LINKER=mold
 
-ARG NO_PLATFORMIO="0"
+ARG NO_PLATFORMIO="1"
 ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
 # Set container-specific environment variables for path resolution
@@ -104,6 +104,7 @@ RUN echo 'print() { echo "$@"; }' >> /etc/profile && \
     echo 'export -f print' >> /etc/profile && \
     echo 'export PATH="/container/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:$PATH"' >> /etc/profile && \
     echo 'export LINKER=mold' >> /etc/profile && \
+    echo 'export NO_PLATFORMIO=1' >> /etc/profile && \
     echo 'source /emsdk/emsdk_env.sh' >> /etc/profile
 
 # This was added to try and fix formatting issues. It didn't fix it but it's better to force everything to use
