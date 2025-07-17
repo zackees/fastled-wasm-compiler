@@ -15,7 +15,8 @@ This project is designed to run with `uv run` instead of `python`.
 - Always add types to the variables that you use.
 - Instead of tuples, prefer @dataclass with slots for efficiency
 - Globals at the top
-- Don't use forward declared types unless absolutely necessary.
+- Don't use forward declared types unless absolutely necessary, for examples a @staticmethod on a class to return that class type
+  - For example in the Args class.
 - No bare excepptions
 - Always handle keyboard interrupts in threads and processes
   - When getting a KeyboardInterrupt in a thread, import _thread and call interrupt_main() in addition to other work.
@@ -24,10 +25,14 @@ This project is designed to run with `uv run` instead of `python`.
   - GOOD: T | None
   - BAD: Union[T,U]
   - GOOD: T | U
+- Avoid the use of type `Any` unless ABSOLUTELY necessary.
+- Avoid MagicMock whenever possible, try to use real objects, unless this is very slow.
+- If a test requires a huge download, put the payload in .cache
+- When using emoticons, check that they are compatible with the encoding style of cmd.exe
   
 
 ## Testing
-- Use `bash lint` often, this is cheap to run and will catch type errors.
+- Use `bash lint && bash test --unit-only` often, this is cheap to run and will catch type errors and common mistakes.
 - Run unit tests with `bash test` (as specified in user rules)
 - Always prefer `bash test --unit-only` to `bash test` because it goes very fast.
   - Only use `bash test` to test things in the docker file that can't be put into a unit test

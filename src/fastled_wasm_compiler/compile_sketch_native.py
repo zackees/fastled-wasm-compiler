@@ -16,7 +16,6 @@ import argparse
 import os
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
 from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
@@ -25,7 +24,7 @@ from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
 class NativeCompilerImpl:
     """Native EMSDK-based compiler for FastLED sketches."""
 
-    def __init__(self, emsdk_install_dir: Optional[Path] = None):
+    def __init__(self, emsdk_install_dir: Path | None = None) -> None:
         """Initialize native compiler.
 
         Args:
@@ -130,11 +129,11 @@ class NativeCompilerImpl:
 
         print(f"Using EMSDK at: {self.emsdk_manager.emsdk_dir}")
 
-    def get_compilation_env(self) -> Dict[str, str]:
+    def get_compilation_env(self) -> dict[str, str]:
         """Get environment variables for compilation."""
         return self.emsdk_manager.setup_environment()
 
-    def get_tool_paths(self) -> Dict[str, Path]:
+    def get_tool_paths(self) -> dict[str, Path]:
         """Get paths to compilation tools."""
         return self.emsdk_manager.get_tool_paths()
 
@@ -207,7 +206,7 @@ class NativeCompilerImpl:
 
     def link_objects_to_wasm(
         self,
-        object_files: List[Path],
+        object_files: list[Path],
         build_mode: str,
         output_dir: Path,
         output_name: str = "fastled",
@@ -276,7 +275,7 @@ class NativeCompilerImpl:
         return js_file
 
     def compile_sketch(
-        self, sketch_dir: Path, build_mode: str, output_dir: Optional[Path] = None
+        self, sketch_dir: Path, build_mode: str, output_dir: Path | None = None
     ) -> Path:
         """Compile a complete FastLED sketch.
 
@@ -356,8 +355,8 @@ class NativeCompilerImpl:
 def compile_sketch_native(
     sketch_dir: Path,
     build_mode: str = "debug",
-    output_dir: Optional[Path] = None,
-    emsdk_install_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
+    emsdk_install_dir: Path | None = None,
 ) -> Path:
     """Convenience function to compile a sketch using native EMSDK.
 

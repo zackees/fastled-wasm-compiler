@@ -148,7 +148,7 @@ class TestEmsdkManager(unittest.TestCase):
         self.assertTrue(self.manager.is_installed())
 
     @patch("httpx.stream")
-    def test_download_file(self, mock_stream):
+    def test_download_file(self, mock_stream: Mock) -> None:
         """Test file download functionality."""
         # Mock HTTP response
         mock_response = Mock()
@@ -312,7 +312,7 @@ class TestEmsdkManager(unittest.TestCase):
                 self.assertIn("ccache", content)
                 self.assertIn("emcc", content)
 
-    def _setup_mock_installation(self, windows=False):
+    def _setup_mock_installation(self, windows: bool = False) -> None:
         """Helper to set up a mock EMSDK installation."""
         emsdk_dir = self.manager.emsdk_dir
         upstream_dir = emsdk_dir / "upstream" / "emscripten"

@@ -18,7 +18,6 @@ import subprocess
 import tarfile
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import httpx
@@ -62,9 +61,7 @@ class EmsdkManager:
         ),
     }
 
-    def __init__(
-        self, install_dir: Optional[Path] = None, cache_dir: Optional[Path] = None
-    ):
+    def __init__(self, install_dir: Path | None = None, cache_dir: Path | None = None):
         """Initialize EMSDK Manager.
 
         Args:
@@ -145,7 +142,7 @@ class EmsdkManager:
 
     def _download_split_archive_cached(
         self, base_pattern: str, temp_dir: Path
-    ) -> List[Path]:
+    ) -> list[Path]:
         """Download split archive parts using cache to avoid re-downloads.
 
         Args:
@@ -342,7 +339,7 @@ Install directory: {self.install_dir}
 
         print(f"EMSDK successfully installed to {self.emsdk_dir}")
 
-    def get_env_vars(self) -> Dict[str, str]:
+    def get_env_vars(self) -> dict[str, str]:
         """Get environment variables needed for EMSDK.
 
         Returns:
@@ -390,7 +387,7 @@ Install directory: {self.install_dir}
 
         return env_vars
 
-    def get_tool_paths(self) -> Dict[str, Path]:
+    def get_tool_paths(self) -> dict[str, Path]:
         """Get paths to EMSDK tools."""
         if not self.is_installed():
             raise RuntimeError("EMSDK not installed. Call install() first.")
@@ -416,7 +413,7 @@ Install directory: {self.install_dir}
 
         return tools
 
-    def setup_environment(self) -> Dict[str, str]:
+    def setup_environment(self) -> dict[str, str]:
         """Setup environment for EMSDK usage.
 
         Returns:
@@ -439,7 +436,7 @@ Install directory: {self.install_dir}
 
         return env_vars
 
-    def create_wrapper_scripts(self, output_dir: Path) -> Dict[str, Path]:
+    def create_wrapper_scripts(self, output_dir: Path) -> dict[str, Path]:
         """Create ccache wrapper scripts for EMSDK tools.
 
         Args:
@@ -479,7 +476,7 @@ exec ccache {tool_path} "$@"
 
 
 def get_emsdk_manager(
-    install_dir: Optional[Path] = None, cache_dir: Optional[Path] = None
+    install_dir: Path | None = None, cache_dir: Path | None = None
 ) -> EmsdkManager:
     """Get a configured EMSDK manager instance."""
     return EmsdkManager(install_dir, cache_dir)

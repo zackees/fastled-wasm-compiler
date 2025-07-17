@@ -15,7 +15,6 @@ import sys
 import traceback
 import warnings
 from pathlib import Path
-from typing import List
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compile import compile
@@ -51,7 +50,7 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
 
 
 def find_project_dir(mapped_dir: Path) -> Path:
-    mapped_dirs: List[Path] = list(mapped_dir.iterdir())
+    mapped_dirs: list[Path] = list(mapped_dir.iterdir())
     if len(mapped_dirs) > 1:
         raise ValueError(
             f"Error: More than one directory found in {mapped_dir}, which are {mapped_dirs}"

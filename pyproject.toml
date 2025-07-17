@@ -45,6 +45,34 @@ profile = "black"
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
+[tool.pyright]
+reportUntypedFunctionDecorator = "error"
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportUnknownLambdaType = "none"
+reportUntypedBaseClass = "error"
+reportUntypedClassDecorator = "error"
+reportUntypedNamedTuple = "error"
+reportPrivateUsage = "none"
+reportConstantRedefinition = "none"
+reportIncompatibleMethodOverride = "error"
+reportIncompatibleVariableOverride = "error"
+reportOverlappingOverload = "error"
+reportMissingParameterType = "error"
+reportMissingReturnType = "error"
+reportDeprecated = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportImplicitStringConcatenation = "error"
+# Force usage of modern type union syntax (T | U instead of Union[T, U])
+pythonVersion = "3.10"
+# Enforce PEP 604 union syntax and PEP 585 generic types
+strictParameterNoneValue = true
+strictDictionaryInference = true
+strictListInference = true
+strictSetInference = true
+
 
 [project.scripts]
 fastled-wasm-compiler = "fastled_wasm_compiler.cli:main"

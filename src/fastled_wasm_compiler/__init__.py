@@ -1,6 +1,6 @@
 from pathlib import Path
-from typing import Dict, List, Optional
 
+from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compiler import UpdateSrcResult
 
 
@@ -14,7 +14,7 @@ class Compiler:
 
         self._impl = CompilerImpl(volume_mapped_src, build_libs)
 
-    def compile(self, args) -> Exception | None:
+    def compile(self, args: Args) -> Exception | None:
         return self._impl.compile(args)
 
     def update_src(
@@ -26,7 +26,7 @@ class Compiler:
 class CompilerNative:
     """Forwarding class that delegates all calls to NativeCompilerImpl."""
 
-    def __init__(self, emsdk_install_dir: Optional[Path] = None):
+    def __init__(self, emsdk_install_dir: Path | None = None) -> None:
         from fastled_wasm_compiler.compile_sketch_native import NativeCompilerImpl
 
         self._impl = NativeCompilerImpl(emsdk_install_dir)
@@ -34,10 +34,10 @@ class CompilerNative:
     def ensure_emsdk(self) -> None:
         return self._impl.ensure_emsdk()
 
-    def get_compilation_env(self) -> Dict[str, str]:
+    def get_compilation_env(self) -> dict[str, str]:
         return self._impl.get_compilation_env()
 
-    def get_tool_paths(self) -> Dict[str, Path]:
+    def get_tool_paths(self) -> dict[str, Path]:
         return self._impl.get_tool_paths()
 
     def compile_source_to_object(
@@ -47,7 +47,7 @@ class CompilerNative:
 
     def link_objects_to_wasm(
         self,
-        object_files: List[Path],
+        object_files: list[Path],
         build_mode: str,
         output_dir: Path,
         output_name: str = "fastled",
@@ -57,7 +57,7 @@ class CompilerNative:
         )
 
     def compile_sketch(
-        self, sketch_dir: Path, build_mode: str, output_dir: Optional[Path] = None
+        self, sketch_dir: Path, build_mode: str, output_dir: Path | None = None
     ) -> Path:
         return self._impl.compile_sketch(sketch_dir, build_mode, output_dir)
 

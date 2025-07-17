@@ -273,7 +273,7 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
             for rel_file in files_to_delete:
                 dst_file = dst / rel_file
 
-                def task_remove(file_dst=dst_file) -> bool:
+                def task_remove(file_dst: Path = dst_file) -> bool:
                     if not dryrun:
                         if file_dst.exists():
                             file_dst.unlink()

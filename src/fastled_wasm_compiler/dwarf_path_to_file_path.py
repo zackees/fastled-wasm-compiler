@@ -73,7 +73,7 @@ PREFIXES = [FASTLED_PREFIX, SKETCH_PREFIX, DWARF_PREFIX]
 
 def dwarf_path_to_file_path(
     request_path: str,
-    check_exists=True,
+    check_exists: bool = True,
 ) -> Path | Exception:
     """Resolve the path for dwarfsource."""
     logger.debug(f"Resolving dwarf path: {request_path}")

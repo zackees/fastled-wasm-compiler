@@ -6,12 +6,12 @@ and auto-generated index files with links to manifests and reconstruction files.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-def get_file_info(file_path: Path) -> Dict[str, Any]:
+def get_file_info(file_path: Path) -> dict[str, Any]:
     """
     Get information about a file including size and type.
 
@@ -61,10 +61,10 @@ def get_file_info(file_path: Path) -> Dict[str, Any]:
 
 def generate_platform_index_html(
     output_dir: Path,
-    platforms: Dict[str, Dict[str, Any]],
+    platforms: dict[str, dict[str, Any]],
     title: str = "FastLED WASM Compiler - Artifacts",
     subtitle: str = "Platform-specific build artifacts",
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
 ) -> Path:
     """
     Generate an index.html file for platform-organized artifacts.
@@ -80,7 +80,7 @@ def generate_platform_index_html(
         Path to the generated index.html file
     """
     index_path = output_dir / "index.html"
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     # Platform icons mapping
     platform_icons = {
@@ -348,7 +348,7 @@ import Module from './[platform]/fastled.js';</code></pre>
     return index_path
 
 
-def scan_platform_directory(platform_dir: Path) -> List[Dict[str, Any]]:
+def scan_platform_directory(platform_dir: Path) -> list[dict[str, Any]]:
     """
     Scan a platform directory and return file information.
 
@@ -371,8 +371,8 @@ def scan_platform_directory(platform_dir: Path) -> List[Dict[str, Any]]:
 
 def generate_manifest_json(
     output_dir: Path,
-    platforms: Dict[str, Dict[str, Any]],
-    metadata: Optional[Dict[str, Any]] = None,
+    platforms: dict[str, dict[str, Any]],
+    metadata: dict[str, Any] | None = None,
 ) -> Path:
     """
     Generate a JSON manifest file listing all platforms and their files.
@@ -387,8 +387,8 @@ def generate_manifest_json(
     """
     manifest_path = output_dir / "manifest.json"
 
-    manifest_data = {
-        "generated": datetime.utcnow().isoformat() + "Z",
+    manifest_data: dict[str, Any] = {
+        "generated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "version": "1.0",
         "platforms": {},
     }

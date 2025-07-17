@@ -11,7 +11,6 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -26,7 +25,7 @@ class FastLEDDownloader:
         f"https://github.com/FastLED/FastLED/archive/refs/heads/{FASTLED_VERSION}.zip"
     )
 
-    def __init__(self, install_dir: Optional[Path] = None):
+    def __init__(self, install_dir: Path | None = None) -> None:
         """Initialize FastLED downloader.
 
         Args:
@@ -248,7 +247,7 @@ class FastLEDDownloader:
         print(f"✅ FastLED successfully installed to {self.install_dir}")
 
 
-def get_fastled_downloader(install_dir: Optional[Path] = None) -> FastLEDDownloader:
+def get_fastled_downloader(install_dir: Path | None = None) -> FastLEDDownloader:
     """Get a configured FastLED downloader instance."""
     return FastLEDDownloader(install_dir)
 

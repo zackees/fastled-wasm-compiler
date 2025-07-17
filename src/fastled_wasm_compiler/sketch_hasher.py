@@ -14,7 +14,6 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List
 
 _SOURCE_EXTENSIONS = [".cpp", ".hpp", ".h", ".ino"]
 _HEADER_INCLUDE_PATTERN = re.compile(r'#include\s*(["<].*?[">])')
@@ -79,11 +78,11 @@ def collect_files(
     return ProjectFiles(src_files=src_files, other_files=other_files)
 
 
-def concatenate_files(file_list: List[Path], output_file: Path) -> None:
+def concatenate_files(file_list: list[Path], output_file: Path) -> None:
     """Concatenate files into a single output file.
 
     Args:
-        file_list (List[str]): List of file paths to concatenate.
+        file_list (list[str]): List of file paths to concatenate.
         output_file (str): Path to the output file.
     """
     with open(str(output_file), "w", encoding="utf-8") as outfile:
@@ -100,7 +99,7 @@ def concatenate_files(file_list: List[Path], output_file: Path) -> None:
 
 
 def collapse_spaces_preserve_cstrings(line: str):
-    def replace_outside_cstrings(match):
+    def replace_outside_cstrings(match: re.Match[str]) -> str:
         # This function processes the part outside of C strings
         content = match.group(0)
         if content.startswith('"') or content.startswith("'"):
@@ -241,7 +240,7 @@ def preprocess_with_gcc(input_file: Path, output_file: Path) -> None:
         try:
             if os.path.exists(temp_input):
                 os.remove(temp_input)
-        except:  # noqa: E722
+        except (OSError, FileNotFoundError):
             warnings.warn(f"Failed to remove temporary file: {temp_input}")
             pass
 

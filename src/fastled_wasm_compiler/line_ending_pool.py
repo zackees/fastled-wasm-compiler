@@ -9,17 +9,17 @@ import _thread
 import atexit
 import logging
 import multiprocessing as mp
+import queue
 import threading
 import uuid
 from concurrent.futures import Future
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 # Create logger for this module
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _line_ending_worker(src_path_str: str, dst_path_str: str) -> Union[bool, Exception]:
+def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exception:
     """Worker function for converting line endings and copying files.
 
     Reads source file, converts line endings, compares with destination, and writes if different.
@@ -72,7 +72,7 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> Union[bool, Exc
             return False
 
         # Try to decode as text, but use better binary detection
-        src_text: Optional[str] = None
+        src_text: str | None = None
         is_text_file: bool = True
 
         if is_binary(src_bytes):
@@ -92,7 +92,7 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> Union[bool, Exc
 
         # Check if destination exists and compare (with error handling)
         dst_exists: bool = False
-        dst_bytes: Optional[bytes] = None
+        dst_bytes: bytes | None = None
         try:
             if dst_path.exists() and dst_path.is_file():
                 dst_exists = True
@@ -145,23 +145,21 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> Union[bool, Exc
 
 
 def _queue_worker(
-    input_queue: "mp.Queue[Optional[Tuple[str, str, str]]]",
-    output_queue: "mp.Queue[Tuple[str, Union[bool, Exception]]]",
+    input_queue: "mp.Queue[tuple[str, str, str] | None]",
+    output_queue: "mp.Queue[tuple[str, bool | Exception]]",
 ) -> None:
     """Queue-based worker process for line ending conversion."""
     while True:
         task_id: str = "unknown"  # Initialize to prevent unbound variable error
         try:
-            item: Optional[Tuple[str, str, str]] = input_queue.get()
+            item: tuple[str, str, str] | None = input_queue.get()
             if item is None:  # Shutdown signal
                 break
 
             src_path_str: str
             dst_path_str: str
             task_id, src_path_str, dst_path_str = item
-            result: Union[bool, Exception] = _line_ending_worker(
-                src_path_str, dst_path_str
-            )
+            result: bool | Exception = _line_ending_worker(src_path_str, dst_path_str)
             output_queue.put((task_id, result))
 
         except KeyboardInterrupt:
@@ -179,9 +177,9 @@ def _queue_worker(
 class LineEndingProcessPool:
     """Queue-based process pool for parallel line ending conversion."""
 
-    def __init__(self, max_workers: Optional[int] = None) -> None:
+    def __init__(self, max_workers: int | None = None) -> None:
         self.max_workers: int = max_workers or min(8, (mp.cpu_count() or 1) + 4)
-        self.pending_tasks: Dict[str, Future[Union[bool, Exception]]] = (
+        self.pending_tasks: dict[str, Future[bool | Exception]] = (
             {}
         )  # task_id -> Future
         self._shutdown_event: threading.Event = threading.Event()
@@ -190,11 +188,11 @@ class LineEndingProcessPool:
         logger.debug(
             f"Initializing line ending queue workers with {self.max_workers} workers"
         )
-        self.input_queue: "mp.Queue[Optional[Tuple[str, str, str]]]" = mp.Queue()
-        self.output_queue: "mp.Queue[Tuple[str, Union[bool, Exception]]]" = mp.Queue()
+        self.input_queue: "mp.Queue[tuple[str, str, str] | None]" = mp.Queue()
+        self.output_queue: "mp.Queue[tuple[str, bool | Exception]]" = mp.Queue()
 
         # Start daemon worker processes
-        self.workers: List[mp.Process] = []
+        self.workers: list[mp.Process] = []
         for i in range(self.max_workers):
             worker: mp.Process = mp.Process(
                 target=_queue_worker,
@@ -214,12 +212,12 @@ class LineEndingProcessPool:
             while not self._shutdown_event.is_set():
                 try:
                     task_id: str
-                    result: Union[bool, Exception]
+                    result: bool | Exception
                     task_id, result = self.output_queue.get(timeout=1.0)
 
                     # Find the corresponding future and set result
-                    future: Optional[Future[Union[bool, Exception]]] = (
-                        self.pending_tasks.pop(task_id, None)
+                    future: Future[bool | Exception] | None = self.pending_tasks.pop(
+                        task_id, None
                     )
                     if future is not None:
                         future.set_result(result)
@@ -229,8 +227,8 @@ class LineEndingProcessPool:
                     logger.debug("Result collector received KeyboardInterrupt")
                     _thread.interrupt_main()
                     break
-                except Exception:
-                    # Timeout or other error - continue if not shutting down
+                except queue.Empty:
+                    # Timeout - continue if not shutting down
                     if self._shutdown_event.is_set():
                         break
 
@@ -241,7 +239,7 @@ class LineEndingProcessPool:
 
     def convert_file_line_endings_async(
         self, src_path: Path, dst_path: Path
-    ) -> Future[Union[bool, Exception]]:
+    ) -> Future[bool | Exception]:
         """Submit file line ending conversion to the queue (non-blocking)."""
         if self._shutdown_event.is_set():
             raise RuntimeError("Process pool is shutting down")
@@ -250,7 +248,7 @@ class LineEndingProcessPool:
         task_id: str = str(uuid.uuid4())
 
         # Create future for this task
-        future: Future[Union[bool, Exception]] = Future()
+        future: Future[bool | Exception] = Future()
         self.pending_tasks[task_id] = future
 
         # Submit task to input queue
@@ -260,10 +258,10 @@ class LineEndingProcessPool:
 
     def convert_file_line_endings(
         self, src_path: Path, dst_path: Path
-    ) -> Union[bool, Exception]:
+    ) -> bool | Exception:
         """Submit file line ending conversion to the queue (blocking)."""
-        async_result: Future[Union[bool, Exception]] = (
-            self.convert_file_line_endings_async(src_path, dst_path)
+        async_result: Future[bool | Exception] = self.convert_file_line_endings_async(
+            src_path, dst_path
         )
         return async_result.result()
 
@@ -294,7 +292,7 @@ class LineEndingProcessPool:
 
 
 # Global process pool instance with lazy initialization
-_global_line_ending_pool: Optional[LineEndingProcessPool] = None
+_global_line_ending_pool: LineEndingProcessPool | None = None
 _pool_creation_lock: threading.Lock = threading.Lock()
 
 

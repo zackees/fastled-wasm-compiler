@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 from fastled_wasm_compiler.insert_header import insert_headers
 from fastled_wasm_compiler.print_banner import banner
@@ -10,7 +9,7 @@ _FILE_EXTENSIONS = [".ino", ".h", ".hpp", ".cpp"]
 
 def process_ino_files(src_dir: Path) -> None:
     transform_to_cpp(src_dir)
-    exclusion_folders: List[Path] = []
+    exclusion_folders: list[Path] = []
     insert_headers(src_dir, exclusion_folders, _FILE_EXTENSIONS)
 
     # print out what is here now in the current directory:

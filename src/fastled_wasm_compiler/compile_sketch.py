@@ -12,7 +12,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any
 
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
@@ -28,7 +28,7 @@ class TimestampedPrinter:
     def __init__(self):
         self.timestamper = StreamingTimestamper()
 
-    def tprint(self, *args, **kwargs):
+    def tprint(self, *args: Any, **kwargs: Any) -> None:
         """Print with timestamp prefix for real-time output."""
         # Convert all arguments to a single string like print() does
         message = " ".join(str(arg) for arg in args)
@@ -68,7 +68,7 @@ def _start_mold_daemon() -> None:
 # captured output and return-code just like they did with `subprocess.run`.
 
 
-def _run_cmd_and_stream(cmd: List[str]) -> subprocess.CompletedProcess:
+def _run_cmd_and_stream(cmd: list[str]) -> subprocess.CompletedProcess:
     """Run command and return the completed process.
 
     Args:
@@ -179,7 +179,7 @@ DEBUG_LINK_FLAGS = [
 LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
 
 
-def analyze_source_for_pch_usage(src_file: Path) -> Tuple[bool, bool]:
+def analyze_source_for_pch_usage(src_file: Path) -> tuple[bool, bool]:
     """
     Analyze a source file to determine if we can use precompiled headers.
     If we can use PCH and headers need to be removed, modifies the file in place.

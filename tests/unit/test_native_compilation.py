@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastled_wasm_compiler.compile_sketch_native import (
     NativeCompilerImpl,
@@ -57,7 +57,7 @@ void loop() {
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
-    def test_native_compiler_creation(self, mock_fastled):
+    def test_native_compiler_creation(self, mock_fastled: Mock) -> None:
         """Test creating a native compiler instance."""
         # Mock FastLED installation
         mock_fastled_src = self.temp_dir / "fastled" / "src"
@@ -86,7 +86,7 @@ class TestNativeCompilerUnit(unittest.TestCase):
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
-    def test_compiler_initialization(self, mock_fastled):
+    def test_compiler_initialization(self, mock_fastled: Mock) -> None:
         """Test compiler initialization."""
         # Mock FastLED installation
         mock_fastled_src = self.temp_dir / "fastled" / "src"
@@ -100,7 +100,7 @@ class TestNativeCompilerUnit(unittest.TestCase):
         self.assertEqual(compiler.emsdk_manager.install_dir, self.emsdk_dir)
 
     @patch("fastled_wasm_compiler.compile_sketch_native.ensure_fastled_installed")
-    def test_compiler_requires_emsdk_manager(self, mock_fastled):
+    def test_compiler_requires_emsdk_manager(self, mock_fastled: Mock) -> None:
         """Test that compiler can be initialized with or without emsdk_install_dir."""
         # Mock FastLED installation
         mock_fastled_src = self.temp_dir / "fastled" / "src"
