@@ -199,7 +199,9 @@ def run_compile(args: Args) -> int:
 
             if no_platformio:
                 # The compile_sketch.py creates subdirectories based on build mode
-                build_dir = compiler_root / "build" / build_mode.name.lower()
+                from fastled_wasm_compiler.paths import BUILD_ROOT
+
+                build_dir = BUILD_ROOT / build_mode.name.lower()
                 print(banner("No-PlatformIO build directory structure"))
                 print(f"✓ Using direct compilation build directory: {build_dir}")
                 print(f"✓ Build mode subdirectory: {build_mode.name.lower()}")
