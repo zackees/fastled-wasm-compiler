@@ -251,10 +251,10 @@ def compile_cpp_to_obj(
         f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
     )
 
-    # Analyze source file for intelligent PCH usage
+    # Analyze source file for intelligent PCH usage (only available in QUICK mode)
     pch_file = build_dir / "fastled_pch.h"
 
-    if pch_file.exists():
+    if build_mode.lower() == "quick" and pch_file.exists():
         can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
 
         if can_use_pch:
@@ -280,12 +280,16 @@ def compile_cpp_to_obj(
             output_lines.append(
                 "    💡 PCH TIP: Move #define statements after #include <FastLED.h> for faster builds"
             )
-    else:
+    elif build_mode.lower() == "quick":
         output_lines.append(
             f"    ⚠️  PCH OPTIMIZATION UNAVAILABLE: Precompiled header not found at {pch_file}"
         )
         output_lines.append(
             "    💡 PCH TIP: Build the FastLED library first to generate precompiled headers"
+        )
+    else:
+        output_lines.append(
+            "    ℹ️  PCH OPTIMIZATION DISABLED: Precompiled headers only available in QUICK mode"
         )
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
