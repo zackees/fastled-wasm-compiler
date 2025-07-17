@@ -31,7 +31,7 @@ RUN apt-fast install -y \
     ca-certificates \
     python3 \
     python3-pip \
-    dos2unix \
+    sed \
     tar \
     wget \
     unzip \
@@ -46,6 +46,7 @@ RUN apt-fast install -y \
     g++ \
     rsync \
     coreutils \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 

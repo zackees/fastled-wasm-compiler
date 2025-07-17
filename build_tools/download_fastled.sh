@@ -28,19 +28,22 @@ done
 
 cd "${FASTLED_ROOT}/src"
 
-# Remove *.cpp files but keep *.hpp.cpp files
-echo "Removing *.cpp files (but keeping *.hpp.cpp files)..."
-find . -name "*.cpp" -not -name "*.hpp.cpp" -type f -delete
+# Every file that is NOT *.cpp, *.hpp, *.h, *.c, *.sh, *.js, *.mjs, *.css, *.txt, *.html... get's removed.
+# Gets removed
 
-# now normalize all file endings encase they aren't unix.
-find . \( \
-  -name "*.c*" -o \
-  -name "*.h" -o \
-  -name "*.hpp" -o \
-  -name "*.sh" -o \
-  -name "*.js" -o \
-  -name "*.mjs" -o \
-  -name "*.css" -o \
-  -name "*.txt" -o \
+find . -type f ! \( \
+  -name "*.cpp"  -o \
+  -name "*.hpp"  -o \
+  -name "*.h"    -o \
+  -name "*.c"    -o \
+  -name "*.sh"   -o \
+  -name "*.js"   -o \
+  -name "*.mjs"  -o \
+  -name "*.css"  -o \
+  -name "*.txt"  -o \
   -name "*.html" \
-\) -print0 | xargs -0 dos2unix
+\) -delete
+
+# now normalize all file endings that remain
+#dos2unix --recursive .
+find . -type f -exec sed -i 's/\r$//' {} +
