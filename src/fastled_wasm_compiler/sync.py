@@ -1,10 +1,10 @@
-import fnmatch
 import logging
+import subprocess
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
+
+from .line_ending_pool import get_line_ending_pool
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -27,309 +27,316 @@ else:
     logger.setLevel(logging.INFO)
 
 
-class FilterType(Enum):
-    """Enum to represent filter type."""
-
-    INCLUDE = "include"
-    EXCLUDE = "exclude"
-
-
-@dataclass
-class FilterOp:
-    """Class to hold include filter information."""
-
-    filter: FilterType
-    glob: list[str]
-
-    def __post_init__(self) -> None:
-        if self.filter == FilterType.EXCLUDE and not self.glob:
-            raise ValueError("Exclude filter must have a glob pattern")
-
-    def matches(self, path: Path) -> bool:
-        """Check if the path matches the filter."""
-        # assert path.is_file(), f"Path {path} is not a file"
-        # Check if the path matches the glob pattern
-        path_str = path.as_posix()
-        if not path_str.startswith("/"):
-            if not path_str.startswith("./") and path_str != path.absolute().as_posix():
-                path_str = "./" + path_str
-        # return any(prefixed_path.match(g) for g in self.glob)
-        for g in self.glob:
-            if fnmatch.fnmatch(path_str, g):
-                return True
-        return False
+# Allowed file extensions for syncing
+ALLOWED_EXTENSIONS = [
+    "*.c",
+    "*.cc",
+    "*.cpp",
+    "*.cxx",
+    "*.c++",  # C/C++ source files
+    "*.h",
+    "*.hh",
+    "*.hpp",
+    "*.hxx",
+    "*.h++",  # C/C++ header files
+    "*.txt",  # Text files
+    "*.js",
+    "*.mjs",  # JavaScript files
+    "*.html",  # HTML files
+    "*.css",  # CSS files
+    "*.ini",  # Configuration files
+]
 
 
-@dataclass
-class FilterList:
-    """Class to hold filter information."""
+def _find_files_with_extensions(src_dir: Path) -> list[Path]:
+    """Use Unix find command to quickly discover files with allowed extensions and apply platforms filtering."""
+    if not src_dir.exists():
+        return []
 
-    file_glob: list[str]
-    filter_list: list[FilterOp]
+    # Build find command with extension filters
+    find_cmd = ["find", str(src_dir), "-type", "f"]
 
-    def _passes(self, path: Path) -> bool:
-        """Check if a path passes the filter."""
-        # assert path.is_file(), f"Path {path} is not a file"
-        # firsts check that the file glob passes
-        if self.file_glob:
-            if not any(path.match(g) for g in self.file_glob):
-                return False
-        # Next, march through the filter list
-        if not self.filter_list:
+    # Add platforms directory filtering:
+    # Include: files NOT in platforms/, OR files in platforms/shared/, platforms/wasm/, platforms/stub/, OR files directly in platforms/
+    find_cmd.extend(
+        [
+            "(",
+            # Files not under platforms/ at all
+            "-not",
+            "-path",
+            "*/platforms/*",
+            "-o",
+            # Files directly in platforms/ (not in subdirectories)
+            "-path",
+            "*/platforms/*",
+            "-not",
+            "-path",
+            "*/platforms/*/*",
+            "-o",
+            # Files in allowed platform subdirectories
+            "-path",
+            "*/platforms/shared/*",
+            "-o",
+            "-path",
+            "*/platforms/wasm/*",
+            "-o",
+            "-path",
+            "*/platforms/stub/*",
+            ")",
+        ]
+    )
+
+    # Add extension filters using -name patterns
+    if ALLOWED_EXTENSIONS:
+        find_cmd.extend(["-a", "("])
+        for i, ext in enumerate(ALLOWED_EXTENSIONS):
+            if i > 0:
+                find_cmd.append("-o")
+            find_cmd.extend(["-name", ext])
+        find_cmd.append(")")
+
+    try:
+        result = subprocess.run(find_cmd, capture_output=True, text=True, check=True)
+
+        # Convert output lines to Path objects
+        files = []
+        for line in result.stdout.strip().split("\n"):
+            if line:  # Skip empty lines
+                files.append(Path(line))
+
+        return files
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        # Fallback to Python if find command fails or not available (Windows)
+        logger.warning(f"Find command failed ({e}), falling back to Python scanning")
+        return _find_files_python_fallback(src_dir)
+
+
+def _should_include_platforms_path(file_path: Path, src_dir: Path) -> bool:
+    """Check if a file in platforms directory should be included based on filtering rules."""
+    try:
+        rel_path = file_path.relative_to(src_dir)
+        parts = rel_path.parts
+
+        # If not in platforms directory, include it
+        if len(parts) == 0 or parts[0] != "platforms":
             return True
-        for filter_op in self.filter_list:
-            # first filter wins
-            match = filter_op.matches(path)
-            if match:
-                if filter_op.filter == FilterType.INCLUDE:
-                    return True
-                else:
-                    return False
-        # If we get here, we didn't match any filters
+
+        # If directly in platforms/ (not in subdirectory), include it
+        if len(parts) == 2:  # platforms/filename
+            return True
+
+        # If in allowed subdirectories, include it
+        if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub"]:
+            return True
+
+        # Otherwise exclude (platforms/arduino/, platforms/esp32/, etc.)
+        return False
+    except ValueError:
+        # File is not relative to src_dir, include it
         return True
 
-    def passes(self, path: Path) -> bool:
-        out = self._passes(path)
-        return out
+
+def _find_files_python_fallback(src_dir: Path) -> list[Path]:
+    """Fallback Python implementation with platforms filtering when find command is not available."""
+    files = []
+    for file_path in src_dir.rglob("*"):
+        if file_path.is_file():
+            # Apply platforms directory filtering
+            if not _should_include_platforms_path(file_path, src_dir):
+                continue
+
+            # Check if file matches any allowed extension
+            for pattern in ALLOWED_EXTENSIONS:
+                if file_path.match(pattern):
+                    files.append(file_path)
+                    break
+    return files
 
 
-_FILTER_SRC = FilterList(
-    # Exclude "platforms/"
-    file_glob=[],
-    filter_list=[
-        FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**"]),
-        # Include *.hpp.cpp files first (more specific pattern wins)
-        FilterOp(filter=FilterType.INCLUDE, glob=["**/*.hpp.cpp"]),
-        # Then exclude other *.cpp files
-        FilterOp(filter=FilterType.EXCLUDE, glob=["**/*.cpp"]),
-    ],
-)
-
-_FILTER_INCLUDE_ALL = FilterList(
-    file_glob=[],
-    filter_list=[],
-)
-
-_FILTER_INCLUDE_PLATFORMS_SHARED = FilterList(
-    file_glob=[],
-    filter_list=[
-        FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/shared/**"]),
-    ],
-)
-
-_FILTER_INCLUDE_ONLY_ROOT_FILES = FilterList(
-    file_glob=[],
-    filter_list=[
-        FilterOp(filter=FilterType.EXCLUDE, glob=["**/platforms/**/**"]),
-        FilterOp(filter=FilterType.INCLUDE, glob=["**/platforms/*.*"]),
-    ],
-)
-
-
-_FILTER_EXAMPLES = FilterList(
-    file_glob=[],
-    filter_list=[
-        FilterOp(filter=FilterType.EXCLUDE, glob=["**/fastled_js/**"]),
-    ],
-)
-
-
-def _task_copy(src: Path, dst: Path, dryrun: bool) -> Path | None:
-    if not dst.exists():
-        # New file - this is a change
-        file_src_bytes = src.read_bytes()
-        file_src_bytes = file_src_bytes.replace(b"\r\n", b"\n")
-        if not dryrun:
-            print(f"Copying new file {src} to {dst}")
-            with open(dst, "wb") as f:
-                f.write(file_src_bytes)
-        return dst
-    else:
-        # File already exists, check if bytes are different
-        file_src_bytes = src.read_bytes()
-        file_dst_bytes = dst.read_bytes()
-        # normalize line endings to \n
-        file_src_bytes = file_src_bytes.replace(b"\r\n", b"\n")
-        # source code is already guaranteed to have normalized line endings.
-        # file_dst_bytes = file_dst_bytes.replace(b"\r\n", b"\n")
-        if file_src_bytes == file_dst_bytes:
-            # No change - don't log anything
-            return None
-        # File content is different - this is a change
-        if not dryrun:
-            print(f"Overwriting {dst} with {src} because bytes were different")
-            dst.write_bytes(file_src_bytes)
-        return dst
-
-
-def _sync_subdir(
-    src: Path, dst: Path, filter_list: FilterList, dryrun: bool
-) -> list[Path]:
-    """Return true when source files changed. At this point we always turn true
-    TODO: Check if the file is newer than the destination file
-    """
+def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
+    """Sync a directory using fast Unix find command for file discovery."""
     assert src.is_dir(), f"Source {src} is not a directory"
-    # assert dst.is_dir(), f"Destination {dst} is not a directory"
+
     if not dst.exists():
         dst.mkdir(parents=True, exist_ok=True)
-    src_list: list[Path] = list(src.rglob("*"))
-    dst_list: list[Path] = list(dst.rglob("*"))
 
-    # filter out all directories
-    src_list = [s for s in src_list if s.is_file()]
-    dst_list = [d for d in dst_list if d.is_file()]
+    # Use fast Unix find command to get source files
+    src_files = _find_files_with_extensions(src)
 
-    # Filter the source list and dst list using the same filter
-    src_list = [s for s in src_list if filter_list.passes(s)]
-    dst_list = [d for d in dst_list if filter_list.passes(d)]
+    # Get destination files using the same method
+    dst_files = _find_files_with_extensions(dst)
 
-    # set of relative paths
-    src_set: set[Path] = {s.relative_to(src) for s in src_list}
-    dst_set: set[Path] = {d.relative_to(dst) for d in dst_list}
+    # Convert to relative paths for comparison
+    src_relative = {f.relative_to(src) for f in src_files}
+    dst_relative = {f.relative_to(dst) for f in dst_files}
 
-    # create all dst directories that are missing.
+    # Create missing directories
     missing_parents_set: set[Path] = set()
-    # Find all missing directories on dst
-    for file in src_set:
-        file_dst = dst / file
+    for rel_file in src_relative:
+        file_dst = dst / rel_file
         if not file_dst.parent.exists():
-            if file_dst.parent not in missing_parents_set:
-                missing_parents_set.add(file_dst.parent)
-    # Do it in one bulk creation.
-    for dir in missing_parents_set:
-        if not dryrun:
-            dir.mkdir(parents=True, exist_ok=True)
+            missing_parents_set.add(file_dst.parent)
 
-    files_to_delete_on_dst: set[Path] = dst_set - src_set
+    # Create directories in one pass
+    for dir_path in missing_parents_set:
+        if not dryrun:
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Files to delete from destination (no longer in source)
+    files_to_delete = dst_relative - src_relative
 
     # Debug output for deletion
-    if files_to_delete_on_dst:
-        print(f"Files to delete from destination: {len(files_to_delete_on_dst)}")
-        for file in files_to_delete_on_dst:
+    if files_to_delete:
+        print(f"Files to delete from destination: {len(files_to_delete)}")
+        for file in files_to_delete:
             print(f"  Deleting: {file}")
 
-    out_changed_files: list[Path] = []
-    futures: list[Future] = []
-    with ThreadPoolExecutor(max_workers=32) as executor:
-        for file in src_set:
-            file_src = src / file
-            file_dst = dst / file
+    changed_files: list[Path] = []
 
-            def _task_cpy(file_src=file_src, file_dst=file_dst) -> Path | None:
-                return _task_copy(file_src, file_dst, dryrun=dryrun)
+    # Submit all files for line ending conversion and copying (parallel I/O and processing)
+    line_ending_futures = {}  # rel_file -> future for line ending conversion
 
-            future = executor.submit(_task_cpy)
-            futures.append(future)
+    for rel_file in src_relative:
+        src_file = src / rel_file
+        dst_file = dst / rel_file
+        # Submit file for line ending conversion and copying (worker handles everything)
+        future = get_line_ending_pool().convert_file_line_endings_async(
+            src_file, dst_file
+        )
+        line_ending_futures[rel_file] = future
 
-    exceptions = []
+    # Wait for all line ending conversions and file operations to complete
+    print(
+        f"  Processing {len(line_ending_futures)} files with line ending conversion..."
+    )
+    files_processed = 0
+    files_updated = 0
+    files_unchanged = 0
+    try:
+        for rel_file, future in line_ending_futures.items():
+            try:
+                result = future.result()
+                files_processed += 1
 
-    for future in futures:
-        try:
-            result = future.result()
-            if result is not None:
-                out_changed_files.append(result)
-        except Exception as e:
-            logger.error(f"Error copying file: {e}")
-            exceptions.append(e)
+                if isinstance(result, Exception):
+                    # Error occurred, log it but continue
+                    logger.error(f"Error processing {rel_file}: {result}")
+                elif isinstance(result, bool):
+                    if result:
+                        # File was different and updated
+                        dst_file = dst / rel_file
+                        changed_files.append(dst_file)
+                        files_updated += 1
+                        print(f"  Updated: {rel_file}")
+                    else:
+                        # Files were same, no action needed
+                        files_unchanged += 1
+                else:
+                    logger.warning(
+                        f"Unexpected result type for {rel_file}: {type(result)}"
+                    )
 
-    # Now do removal
-    futures.clear()
-    with ThreadPoolExecutor(max_workers=32) as executor:
-        for file in files_to_delete_on_dst:
-            file_dst = dst / file
+            except Exception as e:
+                logger.error(f"Exception getting result for {rel_file}: {e}")
 
-            def task_remove_missing_from_dst(file_dst=file_dst) -> bool:
-                if not dryrun:
-                    assert file_dst.is_file(), f"File {file_dst} does not exist"
-                    file_dst.unlink()
-                return True
+        # Log summary of processing results
+        print(
+            f"  Summary: {files_processed} files processed, {files_updated} updated, {files_unchanged} unchanged"
+        )
+        if files_updated == 0:
+            print(
+                "  No files were updated - libfastled recompilation will be suppressed if libraries exist"
+            )
 
-            future = executor.submit(task_remove_missing_from_dst)
-            futures.append(future)
+    except KeyboardInterrupt:
+        logger.info(
+            "Received KeyboardInterrupt during line ending conversion, shutting down gracefully..."
+        )
+        # Cancel remaining futures
+        for remaining_file, remaining_future in line_ending_futures.items():
+            if not remaining_future.done():
+                remaining_future.cancel()
+        # Shutdown the process pool
+        # The line_ending_pool is now a global singleton, no explicit shutdown needed here
+        # _line_ending_pool.shutdown()
+        # Re-raise the KeyboardInterrupt for the caller to handle
+        raise
 
-    out_changed_files += files_to_delete_on_dst
+    # The old file processing logic is no longer needed since workers handle everything
+    # Just need to handle file deletions now
 
-    for future in futures:
-        try:
-            future.result()
-        except Exception as e:
-            # logger.error(f"Error deleting file: {e}")
-            # raise e
-            exceptions.append(e)
-    if exceptions:
-        logger.error(f"Errors deleting files: {exceptions}")
-        raise Exception(f"Errors deleting files: {exceptions}")
+    # Delete obsolete files in parallel
+    try:
+        with ThreadPoolExecutor(max_workers=32) as executor:
+            deletion_futures: list[Future] = []
 
-    return out_changed_files
+            for rel_file in files_to_delete:
+                dst_file = dst / rel_file
+
+                def task_remove(file_dst=dst_file) -> bool:
+                    if not dryrun:
+                        if file_dst.exists():
+                            file_dst.unlink()
+                    return True
+
+                future = executor.submit(task_remove)
+                deletion_futures.append(future)
+
+            # Wait for deletions to complete
+            for future in deletion_futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    logger.error(f"Error deleting file: {e}")
+
+    except KeyboardInterrupt:
+        logger.info(
+            "Received KeyboardInterrupt during file deletion, shutting down gracefully..."
+        )
+        # The ThreadPoolExecutor context manager will handle cleanup
+        raise
+
+    # Add deleted files to changed list
+    changed_files.extend([dst / f for f in files_to_delete])
+
+    return changed_files
 
 
 def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
+    """Sync FastLED examples directory."""
     if src.exists():
-        changed = _sync_subdir(src, dst, _FILTER_EXAMPLES, dryrun)
-        return changed
+        return _sync_directory(src, dst, dryrun)
     return []
 
 
 def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
-    changed_src = _sync_subdir(src, dst, _FILTER_SRC, dryrun)
-    changed_wasm = _sync_subdir(
-        src / "platforms" / "wasm",
-        dst / "platforms" / "wasm",
-        _FILTER_INCLUDE_ALL,
-        dryrun=dryrun,
-    )
-    changed_stub = _sync_subdir(
-        src / "platforms" / "stub",
-        dst / "platforms" / "stub",
-        _FILTER_INCLUDE_ALL,
-        dryrun=dryrun,
-    )
-    # Only sync shared directory if it exists in the source
-    changed_platform_shared = []
-    shared_src = src / "platforms" / "shared"
-    if shared_src.exists() and shared_src.is_dir():
-        changed_platform_shared = _sync_subdir(
-            shared_src,
-            dst / "platforms" / "shared",
-            _FILTER_INCLUDE_ALL,
-            dryrun=dryrun,
-        )
-    changed_platform_root_files = _sync_subdir(
-        src / "platforms",
-        dst / "platforms",
-        _FILTER_INCLUDE_ONLY_ROOT_FILES,
-        dryrun=dryrun,
-    )
-    if changed_src:
-        print(f"Changed src files: {changed_src}")
-    if changed_platform_shared:
-        print(f"Changed platform shared files: {changed_platform_shared}")
-    if changed_wasm:
-        print(f"Changed wasm files: {changed_wasm}")
-    if changed_stub:
-        print(f"Changed stub files: {changed_stub}")
-    if changed_platform_root_files:
-        print(f"Changed platform root files: {changed_platform_root_files}")
-    files_changed = (
-        changed_src
-        + changed_platform_shared
-        + changed_wasm
-        + changed_stub
-        + changed_platform_root_files
-    )
-    return files_changed
+    """Sync FastLED source directory - now simplified to sync entire src with extension filtering."""
+    print(f"Syncing FastLED source from {src} to {dst}")
+    changed_files = _sync_directory(src, dst, dryrun)
+
+    if changed_files:
+        print(f"Changed files: {len(changed_files)}")
+        for changed_file in changed_files[:10]:  # Show first 10 for brevity
+            print(f"  {changed_file}")
+        if len(changed_files) > 10:
+            print(f"  ... and {len(changed_files) - 10} more files")
+
+    return changed_files
 
 
 def sync_fastled(
     src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
 ) -> list[Path]:
-    """Sync the source directory to the destination directory."""
+    """Sync the source directory to the destination directory using fast Unix tools."""
     start = time.time()
-    # assert (src / "FastLED.h").exists(), f"Source {src} does not contain FastLED.h"
+
     if not dst.exists():
         dst.mkdir(parents=True, exist_ok=True)
+
+    # Sync the main source directory
     changed = _sync_fastled_src(src, dst, dryrun=dryrun)
 
+    # Sync examples if requested
     if sync_examples:
         src_examples = src.parent / "examples"
         dst_examples = dst.parent / "examples"
@@ -341,14 +348,14 @@ def sync_fastled(
             if src_examples.exists():
                 _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
             else:
-                # examples_blink = src / "Blink"
+                # Check for Blink example
                 src_examples_blink = src / "Blink"
                 dst_examples_blink = dst / "Blink"
                 if src_examples_blink.exists():
                     _sync_fastled_examples(
                         src_examples_blink, dst_examples_blink, dryrun=dryrun
                     )
-    print(
-        f"Syncing (dryrun) from {src} to {dst} complete in {time.time() - start:.2f} seconds"
-    )
+
+    elapsed = time.time() - start
+    print(f"Fast sync from {src} to {dst} complete in {elapsed:.2f} seconds")
     return changed

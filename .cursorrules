@@ -1,16 +1,43 @@
 # Cursor Rules for FastLED WASM Compiler
 
 This project is designed to run with `uv run` instead of `python`.
+- Don't use `python` to run, you will get errors related to missing modules, this is normal.
+- ALWAYS USE `uv run`
+- If you need to do inlined scripts use `uv run python -c` instead of `python -c`
 
 ## Running Commands
 - Use `uv run` instead of `python` for executing Python scripts
 - Use `uv run -m` instead of `python -m` for running modules
 - Example: `uv run fastled-wasm-compiler` instead of `python -m fastled_wasm_compiler`
 
+## Style
+- Always define return types for the functions you write.
+- Always add types to the variables that you use.
+- Instead of tuples, prefer @dataclass with slots for efficiency
+- Globals at the top
+- Don't use forward declared types unless absolutely necessary.
+- No bare excepptions
+- Always handle keyboard interrupts in threads and processes
+  - When getting a KeyboardInterrupt in a thread, import _thread and call interrupt_main() in addition to other work.
+- Don't use legacy types
+  - BAD: Optional[T]
+  - GOOD: T | None
+  - BAD: Union[T,U]
+  - GOOD: T | U
+  
+
 ## Testing
+- Use `bash lint` often, this is cheap to run and will catch type errors.
 - Run unit tests with `bash test` (as specified in user rules)
+- Always prefer `bash test --unit-only` to `bash test` because it goes very fast.
+  - Only use `bash test` to test things in the docker file that can't be put into a unit test
+  - Or only use `bash test` at the end of the testing session since that gives live updates.
 
 ## Dependencies
 - This project uses `uv` for dependency management
 - The `uv.lock` file contains the locked dependencies
 - Use `uv add` to add new dependencies instead of `pip install` 
+
+## Bugs
+- On windows git-bash will often swallow the first character, giving errors
+- Prepend all commands with an extra space at the beginning so that swollowed character doesn't affect the command you are trying to run.
