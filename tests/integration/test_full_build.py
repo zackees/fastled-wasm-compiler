@@ -810,6 +810,155 @@ class FullBuildTester(unittest.TestCase):
         if no_platformio_mapped.exists():
             shutil.rmtree(no_platformio_mapped)
 
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_precompiled_headers_in_quick_mode(self) -> None:
+        """Test that precompiled headers are generated and used in quick mode only."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-pch-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        def run_compilation_and_check_pch(mode: str, expect_pch: bool) -> str:
+            """Run compilation in specified mode and return captured output."""
+            # Create a separate mapped directory for this test
+            mapped_test_dir = MAPPED_DIR.parent / f"mapped_pch_{mode}"
+            if mapped_test_dir.exists():
+                shutil.rmtree(mapped_test_dir)
+
+            # Copy the original mapped directory structure
+            shutil.copytree(MAPPED_DIR, mapped_test_dir)
+
+            # Clear any existing output
+            output_dir = mapped_test_dir / "sketch" / "fastled_js"
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+
+            cmd_list: list[str] = [
+                "docker",
+                "run",
+                "--name",
+                "fastled-pch-container",
+                # Mount the test data directories
+                "-v",
+                f"{mapped_test_dir.absolute()}:/mapped",
+                "-v",
+                f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+                "-v",
+                f"{ASSETS_DIR.absolute()}:/assets",
+                IMAGE_NAME,
+                # Required arguments
+                "--compiler-root",
+                CONTAINER_JS_ROOT,
+                "--assets-dirs",
+                "/assets",
+                "--mapped-dir",
+                "/mapped",
+                # Mode-specific arguments
+                f"--{mode}",
+                "--no-platformio",  # Use direct emcc calls to see PCH messages
+                "--keep-files",  # Keep intermediate files for verification
+            ]
+
+            print(f"\nCompiling sketch in {mode} mode to test PCH behavior...")
+
+            compile_proc = subprocess.Popen(
+                cmd_list,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            assert compile_proc.stdout is not None
+
+            # Capture all output for analysis
+            output_lines = []
+            for line in compile_proc.stdout:
+                line_str = line.decode("utf-8", errors="replace").strip()
+                print(line_str)
+                output_lines.append(line_str)
+
+            compile_proc.wait()
+            compile_proc.stdout.close()
+            compile_proc.terminate()
+
+            # Clean up the container
+            subprocess.run(
+                ["docker", "rm", "-f", "fastled-pch-container"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            # Check if compilation was successful
+            self.assertEqual(
+                compile_proc.returncode, 0, f"{mode} mode compilation failed"
+            )
+
+            # Clean up test directory
+            if mapped_test_dir.exists():
+                shutil.rmtree(mapped_test_dir)
+
+            return "\n".join(output_lines)
+
+        # Test quick mode - should use PCH
+        print("\n=== Testing PCH in QUICK mode ===")
+        quick_output = run_compilation_and_check_pch("quick", expect_pch=True)
+
+        # Verify PCH optimization messages are present in quick mode
+        pch_optimization_applied = any(
+            "PCH OPTIMIZATION APPLIED" in line for line in quick_output.split("\n")
+        )
+        pch_precompiled_header_used = any(
+            "Using precompiled header" in line for line in quick_output.split("\n")
+        )
+        pch_faster_compilation = any(
+            "Compilation should be faster" in line for line in quick_output.split("\n")
+        )
+
+        self.assertTrue(
+            pch_optimization_applied,
+            "PCH optimization should be applied in quick mode, but 'PCH OPTIMIZATION APPLIED' message not found in output",
+        )
+        self.assertTrue(
+            pch_precompiled_header_used,
+            "Precompiled header should be used in quick mode, but 'Using precompiled header' message not found in output",
+        )
+        self.assertTrue(
+            pch_faster_compilation,
+            "PCH should indicate faster compilation in quick mode, but 'Compilation should be faster' message not found in output",
+        )
+
+        # Test debug mode - should NOT use PCH
+        print("\n=== Testing PCH in DEBUG mode ===")
+        debug_output = run_compilation_and_check_pch("debug", expect_pch=False)
+
+        # Verify PCH is disabled in debug mode
+        pch_disabled_message = any(
+            "PCH OPTIMIZATION DISABLED" in line
+            and "only available in QUICK mode" in line
+            for line in debug_output.split("\n")
+        )
+
+        self.assertTrue(
+            pch_disabled_message,
+            "PCH should be disabled in debug mode, but 'PCH OPTIMIZATION DISABLED: only available in QUICK mode' message not found in output",
+        )
+
+        # Ensure no PCH optimization messages in debug mode
+        pch_optimization_applied_debug = any(
+            "PCH OPTIMIZATION APPLIED" in line for line in debug_output.split("\n")
+        )
+        self.assertFalse(
+            pch_optimization_applied_debug,
+            "PCH optimization should NOT be applied in debug mode, but 'PCH OPTIMIZATION APPLIED' message found in output",
+        )
+
+        print("\n✅ Precompiled headers test PASSED!")
+        print("   - PCH optimization works correctly in QUICK mode")
+        print("   - PCH optimization is properly disabled in DEBUG mode")
+        print("   - Appropriate user feedback messages are displayed")
+
 
 if __name__ == "__main__":
     unittest.main()
