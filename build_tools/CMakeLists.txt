@@ -66,6 +66,13 @@ else()
   message(STATUS "NO_THIN_LTO=0: Thin LTO enabled")
 endif()
 
+# ——— FASTLED_ALL_SRC (Unified Compilation) ——————————————————————
+# Always build in unified compilation mode.
+message(STATUS "FASTLED_ALL_SRC enabled: using unified compilation for FastLED")
+set(FASTLED_ALL_SRC 1 CACHE BOOL "Enable unified FastLED compilation" FORCE)
+# Ensure all translation units see the definition
+add_compile_definitions(FASTLED_ALL_SRC=1)
+
 # ——— 5) Compiler Flags ——————————————————————————————————————————
 set(SHARED_FLAGS
   ${LINKER_FLAGS}  # Add linker flags to all builds
