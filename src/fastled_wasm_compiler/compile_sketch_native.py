@@ -109,7 +109,7 @@ class NativeCompilerImpl:
             "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
             "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
             "-sFILESYSTEM=0",
-            "-Wl,--whole-archive",
+            "-Wl,--gc-sections",
             "--source-map-base=http://localhost:8000/",
         ]
 
