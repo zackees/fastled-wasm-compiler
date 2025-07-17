@@ -100,26 +100,23 @@ set(CXX_ONLY_FLAGS
 if(BUILD_MODE STREQUAL "DEBUG")
   list(APPEND SHARED_FLAGS
     -g3
-    -O0
-    -fno-inline
-    -fno-strict-aliasing
-    -fno-inline-functions
-    -fno-unroll-loops
-    -fno-vectorize
+    -gsource-map
+    -ffile-prefix-map=/=sketchsource/
     -fsanitize=address
     -fsanitize=undefined
-    -gsource-map
-    -ffile-prefix-map=/=dwarfsource/
-
+    -fno-inline
+    -O0
   )
 elseif(BUILD_MODE STREQUAL "QUICK")
   list(APPEND SHARED_FLAGS
-    -O1
-    -fno-inline
-    -fno-strict-aliasing
+    -flto=thin
+    -O0
+    -sASSERTIONS=0
+    -g0
     -fno-inline-functions
-    -fno-unroll-loops
     -fno-vectorize
+    -fno-unroll-loops
+    -fno-strict-aliasing
   )
 else()  # RELEASE
   list(APPEND SHARED_FLAGS
@@ -142,7 +139,7 @@ set(ABS_BUILD_OUTPUT_DIR "${BUILD_ROOT_BASE}/${BUILD_MODE_LOWER}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${ABS_BUILD_OUTPUT_DIR}" CACHE PATH "" FORCE)
 message(STATUS "Archive output directory: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
 
-# ——— 7) Add FastLED Library ———————————————————————————————————————
+# ——— 7) Precompiled Headers ———————————————————————————————————————
 # Use environment variable for FastLED source directory with fallback
 if(DEFINED ENV{ENV_FASTLED_SOURCE_PATH})
   set(FASTLED_SOURCE_DIR $ENV{ENV_FASTLED_SOURCE_PATH})
@@ -152,9 +149,56 @@ else()
   set(FASTLED_SOURCE_DIR "/git/fastled/src")
 endif()
 message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
+
+# Create precompiled header for Arduino.h and FastLED.h
+set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+
+# Create the precompiled header source file
+file(WRITE ${PCH_HEADER} 
+"#pragma once
+// Precompiled header for FastLED WASM compilation
+// This includes the most commonly used headers to speed up compilation
+
+#include <Arduino.h>
+#include <FastLED.h>
+")
+
+message(STATUS "Creating precompiled header: ${PCH_HEADER}")
+message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
+
+# Create PCH-specific flags (exclude -emit-llvm which doesn't work with precompiled headers)
+set(PCH_FLAGS ${SHARED_FLAGS})
+list(REMOVE_ITEM PCH_FLAGS "-emit-llvm")
+
+# Build the precompiled header using emcc with modified flags
+add_custom_command(
+  OUTPUT ${PCH_OUTPUT}
+  COMMAND ${CMAKE_CXX_COMPILER} 
+          ${PCH_FLAGS} 
+          ${CXX_ONLY_FLAGS}
+          -I${FASTLED_SOURCE_DIR}
+          -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler
+          -I.
+          -Isrc
+          -x c++-header 
+          ${PCH_HEADER} 
+          -o ${PCH_OUTPUT}
+  DEPENDS ${PCH_HEADER}
+  COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with matching optimization"
+  VERBATIM
+)
+
+# Create a target for the precompiled header
+add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
+
+# ——— 8) Add FastLED Library ———————————————————————————————————————
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
 
-# ——— 8) Control Library Name Based on NO_THIN_LTO ——————————————————————
+# Make FastLED library depend on precompiled header
+add_dependencies(fastled fastled_pch)
+
+# ——— 9) Control Library Name Based on NO_THIN_LTO ——————————————————————
 if(DEFINED ENV{NO_THIN_LTO} AND "$ENV{NO_THIN_LTO}" STREQUAL "1")
   message(STATUS "NO_THIN_LTO=1: Building libfastled.a")
   set_target_properties(fastled PROPERTIES OUTPUT_NAME "fastled")

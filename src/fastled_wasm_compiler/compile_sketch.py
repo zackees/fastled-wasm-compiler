@@ -7,11 +7,12 @@ which is faster and more reliable than using platformio for WASM compilation.
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 
@@ -136,6 +137,92 @@ DEBUG_LINK_FLAGS = [
 LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
 
 
+def analyze_source_for_pch_usage(src_file: Path) -> Tuple[bool, bool]:
+    """
+    Analyze a source file to determine if we can use precompiled headers.
+    If we can use PCH and headers need to be removed, modifies the file in place.
+
+    Returns:
+        (can_use_pch, headers_removed):
+        - can_use_pch: True if we can inject PCH (no defines before FastLED.h)
+        - headers_removed: True if FastLED.h/Arduino.h includes were removed from the file
+    """
+    try:
+        with open(src_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print(f"Warning: Could not read {src_file}: {e}")
+        return False, False
+
+    lines = content.splitlines()
+
+    # Track what we find
+    fastled_include_line = None
+    arduino_include_line = None
+    has_defines_before_fastled = False
+
+    # Scan through the file line by line
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
+            continue
+
+        # Check for FastLED.h include
+        if re.match(r'^\s*#\s*include\s*[<"]FastLED\.h[>"]', line):
+            fastled_include_line = i
+            break  # Found FastLED.h, stop scanning
+
+        # Check for Arduino.h include
+        if re.match(r'^\s*#\s*include\s*[<"]Arduino\.h[>"]', line):
+            arduino_include_line = i
+            continue
+
+        # Check for #define statements
+        if re.match(r"^\s*#\s*define\s+", line):
+            has_defines_before_fastled = True
+            continue
+
+        # Check for other preprocessor directives that might affect compilation
+        if re.match(r"^\s*#\s*(ifdef|ifndef|if|pragma)", line):
+            has_defines_before_fastled = True
+            continue
+
+    # If no FastLED.h found, we can't use PCH
+    if fastled_include_line is None:
+        return False, False
+
+    # If there are defines before FastLED.h, we can't safely use PCH
+    if has_defines_before_fastled:
+        return False, False
+
+    # We can use PCH! Check if we need to remove headers
+    headers_to_remove = []
+    if fastled_include_line is not None:
+        headers_to_remove.append(fastled_include_line)
+    if arduino_include_line is not None:
+        headers_to_remove.append(arduino_include_line)
+
+    if not headers_to_remove:
+        # Can use PCH but no headers to remove
+        return True, False
+
+    # Remove headers (in reverse order to maintain line numbers)
+    modified_lines = lines.copy()
+    for line_num in sorted(headers_to_remove, reverse=True):
+        del modified_lines[line_num]
+
+    # Write the modified content back to the file
+    try:
+        with open(src_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(modified_lines))
+        return True, True
+    except Exception as e:
+        print(f"Warning: Could not modify {src_file}: {e}")
+        return False, False
+
+
 def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
@@ -163,6 +250,43 @@ def compile_cpp_to_obj(
     output_lines.append(
         f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
     )
+
+    # Analyze source file for intelligent PCH usage
+    pch_file = build_dir / "fastled_pch.h"
+
+    if pch_file.exists():
+        can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
+
+        if can_use_pch:
+            # Use PCH
+            flags.extend(["-include", str(pch_file)])
+            output_lines.append(
+                f"    🚀 PCH OPTIMIZATION APPLIED: Using precompiled header {pch_file.name}"
+            )
+
+            if headers_removed:
+                output_lines.append(
+                    "    ✂️  PCH OPTIMIZATION: Removed FastLED.h/Arduino.h includes from source"
+                )
+
+            output_lines.append(
+                "    ⚡ PCH OPTIMIZATION: Compilation should be faster!"
+            )
+        else:
+            # Cannot use PCH due to defines before FastLED.h
+            output_lines.append(
+                "    ⚠️  PCH OPTIMIZATION SKIPPED: defines found before FastLED.h include"
+            )
+            output_lines.append(
+                "    💡 PCH TIP: Move #define statements after #include <FastLED.h> for faster builds"
+            )
+    else:
+        output_lines.append(
+            f"    ⚠️  PCH OPTIMIZATION UNAVAILABLE: Precompiled header not found at {pch_file}"
+        )
+        output_lines.append(
+            "    💡 PCH TIP: Build the FastLED library first to generate precompiled headers"
+        )
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
     cmd: list[str] = []
