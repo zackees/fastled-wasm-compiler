@@ -9,7 +9,7 @@ from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
 
-_PIO_VERBOSE = True
+_PIO_VERBOSE = False
 
 
 def _pio_compile_cmd_list(
