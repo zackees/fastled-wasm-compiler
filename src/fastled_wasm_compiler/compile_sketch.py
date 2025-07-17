@@ -25,42 +25,16 @@ from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 # captured output and return-code just like they did with `subprocess.run`.
 
 
-def _run_cmd_and_stream(
-    cmd: List[str], *, prefix: str = ""
-) -> subprocess.CompletedProcess:
-    """Run *cmd* streaming merged stdout/stderr line-by-line.
+def _run_cmd_and_stream(cmd: List[str]) -> subprocess.CompletedProcess:
+    """Run command and return the completed process.
 
     Args:
         cmd: Command split into a list suitable for *subprocess*.
-        prefix: String printed in front of every streamed line (e.g. "[emcc] ").
 
     Returns:
-        A subprocess.CompletedProcess with aggregated stdout and the process' exit code.
+        A subprocess.CompletedProcess with stdout and the process' exit code.
     """
-
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,  # Merge stderr into stdout for proper ordering
-        text=True,
-        bufsize=1,  # Line-buffered to ensure near real-time streaming
-        universal_newlines=True,
-    )
-
-    captured_lines: List[str] = []
-
-    try:
-        assert proc.stdout is not None  # For mypy / static checkers
-        for line in proc.stdout:
-            # Strip trailing newline to avoid double spacing
-            print(f"{prefix}{line.rstrip()}", flush=True)
-            captured_lines.append(line)
-    finally:
-        if proc.stdout:
-            proc.stdout.close()
-
-    returncode = proc.wait()
-    return subprocess.CompletedProcess(cmd, returncode, "".join(captured_lines), None)
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 
 # Use environment-variable driven FastLED source path
@@ -157,6 +131,7 @@ DEBUG_LINK_FLAGS = [
     "-sASSERTIONS=1",
 ]
 
+
 # Default to debug link flags
 LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
 
@@ -164,7 +139,7 @@ LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
 def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
-) -> tuple[subprocess.CompletedProcess, Path]:
+) -> tuple[subprocess.CompletedProcess, Path, str]:
     build_dir = BUILD_ROOT / build_mode.lower()
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
@@ -182,8 +157,10 @@ def compile_cpp_to_obj(
         mode_flags = ["-Oz"]
         flags += ["-Oz"]
 
-    print(f"    📄 {src_file.name} → {obj_file.name}")
-    print(
+    # Build output messages for later display
+    output_lines = []
+    output_lines.append(f"    📄 {src_file.name} → {obj_file.name}")
+    output_lines.append(
         f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
     )
 
@@ -196,19 +173,29 @@ def compile_cpp_to_obj(
     cmd.extend(flags)
     cmd.append(str(src_file))
 
-    print("    🔨 Compiling with command:")
-    print(f"    {subprocess.list2cmdline(cmd)}")
-    print("    📤 Compiler output:")
+    output_lines.append("    🔨 Compiling with command:")
+    output_lines.append(f"    {subprocess.list2cmdline(cmd)}")
+    output_lines.append("    📤 Compiler output:")
 
-    # Stream compiler output line-by-line
-    cp = _run_cmd_and_stream(cmd, prefix="    [emcc] ")
+    # Run compilation and capture output
+    cp = _run_cmd_and_stream(cmd)
+
+    # Add compiler output to our captured lines
+    if cp.stdout:
+        for line in cp.stdout.splitlines():
+            output_lines.append(f"    [emcc] {line}")
+    if cp.stderr:
+        for line in cp.stderr.splitlines():
+            output_lines.append(f"    [emcc] {line}")
 
     if cp.returncode == 0:
-        print(f"    ✅ Successfully compiled {src_file.name}")
+        output_lines.append(f"    ✅ Successfully compiled {src_file.name}")
     else:
-        print(f"    ❌ Failed to compile {src_file.name} (exit code: {cp.returncode})")
+        output_lines.append(
+            f"    ❌ Failed to compile {src_file.name} (exit code: {cp.returncode})"
+        )
 
-    return (cp, obj_file)
+    return (cp, obj_file, "\n".join(output_lines))
 
 
 def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
@@ -297,7 +284,14 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
                 completed_count += 1
 
                 try:
-                    cp, obj_file = future.result()
+                    cp, obj_file, output = future.result()
+
+                    # Print the captured output from this compilation
+                    print(
+                        f"\n  📝 [{completed_count}/{len(sources)}] Compilation details for {src_file.name}:"
+                    )
+                    print(output)
+
                     if cp.returncode != 0:
                         print(f"❌ Error compiling {src_file}:")
                         # Cancel all remaining futures
@@ -392,8 +386,8 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     print(f"📤 Output WebAssembly: {output_wasm}")
     print("📤 Linker output:")
 
-    # Stream linker output line-by-line
-    cp = _run_cmd_and_stream(cmd_link, prefix="[linker] ")
+    # Run linker and capture output
+    cp = _run_cmd_and_stream(cmd_link)
 
     if cp.returncode != 0:
         print(f"❌ Error linking {output_js}:")
