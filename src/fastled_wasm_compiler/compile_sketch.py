@@ -48,8 +48,6 @@ BASE_CXX_FLAGS = [
     "-Isrc",
     f"-I{FASTLED_SRC_STR}",
     f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
-    # Add verbose flags for --no-platformio builds
-    "-v",  # Verbose compilation output
 ]
 
 # Debug flags from platformio.ini [env:wasm-debug]
@@ -98,9 +96,6 @@ BASE_LINK_FLAGS = [
     "-sFILESYSTEM=0",
     "-Wl,--whole-archive",
     "--source-map-base=http://localhost:8000/",
-    # Add verbose flags for --no-platformio builds
-    "-v",  # Verbose linking output
-    "-Wl,--verbose",  # Verbose linker output
 ]
 
 # Debug link flags
