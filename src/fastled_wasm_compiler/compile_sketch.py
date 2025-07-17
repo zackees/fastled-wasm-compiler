@@ -10,8 +10,57 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import List
 
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
+
+# --------------------------------------------------------------------------------------
+# Helper function
+# --------------------------------------------------------------------------------------
+# NOTE: We want to stream compiler/linker output _as it happens_ instead of buffering the
+# entire output and printing it afterwards.  This helper runs the given command with
+# `subprocess.Popen`, merges stdout/stderr, prints each line immediately (prefixed for
+# context), then returns a `subprocess.CompletedProcess` so callers can still inspect the
+# captured output and return-code just like they did with `subprocess.run`.
+
+
+def _run_cmd_and_stream(
+    cmd: List[str], *, prefix: str = ""
+) -> subprocess.CompletedProcess:
+    """Run *cmd* streaming merged stdout/stderr line-by-line.
+
+    Args:
+        cmd: Command split into a list suitable for *subprocess*.
+        prefix: String printed in front of every streamed line (e.g. "[emcc] ").
+
+    Returns:
+        A subprocess.CompletedProcess with aggregated stdout and the process' exit code.
+    """
+
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # Merge stderr into stdout for proper ordering
+        text=True,
+        bufsize=1,  # Line-buffered to ensure near real-time streaming
+        universal_newlines=True,
+    )
+
+    captured_lines: List[str] = []
+
+    try:
+        assert proc.stdout is not None  # For mypy / static checkers
+        for line in proc.stdout:
+            # Strip trailing newline to avoid double spacing
+            print(f"{prefix}{line.rstrip()}", flush=True)
+            captured_lines.append(line)
+    finally:
+        if proc.stdout:
+            proc.stdout.close()
+
+    returncode = proc.wait()
+    return subprocess.CompletedProcess(cmd, returncode, "".join(captured_lines), None)
+
 
 # Use environment-variable driven FastLED source path
 # In Docker container, this should be set to "/git/fastled/src"
@@ -119,7 +168,8 @@ def compile_cpp_to_obj(
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
 
-    flags = CXX_FLAGS
+    # Work on a copy so we don't mutate shared global defaults
+    flags = list(CXX_FLAGS)
     mode_flags = []
     if build_mode.lower() == "debug":
         mode_flags = DEBUG_CXX_FLAGS
@@ -149,21 +199,8 @@ def compile_cpp_to_obj(
     print(f"    {subprocess.list2cmdline(cmd)}")
     print("    📤 Compiler output:")
 
-    # Use real-time output instead of capture_output=True for verbose builds
-    cp = subprocess.run(
-        cmd,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,  # Merge stderr into stdout
-        bufsize=1,
-        universal_newlines=True,
-    )
-
-    # Print the output in real-time style
-    if cp.stdout:
-        for line in cp.stdout.splitlines():
-            print(f"    [emcc] {line}")
+    # Stream compiler output line-by-line
+    cp = _run_cmd_and_stream(cmd, prefix="    [emcc] ")
 
     if cp.returncode == 0:
         print(f"    ✅ Successfully compiled {src_file.name}")
@@ -311,21 +348,8 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     print(f"📤 Output WebAssembly: {output_wasm}")
     print("📤 Linker output:")
 
-    # Use real-time output for linking as well
-    cp = subprocess.run(
-        cmd_link,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,  # Merge stderr into stdout
-        bufsize=1,
-        universal_newlines=True,
-    )
-
-    # Print the linker output in real-time style
-    if cp.stdout:
-        for line in cp.stdout.splitlines():
-            print(f"[linker] {line}")
+    # Stream linker output line-by-line
+    cp = _run_cmd_and_stream(cmd_link, prefix="[linker] ")
 
     if cp.returncode != 0:
         print(f"❌ Error linking {output_js}:")
