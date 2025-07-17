@@ -934,34 +934,30 @@ class FullBuildTester(unittest.TestCase):
             "PCH should indicate faster compilation in quick mode, but 'Compilation should be faster' message not found in output",
         )
 
-        # Test debug mode - should NOT use PCH
+        # Test debug mode - should also use PCH now
         print("\n=== Testing PCH in DEBUG mode ===")
-        debug_output = run_compilation_and_check_pch("debug", expect_pch=False)
+        debug_output = run_compilation_and_check_pch("debug", expect_pch=True)
 
-        # Verify PCH is disabled in debug mode
-        pch_disabled_message = any(
-            "PCH OPTIMIZATION DISABLED" in line
-            and "only available in QUICK mode" in line
-            for line in debug_output.split("\n")
-        )
-
-        self.assertTrue(
-            pch_disabled_message,
-            "PCH should be disabled in debug mode, but 'PCH OPTIMIZATION DISABLED: only available in QUICK mode' message not found in output",
-        )
-
-        # Ensure no PCH optimization messages in debug mode
+        # Verify PCH optimization messages are present in debug mode too
         pch_optimization_applied_debug = any(
             "PCH OPTIMIZATION APPLIED" in line for line in debug_output.split("\n")
         )
-        self.assertFalse(
+        pch_precompiled_header_used_debug = any(
+            "Using precompiled header" in line for line in debug_output.split("\n")
+        )
+
+        self.assertTrue(
             pch_optimization_applied_debug,
-            "PCH optimization should NOT be applied in debug mode, but 'PCH OPTIMIZATION APPLIED' message found in output",
+            "PCH optimization should be applied in debug mode, but 'PCH OPTIMIZATION APPLIED' message not found in output",
+        )
+        self.assertTrue(
+            pch_precompiled_header_used_debug,
+            "Precompiled header should be used in debug mode, but 'Using precompiled header' message not found in output",
         )
 
         print("\n✅ Precompiled headers test PASSED!")
         print("   - PCH optimization works correctly in QUICK mode")
-        print("   - PCH optimization is properly disabled in DEBUG mode")
+        print("   - PCH optimization also works correctly in DEBUG mode")
         print("   - Appropriate user feedback messages are displayed")
 
 

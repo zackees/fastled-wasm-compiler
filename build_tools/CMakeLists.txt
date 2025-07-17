@@ -150,63 +150,55 @@ else()
 endif()
 message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 
-# ——— 8) Precompiled Headers (QUICK mode only) ————————————————————————————————————
-# Only generate precompiled headers for QUICK builds for optimal compile speed
-if(BUILD_MODE STREQUAL "QUICK")
-  # Create precompiled header for Arduino.h and FastLED.h
-  set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
-  set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+# ——— 8) Precompiled Headers (all modes) ————————————————————————————————————
+# Generate precompiled headers for all build modes for faster compilation
+# Create precompiled header for Arduino.h and FastLED.h
+set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
 
-  # Create the precompiled header source file
-  file(WRITE ${PCH_HEADER} 
-  "#pragma once
-  // Precompiled header for FastLED WASM compilation (QUICK mode only)
-  // This includes the most commonly used headers to speed up compilation
+# Create the precompiled header source file
+file(WRITE ${PCH_HEADER} 
+"#pragma once
+// Precompiled header for FastLED WASM compilation
+// This includes the most commonly used headers to speed up compilation
 
-  #include <Arduino.h>
-  #include <FastLED.h>
-  ")
+#include <Arduino.h>
+#include <FastLED.h>
+")
 
-  message(STATUS "Creating precompiled header for QUICK mode: ${PCH_HEADER}")
-  message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
+message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
+message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
 
-  # Create PCH-specific flags (exclude -emit-llvm which doesn't work with precompiled headers)
-  set(PCH_FLAGS ${SHARED_FLAGS})
-  list(REMOVE_ITEM PCH_FLAGS "-emit-llvm")
+# Create PCH-specific flags (exclude -emit-llvm which doesn't work with precompiled headers)
+set(PCH_FLAGS ${SHARED_FLAGS})
+list(REMOVE_ITEM PCH_FLAGS "-emit-llvm")
 
-  # Build the precompiled header using emcc with modified flags
-  add_custom_command(
-    OUTPUT ${PCH_OUTPUT}
-    COMMAND ${CMAKE_CXX_COMPILER} 
-            ${PCH_FLAGS} 
-            ${CXX_ONLY_FLAGS}
-            -I${FASTLED_SOURCE_DIR}
-            -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler
-            -I.
-            -Isrc
-            -x c++-header 
-            ${PCH_HEADER} 
-            -o ${PCH_OUTPUT}
-    DEPENDS ${PCH_HEADER}
-    COMMENT "Building precompiled header fastled_pch.h.gch for QUICK mode with matching optimization"
-    VERBATIM
-  )
+# Build the precompiled header using emcc with modified flags
+add_custom_command(
+  OUTPUT ${PCH_OUTPUT}
+  COMMAND ${CMAKE_CXX_COMPILER} 
+          ${PCH_FLAGS} 
+          ${CXX_ONLY_FLAGS}
+          -I${FASTLED_SOURCE_DIR}
+          -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler
+          -I.
+          -Isrc
+          -x c++-header 
+          ${PCH_HEADER} 
+          -o ${PCH_OUTPUT}
+  DEPENDS ${PCH_HEADER}
+  COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with matching optimization"
+  VERBATIM
+)
 
-  # Create a target for the precompiled header
-  add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
-else()
-  # For DEBUG and RELEASE modes, create a dummy target
-  message(STATUS "Skipping precompiled headers for ${BUILD_MODE} mode")
-  add_custom_target(fastled_pch)
-endif()
+# Create a target for the precompiled header
+add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
 
 # ——— 9) Add FastLED Library ———————————————————————————————————————
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
 
-# Make FastLED library depend on precompiled header (only in QUICK mode)
-if(BUILD_MODE STREQUAL "QUICK")
-  add_dependencies(fastled fastled_pch)
-endif()
+# Make FastLED library depend on precompiled header (all modes)
+add_dependencies(fastled fastled_pch)
 
 # ——— 10) Control Library Name Based on NO_THIN_LTO ——————————————————————
 if(DEFINED ENV{NO_THIN_LTO} AND "$ENV{NO_THIN_LTO}" STREQUAL "1")

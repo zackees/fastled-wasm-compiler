@@ -15,6 +15,26 @@ from pathlib import Path
 from typing import List, Tuple
 
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
+from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
+
+# --------------------------------------------------------------------------------------
+# Timestamped printing for real-time output
+# --------------------------------------------------------------------------------------
+
+
+class TimestampedPrinter:
+    """A class that provides timestamped printing functionality."""
+
+    def __init__(self):
+        self.timestamper = StreamingTimestamper()
+
+    def tprint(self, *args, **kwargs):
+        """Print with timestamp prefix for real-time output."""
+        # Convert all arguments to a single string like print() does
+        message = " ".join(str(arg) for arg in args)
+        timestamped_message = self.timestamper.timestamp_line(message)
+        print(timestamped_message, **kwargs)
+
 
 # --------------------------------------------------------------------------------------
 # Mold daemon management
@@ -273,10 +293,10 @@ def compile_cpp_to_obj(
         f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
     )
 
-    # Analyze source file for intelligent PCH usage (only available in QUICK mode)
+    # Analyze source file for intelligent PCH usage (available in all modes)
     pch_file = build_dir / "fastled_pch.h"
 
-    if build_mode.lower() == "quick" and pch_file.exists():
+    if pch_file.exists():
         can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
 
         if can_use_pch:
@@ -302,16 +322,12 @@ def compile_cpp_to_obj(
             output_lines.append(
                 "    💡 PCH TIP: Move #define statements after #include <FastLED.h> for faster builds"
             )
-    elif build_mode.lower() == "quick":
+    else:
         output_lines.append(
             f"    ⚠️  PCH OPTIMIZATION UNAVAILABLE: Precompiled header not found at {pch_file}"
         )
         output_lines.append(
             "    💡 PCH TIP: Build the FastLED library first to generate precompiled headers"
-        )
-    else:
-        output_lines.append(
-            "    ℹ️  PCH OPTIMIZATION DISABLED: Precompiled headers only available in QUICK mode"
         )
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
@@ -349,48 +365,53 @@ def compile_cpp_to_obj(
 
 
 def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
+    # Create a timestamped printer for this compilation run
+    printer = TimestampedPrinter()
+
     # Determine output directory first
     output_dir = BUILD_ROOT / build_mode.lower()
 
-    print("\n🚀 Starting FastLED sketch compilation (no-platformio mode)")
-    print("🔊 VERBOSE MODE: Showing detailed emcc/linker output")
-    print(f"📁 Sketch directory: {sketch_dir}")
-    print(f"🔧 Build mode: {build_mode}")
-    print(f"📂 Output directory: {output_dir}")
+    printer.tprint("\n🚀 Starting FastLED sketch compilation (no-platformio mode)")
+    printer.tprint("🔊 VERBOSE MODE: Showing detailed emcc/linker output")
+    printer.tprint(f"📁 Sketch directory: {sketch_dir}")
+    printer.tprint(f"🔧 Build mode: {build_mode}")
+    printer.tprint(f"📂 Output directory: {output_dir}")
 
     # Start mold daemon for faster linking
     _start_mold_daemon()
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-    print(f"✓ Output directory prepared: {output_dir}")
+    printer.tprint(f"✓ Output directory prepared: {output_dir}")
 
     # Add separate dwarf file for debug mode
     if build_mode.lower() == "debug":
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
-        print(f"🐛 Debug mode: DWARF debug info will be generated at {dwarf_file}")
+        printer.tprint(
+            f"🐛 Debug mode: DWARF debug info will be generated at {dwarf_file}"
+        )
 
     # Gather all .cpp and .ino files in sketch dir
     sources = list(sketch_dir.glob("*.cpp")) + list(sketch_dir.glob("*.ino"))
     if not sources:
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
-    print("\n📋 Source file discovery:")
-    print(f"✓ Found {len(sources)} source file(s):")
+    printer.tprint("\n📋 Source file discovery:")
+    printer.tprint(f"✓ Found {len(sources)} source file(s):")
     for i, src in enumerate(sources, 1):
-        print(f"  {i}. {src.name} ({src.stat().st_size} bytes)")
+        printer.tprint(f"  {i}. {src.name} ({src.stat().st_size} bytes)")
 
     # Now print out the entire build flags group:
-    print("\n🔧 Compilation configuration:")
-    print("📋 CXX_FLAGS:")
+    printer.tprint("\n🔧 Compilation configuration:")
+    printer.tprint("📋 CXX_FLAGS:")
     for i, flag in enumerate(CXX_FLAGS):
-        print(f"  {i+1:2d}. {flag}")
-    print("\n📋 LINK_FLAGS:")
+        printer.tprint(f"  {i+1:2d}. {flag}")
+    printer.tprint("\n📋 LINK_FLAGS:")
     for i, flag in enumerate(LINK_FLAGS):
-        print(f"  {i+1:2d}. {flag}")
-    print(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
-    print(f"📋 Sketch directory: {sketch_dir}")
+        printer.tprint(f"  {i+1:2d}. {flag}")
+    printer.tprint(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
+    printer.tprint(f"📋 Sketch directory: {sketch_dir}")
 
     # Determine which FastLED library to link against - explicit choice based on NO_THIN_LTO
     no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
@@ -398,28 +419,30 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     if no_thin_lto:
         # NO_THIN_LTO=1: Explicitly use regular archives
         lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
-        print("NO_THIN_LTO=1: Using regular archive")
+        printer.tprint("NO_THIN_LTO=1: Using regular archive")
     else:
         # NO_THIN_LTO=0 or unset: Explicitly use thin archives
         lib_path = BUILD_ROOT / build_mode.lower() / "libfastled-thin.a"
-        print("NO_THIN_LTO=0: Using thin archive")
+        printer.tprint("NO_THIN_LTO=0: Using thin archive")
 
-    print(f"\n📚 FastLED library: {lib_path}")
+    printer.tprint(f"\n📚 FastLED library: {lib_path}")
 
     if not lib_path.exists():
-        print(f"⚠️  Warning: FastLED library not found at {lib_path}")
+        printer.tprint(f"⚠️  Warning: FastLED library not found at {lib_path}")
     else:
         lib_size = lib_path.stat().st_size
         archive_type = "thin" if "thin" in lib_path.name else "regular"
-        print(f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)")
+        printer.tprint(
+            f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)"
+        )
 
     obj_files: list[Path] = []
-    print(f"\n🔨 Compiling {len(sources)} source files in parallel:")
-    print("=" * 80)
+    printer.tprint(f"\n🔨 Compiling {len(sources)} source files in parallel:")
+    printer.tprint("=" * 80)
 
     # Use ThreadPoolExecutor to compile files in parallel
     max_workers = min(len(sources), os.cpu_count() or 4)  # Limit to available CPUs
-    print(f"🔧 Using {max_workers} worker threads for parallel compilation")
+    printer.tprint(f"🔧 Using {max_workers} worker threads for parallel compilation")
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all compilation tasks
@@ -440,57 +463,61 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
                     cp, obj_file, output = future.result()
 
                     # Print the captured output from this compilation
-                    print(
+                    printer.tprint(
                         f"\n  📝 [{completed_count}/{len(sources)}] Compilation details for {src_file.name}:"
                     )
-                    print(output)
+                    printer.tprint(output)
 
                     if cp.returncode != 0:
-                        print(f"❌ Error compiling {src_file}:")
+                        printer.tprint(f"❌ Error compiling {src_file}:")
                         # Cancel all remaining futures
                         for remaining_future in future_to_src:
                             if not remaining_future.done():
                                 remaining_future.cancel()
-                        print("🛑 Cancelling remaining compilation tasks...")
+                        printer.tprint("🛑 Cancelling remaining compilation tasks...")
                         return RuntimeError(
                             f"Error compiling {src_file}: Compilation failed with exit code {cp.returncode}"
                         )
                     obj_size = obj_file.stat().st_size if obj_file.exists() else 0
-                    print(
+                    printer.tprint(
                         f"  ✓ [{completed_count}/{len(sources)}] {src_file.name} → {obj_file.name} ({obj_size} bytes)"
                     )
                     obj_files.append(obj_file)
                 except Exception as e:
-                    print(f"❌ Exception during compilation of {src_file}: {e}")
+                    printer.tprint(
+                        f"❌ Exception during compilation of {src_file}: {e}"
+                    )
 
                     # Cancel all remaining futures
                     for remaining_future in future_to_src:
                         if not remaining_future.done():
                             remaining_future.cancel()
-                    print("🛑 Cancelling remaining compilation tasks...")
+                    printer.tprint("🛑 Cancelling remaining compilation tasks...")
                     return RuntimeError(
                         f"Exception during compilation of {src_file}: {e}"
                     )
         except KeyboardInterrupt:
-            print("🛑 Compilation interrupted by user, cancelling all tasks...")
+            printer.tprint(
+                "🛑 Compilation interrupted by user, cancelling all tasks..."
+            )
             # Cancel all futures on keyboard interrupt
             for future in future_to_src:
                 future.cancel()
             raise
 
-    print("-" * 80)
-    print(f"✅ All {len(sources)} source files compiled successfully")
+    printer.tprint("-" * 80)
+    printer.tprint(f"✅ All {len(sources)} source files compiled successfully")
 
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
     output_wasm = output_dir / "fastled.wasm"
 
-    print("\n🔗 Linking phase - Creating final WASM output:")
-    print("=" * 80)
-    print(f"✓ Linking {len(obj_files)} object file(s) into final output")
+    printer.tprint("\n🔗 Linking phase - Creating final WASM output:")
+    printer.tprint("=" * 80)
+    printer.tprint(f"✓ Linking {len(obj_files)} object file(s) into final output")
 
     total_obj_size = sum(obj.stat().st_size for obj in obj_files if obj.exists())
-    print(f"✓ Total object file size: {total_obj_size} bytes")
+    printer.tprint(f"✓ Total object file size: {total_obj_size} bytes")
 
     cmd_link: list[str] = []
     cmd_link.extend([CXX])
@@ -507,7 +534,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             debug_lib = BUILD_ROOT / "debug" / "libfastled-thin.a"
         cmd_link.append(str(debug_lib))
         archive_type = "regular" if no_thin_lto else "thin"
-        print(f"🐛 Linking with debug FastLED library: {debug_lib} ({archive_type})")
+        printer.tprint(
+            f"🐛 Linking with debug FastLED library: {debug_lib} ({archive_type})"
+        )
     elif build_mode.lower() == "release":
         if no_thin_lto:
             release_lib = BUILD_ROOT / "release" / "libfastled.a"
@@ -515,7 +544,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             release_lib = BUILD_ROOT / "release" / "libfastled-thin.a"
         cmd_link.append(str(release_lib))
         archive_type = "regular" if no_thin_lto else "thin"
-        print(
+        printer.tprint(
             f"🚀 Linking with release FastLED library: {release_lib} ({archive_type})"
         )
     elif build_mode.lower() == "quick":
@@ -525,7 +554,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             quick_lib = BUILD_ROOT / "quick" / "libfastled-thin.a"
         cmd_link.append(str(quick_lib))
         archive_type = "regular" if no_thin_lto else "thin"
-        print(f"⚡ Linking with quick FastLED library: {quick_lib} ({archive_type})")
+        printer.tprint(
+            f"⚡ Linking with quick FastLED library: {quick_lib} ({archive_type})"
+        )
     else:
         raise ValueError(f"Invalid build mode: {build_mode}")
     cmd_link[cmd_link.index("-o") + 1] = str(output_js)
@@ -533,50 +564,51 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         cmd_link.append(f"-gseparate-dwarf={dwarf_file}")
 
-    print("\n🔗 Linking with command:")
-    print(f"{subprocess.list2cmdline(cmd_link)}")
-    print(f"📤 Output JavaScript: {output_js}")
-    print(f"📤 Output WebAssembly: {output_wasm}")
-    print("📤 Linker output:")
+    printer.tprint("\n🔗 Linking with command:")
+    printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
+    printer.tprint(f"📤 Output JavaScript: {output_js}")
+    printer.tprint(f"📤 Output WebAssembly: {output_wasm}")
+    printer.tprint("📤 Linker output:")
 
     # Run linker and capture output
     cp = _run_cmd_and_stream(cmd_link)
 
     if cp.returncode != 0:
-        print(f"❌ Error linking {output_js}:")
-        print(f"Linker failed with exit code: {cp.returncode}")
+        printer.tprint(f"❌ Error linking {output_js}:")
+        printer.tprint(f"Linker failed with exit code: {cp.returncode}")
         return RuntimeError(
             f"Error linking {output_js}: Linking failed with exit code {cp.returncode}"
         )
     else:
-        print("✅ Linking completed successfully")
+        printer.tprint("✅ Linking completed successfully")
 
-    print("=" * 80)
+    printer.tprint("=" * 80)
 
     # Check and report output file sizes
     if output_js.exists():
         js_size = output_js.stat().st_size
-        print(f"✅ JavaScript output: {output_js} ({js_size} bytes)")
+        printer.tprint(f"✅ JavaScript output: {output_js} ({js_size} bytes)")
     else:
-        print(f"⚠️  JavaScript output not found: {output_js}")
+        printer.tprint(f"⚠️  JavaScript output not found: {output_js}")
 
     if output_wasm.exists():
         wasm_size = output_wasm.stat().st_size
-        print(f"✅ WebAssembly output: {output_wasm} ({wasm_size} bytes)")
+        printer.tprint(f"✅ WebAssembly output: {output_wasm} ({wasm_size} bytes)")
     else:
-        print(f"⚠️  WebAssembly output not found: {output_wasm}")
+        printer.tprint(f"⚠️  WebAssembly output not found: {output_wasm}")
 
     # Check for debug files in debug mode
     if build_mode.lower() == "debug":
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         if dwarf_file.exists():
             dwarf_size = dwarf_file.stat().st_size
-            print(f"🐛 Debug info: {dwarf_file} ({dwarf_size} bytes)")
+            printer.tprint(f"🐛 Debug info: {dwarf_file} ({dwarf_size} bytes)")
         else:
-            print(f"⚠️  Debug info not found: {dwarf_file}")
+            printer.tprint(f"⚠️  Debug info not found: {dwarf_file}")
 
-    print(f"\n✅ Program built at: {output_js}")
-    print("🔊 VERBOSE BUILD COMPLETED: All emcc/linker calls shown above")
+    printer.tprint(f"\n✅ Program built at: {output_js}")
+    printer.tprint("🔊 VERBOSE BUILD COMPLETED: All emcc/linker calls shown above")
+
     return None
 
 
