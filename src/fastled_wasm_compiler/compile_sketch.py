@@ -17,6 +17,28 @@ from typing import List, Tuple
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 
 # --------------------------------------------------------------------------------------
+# Mold daemon management
+# --------------------------------------------------------------------------------------
+
+
+def _start_mold_daemon() -> None:
+    """Start mold daemon if mold is the selected linker."""
+    linker = os.environ.get("LINKER", "lld")
+    if linker != "mold":
+        return
+
+    try:
+        subprocess.Popen(
+            ["mold", "--run-daemon"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print("🚀 Mold daemon started for faster linking")
+    except Exception as e:
+        print(f"⚠️  Failed to start mold daemon: {e}")
+
+
+# --------------------------------------------------------------------------------------
 # Helper function
 # --------------------------------------------------------------------------------------
 # NOTE: We want to stream compiler/linker output _as it happens_ instead of buffering the
@@ -335,6 +357,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     print(f"📁 Sketch directory: {sketch_dir}")
     print(f"🔧 Build mode: {build_mode}")
     print(f"📂 Output directory: {output_dir}")
+
+    # Start mold daemon for faster linking
+    _start_mold_daemon()
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
