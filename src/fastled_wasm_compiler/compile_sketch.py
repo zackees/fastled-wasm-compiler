@@ -9,6 +9,7 @@ import argparse
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
@@ -273,22 +274,65 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         print(f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)")
 
     obj_files: list[Path] = []
-    print(f"\n🔨 Compiling {len(sources)} source files with verbose output:")
+    print(f"\n🔨 Compiling {len(sources)} source files in parallel:")
     print("=" * 80)
-    for i, src_file in enumerate(sources, 1):
-        print(f"\n  📝 [{i}/{len(sources)}] Compiling {src_file.name}...")
-        cp: subprocess.CompletedProcess
-        obj_file: Path
-        cp, obj_file = compile_cpp_to_obj(src_file, build_mode)
-        if cp.returncode != 0:
-            print(f"❌ Error compiling {src_file}:")
-            return RuntimeError(
-                f"Error compiling {src_file}: Compilation failed with exit code {cp.returncode}"
-            )
-        obj_size = obj_file.stat().st_size if obj_file.exists() else 0
-        print(f"  ✓ {src_file.name} → {obj_file.name} ({obj_size} bytes)")
-        obj_files.append(obj_file)
-        print("-" * 60)
+
+    # Use ThreadPoolExecutor to compile files in parallel
+    max_workers = min(len(sources), os.cpu_count() or 4)  # Limit to available CPUs
+    print(f"🔧 Using {max_workers} worker threads for parallel compilation")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all compilation tasks
+        future_to_src = {
+            executor.submit(compile_cpp_to_obj, src_file, build_mode): src_file
+            for src_file in sources
+        }
+
+        # Process completed compilations as they finish
+        completed_count = 0
+
+        try:
+            for future in as_completed(future_to_src):
+                src_file = future_to_src[future]
+                completed_count += 1
+
+                try:
+                    cp, obj_file = future.result()
+                    if cp.returncode != 0:
+                        print(f"❌ Error compiling {src_file}:")
+                        # Cancel all remaining futures
+                        for remaining_future in future_to_src:
+                            if not remaining_future.done():
+                                remaining_future.cancel()
+                        print("🛑 Cancelling remaining compilation tasks...")
+                        return RuntimeError(
+                            f"Error compiling {src_file}: Compilation failed with exit code {cp.returncode}"
+                        )
+                    obj_size = obj_file.stat().st_size if obj_file.exists() else 0
+                    print(
+                        f"  ✓ [{completed_count}/{len(sources)}] {src_file.name} → {obj_file.name} ({obj_size} bytes)"
+                    )
+                    obj_files.append(obj_file)
+                except Exception as e:
+                    print(f"❌ Exception during compilation of {src_file}: {e}")
+
+                    # Cancel all remaining futures
+                    for remaining_future in future_to_src:
+                        if not remaining_future.done():
+                            remaining_future.cancel()
+                    print("🛑 Cancelling remaining compilation tasks...")
+                    return RuntimeError(
+                        f"Exception during compilation of {src_file}: {e}"
+                    )
+        except KeyboardInterrupt:
+            print("🛑 Compilation interrupted by user, cancelling all tasks...")
+            # Cancel all futures on keyboard interrupt
+            for future in future_to_src:
+                future.cancel()
+            raise
+
+    print("-" * 80)
+    print(f"✅ All {len(sources)} source files compiled successfully")
 
     # Link everything into one JS+WASM module
     output_js = output_dir / "fastled.js"
