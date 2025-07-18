@@ -58,8 +58,17 @@ class TimestampedPrinter:
         """Print with timestamp prefix for real-time output."""
         # Convert all arguments to a single string like print() does
         message = " ".join(str(arg) for arg in args)
-        timestamped_message = self.timestamper.timestamp_line(message)
-        print(timestamped_message, **kwargs)
+
+        # Check if message already has a timestamp (e.g., "0.25 Warning!" or "12.34 Something")
+        # If so, just indent it instead of adding our own timestamp
+        if re.match(r"^\s*\d+\.\d+\s", message):
+            # Message already has a timestamp, just indent it
+            indented_message = "  " + message
+            print(indented_message, **kwargs)
+        else:
+            # Normal timestamping
+            timestamped_message = self.timestamper.timestamp_line(message)
+            print(timestamped_message, **kwargs)
 
 
 # --------------------------------------------------------------------------------------
@@ -259,6 +268,9 @@ def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
 ) -> tuple[subprocess.CompletedProcess, Path, str]:
+    import time
+
+    start_time = time.time()
     build_dir = BUILD_ROOT / build_mode.lower()
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
@@ -278,14 +290,14 @@ def compile_cpp_to_obj(
     mode_flags = flags_loader.get_build_mode_flags(build_mode)
 
     # Build output messages for later display
-    output_lines = []
-    output_lines.append(f"    📄 {src_file.name} → {obj_file.name}")
-    output_lines.append(
-        f"    🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
-    )
+
+    # Track removed files for cleaner display
+    removed_files = []
 
     # Analyze source file for intelligent PCH usage (available in all modes)
     pch_file = build_dir / "fastled_pch.h"
+    can_use_pch = False
+    headers_removed = False
 
     if pch_file.exists():
         can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
@@ -293,33 +305,9 @@ def compile_cpp_to_obj(
         if can_use_pch:
             # Use PCH
             flags.extend(["-include", str(pch_file)])
-            output_lines.append(
-                f"    🚀 PCH OPTIMIZATION APPLIED: Using precompiled header {pch_file.name}"
-            )
 
             if headers_removed:
-                output_lines.append(
-                    "    ✂️  PCH OPTIMIZATION: Removed FastLED.h/Arduino.h includes from source"
-                )
-
-            output_lines.append(
-                "    ⚡ PCH OPTIMIZATION: Compilation should be faster!"
-            )
-        else:
-            # Cannot use PCH due to defines before FastLED.h
-            output_lines.append(
-                "    ⚠️  PCH OPTIMIZATION SKIPPED: defines found before FastLED.h include"
-            )
-            output_lines.append(
-                "    💡 PCH TIP: Move #define statements after #include <FastLED.h> for faster builds"
-            )
-    else:
-        output_lines.append(
-            f"    ⚠️  PCH OPTIMIZATION UNAVAILABLE: Precompiled header not found at {pch_file}"
-        )
-        output_lines.append(
-            "    💡 PCH TIP: Build the FastLED library first to generate precompiled headers"
-        )
+                removed_files.append(src_file.name)
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
     cmd: list[str] = []
@@ -330,29 +318,63 @@ def compile_cpp_to_obj(
     cmd.extend(flags)
     cmd.append(str(src_file))
 
-    output_lines.append("    🔨 Compiling with command:")
-    output_lines.append(f"    {subprocess.list2cmdline(cmd)}")
-    output_lines.append("    📤 Compiler output:")
-
     # Run compilation and capture output
     cp = _run_cmd_and_stream(cmd)
 
-    # Add compiler output to our captured lines
-    if cp.stdout:
-        for line in cp.stdout.splitlines():
-            output_lines.append(f"    [emcc] {line}")
-    if cp.stderr:
-        for line in cp.stderr.splitlines():
-            output_lines.append(f"    [emcc] {line}")
+    # Calculate timing
+    end_time = time.time()
+    duration = end_time - start_time
 
+    # Build final output in the desired order
+    final_output = []
+
+    # 1. Status line
     if cp.returncode == 0:
-        output_lines.append(f"    ✅ Successfully compiled {src_file.name}")
+        final_output.append(
+            f"✅ COMPILED: {src_file.name} → {obj_file.name} (success) in {duration:.2f} seconds"
+        )
     else:
-        output_lines.append(
-            f"    ❌ Failed to compile {src_file.name} (exit code: {cp.returncode})"
+        final_output.append(
+            f"❌ FAILED: {src_file.name} → {obj_file.name} (exit code: {cp.returncode}) in {duration:.2f} seconds"
         )
 
-    return (cp, obj_file, "\n".join(output_lines))
+    # 2. Build command
+    final_output.append("🔨 Build command:")
+    final_output.append(subprocess.list2cmdline(cmd))
+
+    # 3. Mode-specific flags
+    final_output.append(
+        f"🔧 Mode-specific flags: {' '.join(mode_flags) if mode_flags else 'none'}"
+    )
+
+    # 4. PCH optimization if applicable
+    if pch_file.exists() and can_use_pch:
+        final_output.append(
+            f"🚀 PCH OPTIMIZATION APPLIED: Using precompiled header {pch_file.name}"
+        )
+        if removed_files:
+            final_output.append(
+                "✂️ Removed: FastLED.h/Arduino.h includes from source files"
+            )
+            for i, filename in enumerate(removed_files, 1):
+                final_output.append(f"     [{i}] {filename}")
+
+    # 5. Compiler output only if there are errors or important messages
+    has_compiler_output = (cp.stdout and cp.stdout.strip()) or (
+        cp.stderr and cp.stderr.strip()
+    )
+    if has_compiler_output:
+        final_output.append("📤 Compiler output:")
+        if cp.stdout:
+            for line in cp.stdout.splitlines():
+                if line.strip():
+                    final_output.append(f"[emcc] {line}")
+        if cp.stderr:
+            for line in cp.stderr.splitlines():
+                if line.strip():
+                    final_output.append(f"[emcc] {line}")
+
+    return (cp, obj_file, "\n".join(final_output))
 
 
 def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
@@ -588,22 +610,30 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         dwarf_file = output_dir / "fastled.wasm.dwarf"
         cmd_link.append(f"-gseparate-dwarf={dwarf_file}")
 
-    printer.tprint("\n🔗 Linking with command:")
-    printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
-    printer.tprint(f"📤 Output JavaScript: {output_js}")
-    printer.tprint(f"📤 Output WebAssembly: {output_wasm}")
+    # Run linker and capture output with timing
+    import time
 
-    # Run linker and capture output (📤 Linker output header will show only if there's actual output)
+    link_start_time = time.time()
     cp = _run_cmd_and_stream(cmd_link, printer)
+    link_end_time = time.time()
+    link_duration = link_end_time - link_start_time
 
+    # Show linking result with timing
     if cp.returncode != 0:
-        printer.tprint(f"❌ Error linking {output_js}:")
-        printer.tprint(f"Linker failed with exit code: {cp.returncode}")
+        printer.tprint(
+            f"❌ LINKING FAILED: {output_js.name} (exit code: {cp.returncode}) in {link_duration:.2f} seconds"
+        )
+        printer.tprint("🔗 Build command:")
+        printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
         return RuntimeError(
             f"Error linking {output_js}: Linking failed with exit code {cp.returncode}"
         )
     else:
-        printer.tprint("✅ Linking completed successfully")
+        printer.tprint(
+            f"✅ LINKED: {output_js.name} (success) in {link_duration:.2f} seconds"
+        )
+        printer.tprint("🔗 Build command:")
+        printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
 
     printer.tprint("=" * 80)
 

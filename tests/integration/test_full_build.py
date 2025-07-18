@@ -922,9 +922,6 @@ class FullBuildTester(unittest.TestCase):
         pch_precompiled_header_used = any(
             "Using precompiled header" in line for line in quick_output.split("\n")
         )
-        pch_faster_compilation = any(
-            "Compilation should be faster" in line for line in quick_output.split("\n")
-        )
 
         self.assertTrue(
             pch_optimization_applied,
@@ -933,10 +930,6 @@ class FullBuildTester(unittest.TestCase):
         self.assertTrue(
             pch_precompiled_header_used,
             "Precompiled header should be used in quick mode, but 'Using precompiled header' message not found in output",
-        )
-        self.assertTrue(
-            pch_faster_compilation,
-            "PCH should indicate faster compilation in quick mode, but 'Compilation should be faster' message not found in output",
         )
 
         # Test debug mode - should also use PCH now
