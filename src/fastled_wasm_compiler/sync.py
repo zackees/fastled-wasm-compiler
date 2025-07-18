@@ -358,4 +358,12 @@ def sync_fastled(
 
     elapsed = time.time() - start
     print(f"Fast sync from {src} to {dst} complete in {elapsed:.2f} seconds")
+
+    # Update source timestamp after successful sync (only if changes were made)
+    if changed:
+        from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+
+        timestamp_manager = get_timestamp_manager()
+        timestamp_manager.update_source_timestamp()
+
     return changed

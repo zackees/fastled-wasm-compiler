@@ -50,10 +50,11 @@ class CompilerNative:
         object_files: list[Path],
         build_mode: str,
         output_dir: Path,
+        fastled_lib_path: Path | None = None,
         output_name: str = "fastled",
     ) -> Path:
         return self._impl.link_objects_to_wasm(
-            object_files, build_mode, output_dir, output_name
+            object_files, build_mode, output_dir, fastled_lib_path, output_name
         )
 
     def compile_sketch(

@@ -14,8 +14,34 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from fastled_wasm_compiler.compilation_flags import get_compilation_flags
 from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
+
+
+def format_file_size(size_bytes: int) -> str:
+    """Format file size in human-readable format (bytes, k, MB, GB)."""
+    if size_bytes == 0:
+        return "0 bytes"
+
+    # Define the thresholds and units (decimal, not binary)
+    units = ["bytes", "k", "MB", "GB", "TB"]
+    threshold = 1000.0
+
+    # Find the appropriate unit
+    unit_index = 0
+    size = float(size_bytes)
+
+    while size >= threshold and unit_index < len(units) - 1:
+        size /= threshold
+        unit_index += 1
+
+    # Format based on unit
+    if unit_index == 0:  # bytes - show as integer
+        return f"{int(size)} {units[unit_index]}"
+    else:  # k, MB, GB - show with 1 decimal place
+        return f"{size:.1f}{units[unit_index]}"
+
 
 # --------------------------------------------------------------------------------------
 # Timestamped printing for real-time output
@@ -68,16 +94,60 @@ def _start_mold_daemon() -> None:
 # captured output and return-code just like they did with `subprocess.run`.
 
 
-def _run_cmd_and_stream(cmd: list[str]) -> subprocess.CompletedProcess:
+def _run_cmd_and_stream(
+    cmd: list[str], printer: TimestampedPrinter | None = None
+) -> subprocess.CompletedProcess:
     """Run command and return the completed process.
 
     Args:
         cmd: Command split into a list suitable for *subprocess*.
+        printer: Optional timestamped printer for real-time output (linking only)
 
     Returns:
         A subprocess.CompletedProcess with stdout and the process' exit code.
     """
-    return subprocess.run(cmd, capture_output=True, text=True)
+    # Run with real-time streaming output
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        bufsize=1,  # Line buffered
+    )
+
+    output_lines = []
+    assert process.stdout is not None
+
+    if printer:
+        # Real-time streaming mode (for linking)
+        has_output = False
+
+        for line in process.stdout:
+            line_clean = line.rstrip()
+            output_lines.append(line)
+
+            if line_clean:  # Only show non-empty lines
+                if not has_output:
+                    # Show header only when we actually have output
+                    printer.tprint("📤 Linker output:")
+                    has_output = True
+
+                printer.tprint(f"    {line_clean}")
+    else:
+        # Capture mode (for compilation - used in parallel threads)
+        for line in process.stdout:
+            output_lines.append(line)
+
+    # Wait for process to complete
+    process.wait()
+
+    # Return a CompletedProcess-like object
+    return subprocess.CompletedProcess(
+        args=cmd,
+        returncode=process.returncode,
+        stdout="".join(output_lines),
+        stderr=None,
+    )
 
 
 # Use environment-variable driven FastLED source path
@@ -92,91 +162,11 @@ if not FASTLED_SRC_STR.startswith("/"):
 CC = "/build_tools/ccache-emcc.sh"
 CXX = "/build_tools/ccache-emcxx.sh"
 
-# Base flags from platformio.ini [env:wasm-base]
-BASE_CXX_FLAGS = [
-    "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
-    "-DFASTLED_FORCE_NAMESPACE=1",
-    "-DFASTLED_USE_PROGMEM=0",
-    "-DUSE_OFFSET_CONVERTER=0",
-    "-DSKETCH_COMPILE=1",
-    "-DFASTLED_WASM_USE_CCALL",
-    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
-    "-std=gnu++17",
-    "-fpermissive",
-    "-Wno-constant-logical-operand",
-    "-Wnon-c-typedef-for-linkage",
-    "-Werror=bad-function-cast",
-    "-Werror=cast-function-type",
-    # Threading disabled flags
-    "-fno-threadsafe-statics",  # Disable thread-safe static initialization
-    "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
-    "-D_REENTRANT=0",  # Disable reentrant code
-    "-I.",
-    "-Isrc",
-    f"-I{FASTLED_SRC_STR}",
-    f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
-]
+# NOTE: Compilation flags now centralized in compilation_flags.toml
+# This ensures sketch and library compilation use compatible flags
 
-# Debug flags from platformio.ini [env:wasm-debug]
-DEBUG_CXX_FLAGS = [
-    "-g3",
-    "-gsource-map",
-    "-ffile-prefix-map=/=sketchsource/",
-    "-fsanitize=address",
-    "-fsanitize=undefined",
-    "-fno-inline",
-    "-O0",
-]
-
-# Quick build flags from platformio.ini [env:wasm-quick]
-QUICK_CXX_FLAGS = [
-    "-flto=thin",
-    "-O0",
-    "-sASSERTIONS=0",
-    "-g0",
-    "-fno-inline-functions",
-    "-fno-vectorize",
-    "-fno-unroll-loops",
-    "-fno-strict-aliasing",
-]
-
-# Default to debug flags
-# Base compile flags (used during compilation)
-CXX_FLAGS = BASE_CXX_FLAGS
-
-# Base link flags (used during linking)
-BASE_LINK_FLAGS = [
-    f"-fuse-ld={os.environ.get('LINKER', 'lld')}",  # Configurable linker
-    "-sWASM=1",
-    "--no-entry",
-    "--emit-symbol-map",
-    "-sMODULARIZE=1",
-    "-sEXPORT_NAME=fastled",
-    "-sUSE_PTHREADS=0",
-    "-sEXIT_RUNTIME=0",
-    # Emscripten-specific linker settings
-    "-sALLOW_MEMORY_GROWTH=1",
-    "-sINITIAL_MEMORY=134217728",
-    "-sAUTO_NATIVE_LIBRARIES=0",
-    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
-    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
-    "-sFILESYSTEM=0",
-    "-Wl,--gc-sections",
-    "--source-map-base=http://localhost:8000/",
-]
-
-# Debug link flags
-DEBUG_LINK_FLAGS = [
-    "-fsanitize=address",
-    "-fsanitize=undefined",
-    "-sSEPARATE_DWARF_URL=fastled.wasm.dwarf",
-    "-sSTACK_OVERFLOW_CHECK=2",
-    "-sASSERTIONS=1",
-]
-
-
-# Default to debug link flags
-LINK_FLAGS = [*BASE_LINK_FLAGS, *DEBUG_LINK_FLAGS, "-o", "fastled.js"]
+# NOTE: Linking flags now centralized in compilation_flags.toml
+# This ensures sketch and library compilation use compatible flags
 
 
 def analyze_source_for_pch_usage(src_file: Path) -> tuple[bool, bool]:
@@ -273,18 +263,19 @@ def compile_cpp_to_obj(
     obj_file = build_dir / f"{src_file.stem}.o"
     os.makedirs(build_dir, exist_ok=True)
 
-    # Work on a copy so we don't mutate shared global defaults
-    flags = list(CXX_FLAGS)
-    mode_flags = []
-    if build_mode.lower() == "debug":
-        mode_flags = DEBUG_CXX_FLAGS
-        flags += DEBUG_CXX_FLAGS
-    elif build_mode.lower() == "quick":
-        mode_flags = QUICK_CXX_FLAGS
-        flags += QUICK_CXX_FLAGS
-    elif build_mode.lower() == "release":
-        mode_flags = ["-Oz"]
-        flags += ["-Oz"]
+    # Get compilation flags from centralized configuration
+    flags_loader = get_compilation_flags()
+    fastled_src_path = get_fastled_source_path()
+
+    flags = flags_loader.get_full_compilation_flags(
+        compilation_type="sketch",
+        build_mode=build_mode,
+        fastled_src_path=fastled_src_path,
+        strict_mode=False,  # Could be made configurable later
+    )
+
+    # Get just the build mode flags for display
+    mode_flags = flags_loader.get_build_mode_flags(build_mode)
 
     # Build output messages for later display
     output_lines = []
@@ -384,10 +375,10 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     os.makedirs(output_dir, exist_ok=True)
     printer.tprint(f"✓ Output directory prepared: {output_dir}")
 
-    # Add separate dwarf file for debug mode
+    # Prepare debug info for debug mode
+    dwarf_file = None
     if build_mode.lower() == "debug":
         dwarf_file = output_dir / "fastled.wasm.dwarf"
-        LINK_FLAGS.append(f"-gseparate-dwarf={dwarf_file}")
         printer.tprint(
             f"🐛 Debug mode: DWARF debug info will be generated at {dwarf_file}"
         )
@@ -402,13 +393,30 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     for i, src in enumerate(sources, 1):
         printer.tprint(f"  {i}. {src.name} ({src.stat().st_size} bytes)")
 
-    # Now print out the entire build flags group:
-    printer.tprint("\n🔧 Compilation configuration:")
+    # Now print out the entire build flags group from centralized configuration:
+    flags_loader = get_compilation_flags()
+    fastled_src_path = get_fastled_source_path()
+
+    # Get flags for the current build mode for display
+    compilation_flags = flags_loader.get_full_compilation_flags(
+        compilation_type="sketch",
+        build_mode=build_mode,
+        fastled_src_path=fastled_src_path,
+        strict_mode=False,
+    )
+
+    linker = os.environ.get("LINKER", "lld")
+    link_flags = flags_loader.get_full_linking_flags(
+        compilation_type="sketch",
+        linker=linker,
+    )
+
+    printer.tprint("\n🔧 Compilation configuration (from compilation_flags.toml):")
     printer.tprint("📋 CXX_FLAGS:")
-    for i, flag in enumerate(CXX_FLAGS):
+    for i, flag in enumerate(compilation_flags):
         printer.tprint(f"  {i+1:2d}. {flag}")
     printer.tprint("\n📋 LINK_FLAGS:")
-    for i, flag in enumerate(LINK_FLAGS):
+    for i, flag in enumerate(link_flags):
         printer.tprint(f"  {i+1:2d}. {flag}")
     printer.tprint(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
     printer.tprint(f"📋 Sketch directory: {sketch_dir}")
@@ -519,9 +527,25 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     total_obj_size = sum(obj.stat().st_size for obj in obj_files if obj.exists())
     printer.tprint(f"✓ Total object file size: {total_obj_size} bytes")
 
+    # Build linking command with centralized flags
+    flags_loader = get_compilation_flags()
+    linker = os.environ.get("LINKER", "lld")
+    link_flags = flags_loader.get_full_linking_flags(
+        compilation_type="sketch",
+        linker=linker,
+        build_mode=build_mode,
+    )
+
+    # Add output file
+    link_flags.extend(["-o", "fastled.js"])
+
+    # Add debug-specific flags if needed
+    if build_mode.lower() == "debug" and dwarf_file:
+        link_flags.append(f"-gseparate-dwarf={dwarf_file}")
+
     cmd_link: list[str] = []
     cmd_link.extend([CXX])
-    cmd_link.extend(LINK_FLAGS)
+    cmd_link.extend(link_flags)
     cmd_link.extend(map(str, obj_files))
 
     # Use explicit archive selection based on NO_THIN_LTO (no fallback)
@@ -568,10 +592,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
     printer.tprint(f"📤 Output JavaScript: {output_js}")
     printer.tprint(f"📤 Output WebAssembly: {output_wasm}")
-    printer.tprint("📤 Linker output:")
 
-    # Run linker and capture output
-    cp = _run_cmd_and_stream(cmd_link)
+    # Run linker and capture output (📤 Linker output header will show only if there's actual output)
+    cp = _run_cmd_and_stream(cmd_link, printer)
 
     if cp.returncode != 0:
         printer.tprint(f"❌ Error linking {output_js}:")
@@ -587,13 +610,17 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     # Check and report output file sizes
     if output_js.exists():
         js_size = output_js.stat().st_size
-        printer.tprint(f"✅ JavaScript output: {output_js} ({js_size} bytes)")
+        printer.tprint(
+            f"✅ JavaScript output: {output_js} ({format_file_size(js_size)})"
+        )
     else:
         printer.tprint(f"⚠️  JavaScript output not found: {output_js}")
 
     if output_wasm.exists():
         wasm_size = output_wasm.stat().st_size
-        printer.tprint(f"✅ WebAssembly output: {output_wasm} ({wasm_size} bytes)")
+        printer.tprint(
+            f"✅ WebAssembly output: {output_wasm} ({format_file_size(wasm_size)})"
+        )
     else:
         printer.tprint(f"⚠️  WebAssembly output not found: {output_wasm}")
 

@@ -92,7 +92,14 @@ def main() -> int:
         else:
             dst = _FASTLED_SRC
             # move all files from src to dst
-            sync_fastled(src, dst)
+            changed = sync_fastled(src, dst)
+            # Only update source timestamp if changes actually occurred
+            # (sync_fastled already handles this internally, but being explicit here)
+            if changed:
+                from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+
+                timestamp_manager = get_timestamp_manager()
+                timestamp_manager.update_source_timestamp()
         logger.info("Source update completed successfully")
     return 0
 

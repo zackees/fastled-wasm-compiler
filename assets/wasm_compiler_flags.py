@@ -16,6 +16,12 @@ from pathlib import Path
 from SCons.Script import Import
 from fastled_wasm_compiler.paths import get_fastled_source_path
 
+try:
+    from fastled_wasm_compiler.compilation_flags import get_compilation_flags
+    CENTRALIZED_FLAGS_AVAILABLE = True
+except ImportError:
+    CENTRALIZED_FLAGS_AVAILABLE = False
+
 print("Loading wasm_compiler_flags.py")
 
 # Determine the build environment
@@ -118,34 +124,52 @@ FASTLED_SRC_STR = get_fastled_source_path()
 if not FASTLED_SRC_STR.startswith("/"):
     FASTLED_SRC_STR = f"/{FASTLED_SRC_STR}"
 
-# Base compile flags (CCFLAGS/CXXFLAGS)
-compile_flags = [
-    "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
-    "-DFASTLED_FORCE_NAMESPACE=1",
-    "-DFASTLED_USE_PROGMEM=0",
-    "-DUSE_OFFSET_CONVERTER=0",
-    "-DGL_ENABLE_GET_PROC_ADDRESS=0",
-    "-std=gnu++17",
-    "-fpermissive",
-    "-fno-rtti",
-    "-fno-exceptions",
-    "-Wno-constant-logical-operand",
-    "-Wnon-c-typedef-for-linkage",
-    "-Werror=bad-function-cast",
-    "-Werror=cast-function-type",
-    "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
-    "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
-    # Threading disabled flags
-    "-fno-threadsafe-statics",  # Disable thread-safe static initialization
-    "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
-    "-D_REENTRANT=0",  # Disable reentrant code
-    "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
-    "-Isrc",
-    f"-I{FASTLED_SRC_STR}",
-    f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
-    # Add stricter compiler warnings.
-    "-Wall",
-]
+# Get compilation flags from centralized configuration if available
+if CENTRALIZED_FLAGS_AVAILABLE:
+    try:
+        flags_loader = get_compilation_flags()
+        compile_flags = flags_loader.get_full_compilation_flags(
+            compilation_type="library",
+            build_mode=BUILD_MODE,
+            fastled_src_path=FASTLED_SRC_STR,
+            strict_mode=STRICT_MODE,
+        )
+        # Add the ERROR_ON_WASM_CHANGES_AFTER_LINK flag which is PlatformIO-specific
+        compile_flags.append("-sERROR_ON_WASM_CHANGES_AFTER_LINK")
+    except Exception as e:
+        print(f"Warning: Failed to load centralized flags, using fallback: {e}")
+        CENTRALIZED_FLAGS_AVAILABLE = False
+
+# Fallback flags (used if centralized flags fail to load)
+if not CENTRALIZED_FLAGS_AVAILABLE:
+    # Base compile flags (CCFLAGS/CXXFLAGS) - FALLBACK
+    compile_flags = [
+        "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
+        "-DFASTLED_FORCE_NAMESPACE=1",
+        "-DFASTLED_USE_PROGMEM=0",
+        "-DUSE_OFFSET_CONVERTER=0",
+        "-DGL_ENABLE_GET_PROC_ADDRESS=0",
+        "-std=gnu++17",
+        "-fpermissive",
+        "-fno-rtti",
+        "-fno-exceptions",
+        "-Wno-constant-logical-operand",
+        "-Wnon-c-typedef-for-linkage",
+        "-Werror=bad-function-cast",
+        "-Werror=cast-function-type",
+        "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
+        "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
+        # Threading disabled flags
+        "-fno-threadsafe-statics",  # Disable thread-safe static initialization
+        "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
+        "-D_REENTRANT=0",  # Disable reentrant code
+        "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
+        "-Isrc",
+        f"-I{FASTLED_SRC_STR}",
+        f"-I{FASTLED_SRC_STR}/platforms/wasm/compiler",
+        # Add stricter compiler warnings.
+        "-Wall",
+    ]
 
 # Additional warning flags to enable in strict mode
 strict_warning_flags = [

@@ -8,6 +8,8 @@ BUILD_ROOT_BASE="${ENV_BUILD_ROOT:-/build}"
 
 cd "${FASTLED_ROOT}-wasm"
 
+
+
 MODES=()
 
 # Parse arguments

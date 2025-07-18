@@ -116,7 +116,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 
-RUN echo "update build 38"
+RUN echo "update build 40"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
@@ -130,6 +130,7 @@ RUN echo "update build 39"
 # BEGIN BUILDING STATIC libfastled.a
 # Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
+COPY ./build_tools/cmake_flags.cmake /git/fastled-wasm/cmake_flags.cmake
 COPY ./build_tools/build_lib.sh /build/build_lib.sh
 
 RUN chmod +x /build/build_lib.sh && \

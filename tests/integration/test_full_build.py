@@ -57,6 +57,11 @@ class FullBuildTester(unittest.TestCase):
 
             # Build the Docker image with the test tag
             print("Building Docker image...")
+            print(
+                "⚠️  This may take 15-30 minutes to compile 112+ FastLED source files in 3 modes (debug, quick, release)..."
+            )
+
+            # Build the Docker image with streaming output
             build_proc = subprocess.Popen(
                 ["docker", "build", "-t", IMAGE_NAME, "."],
                 cwd=PROJECT_ROOT,
@@ -602,7 +607,7 @@ class FullBuildTester(unittest.TestCase):
         # In a real test, we might compare this to other build modes
         # or have a maximum size threshold, but for now we just report it
 
-    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    @unittest.skipIf(_IS_GITHUB, "Skipping test on GitHub CI")
     def test_platformio_vs_no_platformio_artifacts(self) -> None:
         """Test that PlatformIO and no-PlatformIO builds produce equivalent artifacts."""
         import json

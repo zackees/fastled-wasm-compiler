@@ -14,6 +14,7 @@ dependencies = [
     "platformio==6.1.18",
     "fasteners==0.19",
     "httpx>=0.28.1",
+    "tomli>=2.2.1",
 ]
 
 version = "1.0.109"
@@ -80,3 +81,4 @@ fastled-wasm-compiler-prewarm = "fastled_wasm_compiler.cli_prewarm:main"
 fastled-wasm-compiler-native = "fastled_wasm_compiler.cli_native:main"
 fastled-wasm-compiler-printenv = "fastled_wasm_compiler.cli_printenv:main"
 fastled-wasm-compiler-symbol-resolution = "fastled_wasm_compiler.cli_symbol_resolution:main"
+fastled-wasm-compiler-build-lib-lazy = "fastled_wasm_compiler.cli_build_lib_lazy:main"

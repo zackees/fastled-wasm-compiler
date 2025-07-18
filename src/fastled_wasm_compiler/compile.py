@@ -127,13 +127,21 @@ def compile(
         env=env,
     )
     assert process.stdout is not None
-    # Create a new timestamper for this compilation attempt
-    timestamper = StreamingTimestamper()
-    # Process and print each line as it comes in with relative timestamp
-    line: str
-    for line in process.stdout:
-        timestamped_line = timestamper.timestamp_line(line)
-        print(timestamped_line)
+
+    if no_platformio:
+        # When using --no-platformio, compile_sketch.py handles its own timestamping
+        # Don't add double timestamps by using StreamingTimestamper here
+        line: str
+        for line in process.stdout:
+            print(line.rstrip())
+    else:
+        # Create a new timestamper for this compilation attempt (PlatformIO mode)
+        timestamper = StreamingTimestamper()
+        # Process and print each line as it comes in with relative timestamp
+        line: str
+        for line in process.stdout:
+            timestamped_line = timestamper.timestamp_line(line)
+            print(timestamped_line)
     process.wait()
     print(banner("Compilation process Finsished."))
     if process.returncode == 0:

@@ -5,6 +5,9 @@ from pathlib import Path
 _IS_WINDOWS = platform.system() == "Windows"
 _DEFAULT_BUILD_ROOT = "/build" if not _IS_WINDOWS else "build"
 
+# Project root directory (repository root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
 
 def path_or_default(default: str, env_var: str) -> Path:
     """Return the path from the environment variable or the default."""

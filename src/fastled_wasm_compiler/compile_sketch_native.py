@@ -17,6 +17,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from fastled_wasm_compiler import paths
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
 from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
 
@@ -34,10 +35,10 @@ class NativeCompilerImpl:
         # Ensure FastLED is installed and get the actual source path
         self.fastled_src = ensure_fastled_installed()
 
-        # Base compilation flags - removed manual __EMSCRIPTEN__ definition
-        # emcc should define this automatically when using Emscripten
+        # Base compilation flags - enable unified compilation for efficiency
+        # Use FASTLED_ALL_SRC=1 for unified compilation (compiles all FastLED as one translation unit)
         self.base_flags = [
-            "-UFASTLED_ALL_SRC",  # Undefine FASTLED_ALL_SRC to enable individual file compilation
+            "-DFASTLED_ALL_SRC=1",  # Enable unified FastLED compilation (was: -UFASTLED_ALL_SRC)
             "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
             "-DFASTLED_FORCE_NAMESPACE=1",
             "-DFASTLED_USE_PROGMEM=0",
@@ -76,7 +77,7 @@ class NativeCompilerImpl:
         self.quick_flags = [
             "-flto=thin",
             "-O0",
-            "-sASSERTIONS=0",
+            # REMOVED: "-sASSERTIONS=0",  # This is a linker setting, not a compiler flag
             "-g0",
             "-fno-inline-functions",
             "-fno-vectorize",
@@ -209,6 +210,7 @@ class NativeCompilerImpl:
         object_files: list[Path],
         build_mode: str,
         output_dir: Path,
+        fastled_lib_path: Path | None = None,
         output_name: str = "fastled",
     ) -> Path:
         """Link object files into WASM module.
@@ -217,6 +219,7 @@ class NativeCompilerImpl:
             object_files: List of object files to link
             build_mode: Build mode (debug, quick, release)
             output_dir: Directory for output files
+            fastled_lib_path: Path to pre-built FastLED library (required for sketch compilation)
             output_name: Base name for output files
 
         Returns:
@@ -243,7 +246,7 @@ class NativeCompilerImpl:
         tool_paths = self.get_tool_paths()
         env = self.get_compilation_env()
 
-        # Build linking command
+        # Build linking command with sketch objects + FastLED library
         cmd = [
             str(tool_paths["em++"]),
             *link_flags,
@@ -252,7 +255,15 @@ class NativeCompilerImpl:
             *[str(obj) for obj in object_files],
         ]
 
-        print(f"Linking {len(object_files)} objects to {js_file.name}")
+        # Add pre-built FastLED library if provided
+        if fastled_lib_path:
+            cmd.append(str(fastled_lib_path))
+            print(
+                f"Linking {len(object_files)} sketch objects + FastLED library to {js_file.name}"
+            )
+            print(f"📚 Using FastLED library: {fastled_lib_path}")
+        else:
+            print(f"Linking {len(object_files)} objects to {js_file.name}")
 
         # Run linking
         result = subprocess.run(cmd, env=env, capture_output=True, text=True)
@@ -298,56 +309,45 @@ class NativeCompilerImpl:
         if not source_files:
             raise RuntimeError(f"No source files found in {sketch_dir}")
 
-        print(f"Found {len(source_files)} source files in {sketch_dir}")
+        print(f"Found {len(source_files)} sketch source files in {sketch_dir}")
 
-        # Add required WASM platform files from FastLED
-        wasm_platform_files = [
-            self.fastled_src / "platforms" / "wasm" / "js.cpp",
-            self.fastled_src / "platforms" / "wasm" / "js_bindings.cpp",
-            self.fastled_src / "platforms" / "wasm" / "active_strip_data.cpp",
-            self.fastled_src / "platforms" / "wasm" / "engine_listener.cpp",
-            self.fastled_src / "platforms" / "wasm" / "fastspi_wasm.cpp",
-            self.fastled_src / "platforms" / "wasm" / "fs_wasm.cpp",
-            self.fastled_src / "platforms" / "wasm" / "timer.cpp",
-            self.fastled_src / "platforms" / "wasm" / "ui.cpp",
-        ]
+        # Find pre-built FastLED library to link against
+        build_mode_lower = build_mode.lower()
+        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        archive_type = "regular" if no_thin_lto else "thin"
 
-        # Add core FastLED source files needed for compilation
-        core_fastled_files = [
-            self.fastled_src / "FastLED.cpp",
-            self.fastled_src / "bitswap.cpp",
-            self.fastled_src / "cled_controller.cpp",
-            self.fastled_src / "colorpalettes.cpp",
-            self.fastled_src / "crgb.cpp",
-            self.fastled_src / "hsv2rgb.cpp",
-            self.fastled_src / "lib8tion.cpp",
-            self.fastled_src / "noise.cpp",
-            self.fastled_src / "platforms.cpp",
-            self.fastled_src / "power_mgt.cpp",
-            self.fastled_src / "rgbw.cpp",
-            self.fastled_src / "simplex.cpp",
-            self.fastled_src / "transpose8x1_noinline.cpp",
-            self.fastled_src / "wiring.cpp",
-        ]
+        # Construct library path
+        if archive_type == "thin":
+            fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled-thin.a"
+        else:
+            fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled.a"
 
-        # Only add files that exist
-        for wasm_file in wasm_platform_files + core_fastled_files:
-            if wasm_file.exists():
-                source_files.append(wasm_file)
-                print(f"Added FastLED file: {wasm_file.name}")
+        # Ensure library exists
+        if not fastled_lib_path.exists():
+            raise RuntimeError(
+                f"❌ Required FastLED library not found: {fastled_lib_path}\n"
+                + f"   Build mode: {build_mode} ({archive_type})\n"
+                + "   Please build FastLED library first:\n"
+                + f"   • uv run fastled-wasm-compiler-build-lib-lazy --{build_mode_lower}"
+            )
+
+        print(f"🎯 Total files to compile: {len(source_files)} (sketch files only)")
+        print(f"📚 FastLED library: {fastled_lib_path} ({archive_type})")
 
         # Create build directory
         build_dir = output_dir / "build" / build_mode.lower()
         build_dir.mkdir(parents=True, exist_ok=True)
 
-        # Compile all source files
+        # Compile sketch source files only (not FastLED)
         object_files = []
         for source_file in source_files:
             obj_file = self.compile_source_to_object(source_file, build_mode, build_dir)
             object_files.append(obj_file)
 
-        # Link to WASM
-        js_file = self.link_objects_to_wasm(object_files, build_mode, output_dir)
+        # Link sketch objects + pre-built FastLED library to WASM
+        js_file = self.link_objects_to_wasm(
+            object_files, build_mode, output_dir, fastled_lib_path
+        )
 
         return js_file
 

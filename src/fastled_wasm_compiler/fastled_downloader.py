@@ -246,6 +246,12 @@ class FastLEDDownloader:
 
         print(f"✅ FastLED successfully installed to {self.install_dir}")
 
+        # Update source timestamp after successful installation (only when actual installation occurred)
+        from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+
+        timestamp_manager = get_timestamp_manager()
+        timestamp_manager.update_source_timestamp()
+
 
 def get_fastled_downloader(install_dir: Path | None = None) -> FastLEDDownloader:
     """Get a configured FastLED downloader instance."""
