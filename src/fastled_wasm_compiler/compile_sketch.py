@@ -340,7 +340,7 @@ def compile_cpp_to_obj(
 
     # 2. Build command
     final_output.append("🔨 Build command:")
-    final_output.append(subprocess.list2cmdline(cmd))
+    final_output.append("  " + subprocess.list2cmdline(cmd))
 
     # 3. Mode-specific flags
     final_output.append(
@@ -354,10 +354,10 @@ def compile_cpp_to_obj(
         )
         if removed_files:
             final_output.append(
-                "✂️ Removed: FastLED.h/Arduino.h includes from source files"
+                "    ✂️ Removed: FastLED.h/Arduino.h includes from source files"
             )
             for i, filename in enumerate(removed_files, 1):
-                final_output.append(f"     [{i}] {filename}")
+                final_output.append(f"         [{i}] {filename}")
 
     # 5. Compiler output only if there are errors or important messages
     has_compiler_output = (cp.stdout and cp.stdout.strip()) or (
@@ -492,11 +492,28 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
                 try:
                     cp, obj_file, output = future.result()
 
-                    # Print the captured output from this compilation
-                    printer.tprint(
-                        f"\n  📝 [{completed_count}/{len(sources)}] Compilation details for {src_file.name}:"
-                    )
-                    printer.tprint(output)
+                    # Print the compilation result with count included
+                    # Modify the output to include the count in the status line
+                    output_lines = output.split("\n")
+                    if output_lines:
+                        # Update the first line (status line) to include the count
+                        status_line = output_lines[0]
+                        if "✅ COMPILED:" in status_line:
+                            status_line = status_line.replace(
+                                "✅ COMPILED:",
+                                f"✅ COMPILED [{completed_count}/{len(sources)}]:",
+                            )
+                        elif "❌ FAILED:" in status_line:
+                            status_line = status_line.replace(
+                                "❌ FAILED:",
+                                f"❌ FAILED [{completed_count}/{len(sources)}]:",
+                            )
+                        output_lines[0] = status_line
+
+                        # Print each line
+                        for line in output_lines:
+                            if line.strip():
+                                printer.tprint(line)
 
                     if cp.returncode != 0:
                         printer.tprint(f"❌ Error compiling {src_file}:")
@@ -624,7 +641,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             f"❌ LINKING FAILED: {output_js.name} (exit code: {cp.returncode}) in {link_duration:.2f} seconds"
         )
         printer.tprint("🔗 Build command:")
-        printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
+        printer.tprint(f"  {subprocess.list2cmdline(cmd_link)}")
         return RuntimeError(
             f"Error linking {output_js}: Linking failed with exit code {cp.returncode}"
         )
@@ -633,7 +650,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             f"✅ LINKED: {output_js.name} (success) in {link_duration:.2f} seconds"
         )
         printer.tprint("🔗 Build command:")
-        printer.tprint(f"{subprocess.list2cmdline(cmd_link)}")
+        printer.tprint(f"  {subprocess.list2cmdline(cmd_link)}")
 
     printer.tprint("=" * 80)
 
