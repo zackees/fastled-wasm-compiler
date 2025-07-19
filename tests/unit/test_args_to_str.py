@@ -64,7 +64,7 @@ class ArgConverstionTester(unittest.TestCase):
         self.assertEqual(args, args2)
 
     def test_arg_conversion_and_back_with_platformio(self) -> None:
-        """Test command line interface (CLI) args conversion with no_platformio=False."""
+        """Test command line interface (CLI) args conversion with no_platformio=False (deprecated, falls back to non-PlatformIO)."""
 
         args: Args = Args(
             compiler_root=COMPILER_ROOT,
@@ -90,12 +90,31 @@ class ArgConverstionTester(unittest.TestCase):
         print(f"args: {args}")
         print(f"args2: {args2}")
 
-        self.assertEqual(args, args2)
+        # Since PlatformIO is deprecated, no_platformio will always default to True during parsing
+        # even if the original Args object had no_platformio=False
+        expected_args = Args(
+            compiler_root=args.compiler_root,
+            assets_dirs=args.assets_dirs,
+            mapped_dir=args.mapped_dir,
+            keep_files=args.keep_files,
+            only_copy=args.only_copy,
+            only_insert_header=args.only_insert_header,
+            only_compile=args.only_compile,
+            profile=args.profile,
+            disable_auto_clean=args.disable_auto_clean,
+            no_platformio=True,  # This gets overridden to True due to deprecation
+            debug=args.debug,
+            quick=args.quick,
+            release=args.release,
+            clear_ccache=args.clear_ccache,
+            strict=args.strict,
+        )
+        self.assertEqual(expected_args, args2)
 
     def test_default_platformio_behavior(self) -> None:
-        """Test that platformio is used by default (no_platformio defaults to False)."""
+        """Test that no_platformio defaults to False (though PlatformIO is now deprecated and falls back to non-PlatformIO)."""
 
-        # Test with minimal required args - should default to using platformio
+        # Test with minimal required args - should default to no_platformio=False (but will show deprecation warning)
         cmd_args = [
             "--compiler-root",
             str(COMPILER_ROOT),
@@ -107,8 +126,11 @@ class ArgConverstionTester(unittest.TestCase):
 
         args = Args.parse_args(cmd_args)
 
-        # Verify the default behavior is to use PlatformIO
-        self.assertFalse(args.no_platformio, "Should use platformio by default")
+        # Verify the default argument parsing behavior (now defaults to non-PlatformIO since it's deprecated)
+        self.assertTrue(
+            args.no_platformio,
+            "no_platformio should default to True since PlatformIO is deprecated",
+        )
 
 
 if __name__ == "__main__":

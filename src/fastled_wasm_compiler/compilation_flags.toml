@@ -26,6 +26,7 @@ compiler_flags = [
     "-Werror=cast-function-type",
     "-fno-threadsafe-statics",  # Disable thread-safe static initialization
     "-fno-exceptions",  # Disable C++ exceptions for all targets
+    "-fno-rtti",  # Disable RTTI for all targets (consistent with library build)
 ]
 
 include_flags = [

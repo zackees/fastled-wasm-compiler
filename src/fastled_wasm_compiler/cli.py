@@ -77,8 +77,8 @@ def _parse_args() -> CliArgs:
     parser.add_argument(
         "--no-platformio",
         action="store_true",
-        help="Disable PlatformIO and use direct emcc calls instead",
-        default=os.environ.get("NO_PLATFORMIO", "0") == "1",
+        help="Disable PlatformIO and use direct emcc calls instead (default: True since PlatformIO is deprecated)",
+        default=True,  # Default to True since PlatformIO is deprecated
     )
     parser.add_argument(
         "--clear-ccache",

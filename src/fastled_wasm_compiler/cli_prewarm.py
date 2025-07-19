@@ -164,7 +164,7 @@ def main() -> int:
             only_compile=False,
             profile=False,
             disable_auto_clean=False,
-            no_platformio=False,
+            no_platformio=True,  # Force non-PlatformIO build since PlatformIO is deprecated
             debug=build == BuildMode.DEBUG,
             quick=build == BuildMode.QUICK,
             release=build == BuildMode.RELEASE,

@@ -18,6 +18,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-Werror=cast-function-type"
     "-fno-threadsafe-statics"
     "-fno-exceptions"
+    "-fno-rtti"
     "-emit-llvm"
     "-Wall"
 )

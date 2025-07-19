@@ -88,11 +88,11 @@ class MainTester(unittest.TestCase):
             )
 
     @unittest.skipIf(not _ENABLED, "Skipping test as it is not enabled.")
-    @patch("fastled_wasm_compiler.compile._pio_compile_cmd_list")
-    def test_run_with_platformio(self, mock_pio_compile: MagicMock) -> None:
-        """Test command line interface (CLI) with no_platformio=False."""
+    @patch("fastled_wasm_compiler.compile._new_compile_cmd_list")
+    def test_run_with_platformio_deprecated(self, mock_new_compile: MagicMock) -> None:
+        """Test command line interface (CLI) with no_platformio=False (now deprecated and falls back to non-PlatformIO)."""
 
-        mock_pio_compile.return_value = ["echo", "fake compile"]
+        mock_new_compile.return_value = ["echo", "fake compile"]
 
         args: Args = Args(
             compiler_root=COMPILER_ROOT,
@@ -104,7 +104,7 @@ class MainTester(unittest.TestCase):
             only_compile=False,
             profile=False,
             disable_auto_clean=False,
-            no_platformio=False,  # Explicitly test with PlatformIO enabled
+            no_platformio=False,  # Test deprecation: this should fall back to non-PlatformIO
             debug=False,
             quick=False,
             release=False,

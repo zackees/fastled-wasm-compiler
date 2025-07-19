@@ -134,8 +134,6 @@ set(LIBRARY_DEFINES
 )
 
 set(LIBRARY_COMPILER_FLAGS
-    -fno-rtti
-    -fno-exceptions
     -emit-llvm  # Generate LLVM bitcode for library compilation
     -Wall
 )

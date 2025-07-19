@@ -609,7 +609,12 @@ class FullBuildTester(unittest.TestCase):
 
     @unittest.skipIf(_IS_GITHUB, "Skipping test on GitHub CI")
     def test_platformio_vs_no_platformio_artifacts(self) -> None:
-        """Test that PlatformIO and no-PlatformIO builds produce equivalent artifacts."""
+        """Test that PlatformIO and no-PlatformIO builds produce equivalent artifacts.
+
+        Note: PlatformIO builds are now deprecated and automatically fall back to
+        non-PlatformIO builds, so both paths should produce identical results.
+        This test verifies the deprecation fallback works correctly.
+        """
         import json
 
         # Remove any existing containers with the same name

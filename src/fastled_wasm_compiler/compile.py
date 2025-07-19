@@ -6,36 +6,7 @@ from pathlib import Path
 
 from fastled_wasm_compiler.open_process import open_process
 from fastled_wasm_compiler.print_banner import banner
-from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 from fastled_wasm_compiler.types import BuildMode
-
-_PIO_VERBOSE = False
-
-
-def _pio_compile_cmd_list(
-    build_mode: BuildMode | None, disable_auto_clean: bool, verbose: bool
-) -> list[str]:
-    cmd_list = ["pio", "run"]
-
-    if disable_auto_clean:
-        cmd_list.append("--disable-auto-clean")
-    if verbose:
-        cmd_list.append("-v")
-
-    # Map build mode to env name
-    env_map = {
-        BuildMode.DEBUG: "wasm-debug",
-        BuildMode.QUICK: "wasm-quick",
-        BuildMode.RELEASE: "wasm-release",
-    }
-
-    if build_mode:
-        env_name = env_map.get(build_mode)
-        if env_name:
-            cmd_list += ["-e", env_name]
-
-    return cmd_list
-
 
 # RUN python /misc/compile_sketch.py \
 #   --example /examples/Blink/Blink.cpp \
@@ -81,8 +52,20 @@ def compile(
                 "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
             )
         )
+
+    # DEPRECATION: PlatformIO support has been removed
+    if not no_platformio:
+        print("⚠️  WARNING: PlatformIO build is deprecated and has been removed.")
+        print(
+            "⚠️  Automatically falling back to direct emcc compilation (--no-platformio mode)."
+        )
+        print("⚠️  Please update your build scripts to use --no-platformio explicitly.")
+        print("⚠️  This fallback behavior will be removed in a future version.")
+        no_platformio = True  # Force non-PlatformIO build
+
     is_linux = platform.system() == "Linux"
-    if is_linux:
+    if is_linux and not no_platformio:
+        # This code path is now dead due to the deprecation above, but keeping for safety
         if not (compiler_root / "platformio.ini").exists():
             dst = compiler_root / "platformio.ini"
             print(
@@ -100,24 +83,17 @@ def compile(
                 dst_file,
             )
     else:
-        warnings.warn("Linux platform not detected. Skipping file copy.")
-    # copy platformio files here:
-    cmd_list: list[str]
-    if no_platformio:
-        print(banner("Using direct emcc compilation (--no-platformio enabled)"))
-        print("✓ PlatformIO bypassed - using direct emscripten compiler calls")
-        print(f"✓ Build mode: {build_mode.name}")
-        print(f"✓ Compiler root: {compiler_root}")
-        print("✓ Will use compile_sketch.py module for compilation")
-        cmd_list = _new_compile_cmd_list(compiler_root, build_mode)
-        print(
-            f"✓ Direct compilation command prepared: {subprocess.list2cmdline(cmd_list)}"
-        )
-    else:
-        print(banner("Using PlatformIO compilation (default mode)"))
-        print("✓ Using PlatformIO build system")
-        cmd_list = _pio_compile_cmd_list(build_mode, not auto_clean, _PIO_VERBOSE)
-        print(f"✓ PlatformIO command prepared: {subprocess.list2cmdline(cmd_list)}")
+        if not is_linux:
+            warnings.warn("Linux platform not detected. Skipping file copy.")
+
+    # Always use non-PlatformIO compilation now
+    print(banner("Using direct emcc compilation"))
+    print("✓ Using direct emscripten compiler calls")
+    print(f"✓ Build mode: {build_mode.name}")
+    print(f"✓ Compiler root: {compiler_root}")
+    print("✓ Will use compile_sketch.py module for compilation")
+    cmd_list = _new_compile_cmd_list(compiler_root, build_mode)
+    print(f"✓ Direct compilation command prepared: {subprocess.list2cmdline(cmd_list)}")
 
     print(f"Command: {subprocess.list2cmdline(cmd_list)}")
     print(f"Command cwd: {compiler_root.as_posix()}")
@@ -128,20 +104,11 @@ def compile(
     )
     assert process.stdout is not None
 
-    if no_platformio:
-        # When using --no-platformio, compile_sketch.py handles its own timestamping
-        # Don't add double timestamps by using StreamingTimestamper here
-        line: str
-        for line in process.stdout:
-            print(line.rstrip())
-    else:
-        # Create a new timestamper for this compilation attempt (PlatformIO mode)
-        timestamper = StreamingTimestamper()
-        # Process and print each line as it comes in with relative timestamp
-        line: str
-        for line in process.stdout:
-            timestamped_line = timestamper.timestamp_line(line)
-            print(timestamped_line)
+    # Always use non-PlatformIO output handling (no timestamping since compile_sketch.py handles it)
+    line: str
+    for line in process.stdout:
+        print(line.rstrip())
+
     process.wait()
     print(banner("Compilation process Finsished."))
     if process.returncode == 0:
