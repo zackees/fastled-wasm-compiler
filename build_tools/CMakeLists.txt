@@ -1,8 +1,46 @@
 cmake_minimum_required(VERSION 3.10)
 project(FastLED_Lib LANGUAGES C CXX)
 
-# Include centralized compilation flags
+# Include centralized compilation flags from TOML-generated cmake file
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake_flags.cmake)
+
+# ========== DEBUG: TOML CENTRALIZED FLAGS VERIFICATION ==========
+message(STATUS "🔍 TOML FLAGS DEBUG: Verifying centralized compilation flags are loaded correctly")
+message(STATUS "📁 CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "📄 Loading flags from: ${CMAKE_CURRENT_SOURCE_DIR}/cmake_flags.cmake")
+
+# Verify the centralized flags are loaded from compilation_flags.toml
+list(LENGTH FASTLED_BASE_COMPILE_FLAGS BASE_COUNT)
+message(STATUS "🛠️  FASTLED_BASE_COMPILE_FLAGS (${BASE_COUNT} items):")
+foreach(flag ${FASTLED_BASE_COMPILE_FLAGS})
+    message(STATUS "   • ${flag}")
+endforeach()
+
+list(LENGTH FASTLED_DEBUG_FLAGS DEBUG_COUNT)
+message(STATUS "🐛 FASTLED_DEBUG_FLAGS (${DEBUG_COUNT} items):")
+foreach(flag ${FASTLED_DEBUG_FLAGS})
+    message(STATUS "   • ${flag}")
+endforeach()
+
+list(LENGTH FASTLED_QUICK_FLAGS QUICK_COUNT)
+message(STATUS "⚡ FASTLED_QUICK_FLAGS (${QUICK_COUNT} items):")
+foreach(flag ${FASTLED_QUICK_FLAGS})
+    message(STATUS "   • ${flag}")
+endforeach()
+
+list(LENGTH FASTLED_RELEASE_FLAGS RELEASE_COUNT)
+message(STATUS "🚀 FASTLED_RELEASE_FLAGS (${RELEASE_COUNT} items):")
+foreach(flag ${FASTLED_RELEASE_FLAGS})
+    message(STATUS "   • ${flag}")
+endforeach()
+
+# Check if flags are empty (indicates cmake_flags.cmake loading issue)
+list(LENGTH FASTLED_BASE_COMPILE_FLAGS BASE_FLAGS_COUNT)
+if(BASE_FLAGS_COUNT EQUAL 0)
+    message(FATAL_ERROR "❌ CRITICAL: FASTLED_BASE_COMPILE_FLAGS is EMPTY! cmake_flags.cmake not loaded properly from compilation_flags.toml")
+else()
+    message(STATUS "✅ TOML FLAGS: Successfully loaded ${BASE_FLAGS_COUNT} base compilation flags")
+endif()
 
 # ——— 1) Emscripten Toolchain ——————————————————————————————————————
 set(CMAKE_C_COMPILER   "emcc")
@@ -130,39 +168,70 @@ file(WRITE ${PCH_HEADER}
 message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
 message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
 
-# Build the precompiled header using ccache + emcc with centralized flags
-# Create a filtered list of flags for PCH (remove problematic ones)
+# ========== PCH COMPILATION WITH TOML CENTRALIZED FLAGS ==========
+message(STATUS "🔨 PCH COMPILATION: Building precompiled header with TOML centralized flags")
+
+# Step 1: Start with base compilation flags from compilation_flags.toml
 set(PCH_COMPILE_FLAGS ${FASTLED_BASE_COMPILE_FLAGS})
 
-# Add build mode specific flags to PCH
+list(LENGTH PCH_COMPILE_FLAGS INITIAL_PCH_COUNT)
+message(STATUS "📋 PCH Step 1: Starting with ${INITIAL_PCH_COUNT} base flags from TOML:")
+foreach(flag ${PCH_COMPILE_FLAGS})
+    message(STATUS "   📌 ${flag}")
+endforeach()
+
+# Step 2: Add build mode specific flags from compilation_flags.toml
+message(STATUS "🎯 PCH Step 2: Adding ${CMAKE_BUILD_TYPE} mode flags from TOML")
 if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     list(APPEND PCH_COMPILE_FLAGS ${FASTLED_DEBUG_FLAGS})
+    message(STATUS "   ✅ Added ${DEBUG_COUNT} DEBUG mode flags")
 elseif(CMAKE_BUILD_TYPE STREQUAL "QUICK")
     list(APPEND PCH_COMPILE_FLAGS ${FASTLED_QUICK_FLAGS})
+    message(STATUS "   ✅ Added ${QUICK_COUNT} QUICK mode flags")
 elseif(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
     list(APPEND PCH_COMPILE_FLAGS ${FASTLED_RELEASE_FLAGS})
+    message(STATUS "   ✅ Added ${RELEASE_COUNT} RELEASE mode flags")
+else()
+    message(WARNING "⚠️  Unknown CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 endif()
 
-# Filter out flags that are incompatible with PCH compilation
+list(LENGTH PCH_COMPILE_FLAGS AFTER_BUILD_MODE_COUNT)
+message(STATUS "📊 PCH Step 2 Result: Now have ${AFTER_BUILD_MODE_COUNT} total flags")
+
+# Step 3: Filter out flags that are incompatible with PCH compilation
+message(STATUS "🔍 PCH Step 3: Filtering out PCH-incompatible flags")
 set(PCH_FILTERED_FLAGS "")
+set(FILTERED_OUT_FLAGS "")
+
 foreach(flag ${PCH_COMPILE_FLAGS})
     # Only remove flags that actually cause PCH compilation issues
     # Keep ALL build mode flags (-flto=thin, -gsource-map, -ffile-prefix-map) for consistency
-    if(NOT flag STREQUAL "-emit-llvm" AND 
-       NOT flag STREQUAL "-Wall")
+    if(flag STREQUAL "-emit-llvm" OR flag STREQUAL "-Wall")
+        list(APPEND FILTERED_OUT_FLAGS ${flag})
+        message(STATUS "   ❌ Filtered out: ${flag} (PCH incompatible)")
+    else()
         list(APPEND PCH_FILTERED_FLAGS ${flag})
     endif()
 endforeach()
 
-# Convert list to space-separated string for proper command line expansion
+list(LENGTH PCH_FILTERED_FLAGS FINAL_COUNT)
+list(LENGTH FILTERED_OUT_FLAGS FILTERED_COUNT)
+message(STATUS "📊 PCH Step 3 Result: ${FINAL_COUNT} flags kept, ${FILTERED_COUNT} flags filtered out")
+
+# Step 4: Convert list to space-separated string for proper command line expansion
 list(JOIN PCH_FILTERED_FLAGS " " PCH_FLAGS_STRING)
 
-# Debug: Print PCH compilation flags for troubleshooting
-message(STATUS "PCH compilation flags for ${BUILD_MODE} mode:")
+message(STATUS "🚀 PCH FINAL FLAGS STRING: ${PCH_FLAGS_STRING}")
+if(PCH_FLAGS_STRING STREQUAL "")
+    message(FATAL_ERROR "❌ CRITICAL: PCH_FLAGS_STRING is EMPTY! All TOML flags were lost during processing")
+endif()
+
+# ========== PCH FINAL VERIFICATION ==========
+message(STATUS "✅ PCH COMPILATION READY: Using TOML centralized flags for ${BUILD_MODE} mode")
+message(STATUS "📝 Final PCH compilation flags (${FINAL_COUNT} total):")
 foreach(flag ${PCH_FILTERED_FLAGS})
-    message(STATUS "  PCH flag: ${flag}")
+    message(STATUS "   🔧 ${flag}")
 endforeach()
-message(STATUS "PCH flags string: ${PCH_FLAGS_STRING}")
 
 # Use a shell script approach to properly handle flag expansion
 set(PCH_COMPILE_SCRIPT "${ABS_BUILD_OUTPUT_DIR}/compile_pch.sh")
