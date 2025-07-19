@@ -13,3 +13,7 @@ __pycache__
 .venv
 venv
 run_interactive.sh
+
+# Force cmake_flags.cmake regeneration from TOML source 
+# (don't copy existing file from host to ensure build_lib.sh regeneration works)
+build_tools/cmake_flags.cmake

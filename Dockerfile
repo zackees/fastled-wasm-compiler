@@ -60,7 +60,13 @@ RUN mkdir -p /container/bin && \
     ln -s /usr/bin/python3 /container/bin/python && \
     ln -s /usr/bin/pip3 /container/bin/pip
 
+
+ENV UV_COMPILE_BYTECODE=1
+
 RUN pip install uv==0.7.3
+
+# Install tomli for TOML parsing in cmake_flags.cmake generation
+RUN uv pip install --system tomli>=2.2.1
 
 
 # /git is the dst for the source code, but actually not git anymore
@@ -74,7 +80,7 @@ RUN \
    mkdir -p /examples && \
    mkdir -p /js
 
-ENV UV_COMPILE_BYTECODE=1
+
 
 
 # Add Python and Emscripten to PATH
@@ -136,7 +142,7 @@ COPY ./build_tools/generate_cmake_flags.py /tmp/fastled-wasm-compiler-install/bu
 
 # Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
-COPY ./build_tools/cmake_flags.cmake /git/fastled-wasm/cmake_flags.cmake
+# NOTE: cmake_flags.cmake is NOT copied - it's regenerated from TOML by build_lib.sh
 COPY ./build_tools/build_lib.sh /build/build_lib.sh
 
 RUN chmod +x /build/build_lib.sh && \

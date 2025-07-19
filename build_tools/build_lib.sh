@@ -27,26 +27,18 @@ if [ -f "$TOML_FILE" ] && [ -f "$GENERATOR_SCRIPT" ]; then
         echo ">>> Regenerating cmake_flags.cmake from compilation_flags.toml..."
         cd /tmp/fastled-wasm-compiler-install
         
-        # Try multiple approaches for maximum compatibility
-        regenerated=false
+        # Generate cmake_flags.cmake (tomli is installed system-wide)
+        echo ">>> Generating cmake_flags.cmake from TOML..."
+        python3 build_tools/generate_cmake_flags.py > "${CMAKE_FLAGS_FILE}" || {
+            echo "FATAL: Failed to generate cmake_flags.cmake from compilation_flags.toml"
+            echo "Error output:"
+            python3 build_tools/generate_cmake_flags.py 2>&1 || true
+            echo "Ensure tomli is installed: uv pip install --system tomli"
+            exit 1
+        }
         
-        # Approach 1: Try uv run (if package is installed)
-        if command -v uv >/dev/null 2>&1; then
-            echo ">>> Attempting regeneration with uv run python..."
-            if uv run python build_tools/generate_cmake_flags.py > "${CMAKE_FLAGS_FILE}" 2>/dev/null; then
-                regenerated=true
-                echo ">>> Success: Used uv run python"
-            fi
-        fi
-        
-        # Approach 2: Direct Python with PYTHONPATH (fallback)
-        if [ "$regenerated" = false ]; then
-            echo ">>> Attempting regeneration with direct Python..."
-            if PYTHONPATH="/tmp/fastled-wasm-compiler-install/src:$PYTHONPATH" python3 build_tools/generate_cmake_flags.py > "${CMAKE_FLAGS_FILE}" 2>/dev/null; then
-                regenerated=true
-                echo ">>> Success: Used direct Python with PYTHONPATH"
-            fi
-        fi
+        regenerated=true
+        echo ">>> SUCCESS: cmake_flags.cmake regenerated from TOML using uv run"
         
         cd "${FASTLED_ROOT}-wasm"
         
