@@ -146,34 +146,44 @@ endif()
 # Filter out flags that are incompatible with PCH compilation
 set(PCH_FILTERED_FLAGS "")
 foreach(flag ${PCH_COMPILE_FLAGS})
-    # Remove flags that cause PCH compilation issues
+    # Only remove flags that actually cause PCH compilation issues
+    # Keep ALL build mode flags (-flto=thin, -gsource-map, -ffile-prefix-map) for consistency
     if(NOT flag STREQUAL "-emit-llvm" AND 
        NOT flag STREQUAL "-Wall")
         list(APPEND PCH_FILTERED_FLAGS ${flag})
     endif()
 endforeach()
 
+# Convert list to space-separated string for proper command line expansion
+list(JOIN PCH_FILTERED_FLAGS " " PCH_FLAGS_STRING)
+
 # Debug: Print PCH compilation flags for troubleshooting
 message(STATUS "PCH compilation flags for ${BUILD_MODE} mode:")
 foreach(flag ${PCH_FILTERED_FLAGS})
     message(STATUS "  PCH flag: ${flag}")
 endforeach()
+message(STATUS "PCH flags string: ${PCH_FLAGS_STRING}")
+
+# Use a shell script approach to properly handle flag expansion
+set(PCH_COMPILE_SCRIPT "${ABS_BUILD_OUTPUT_DIR}/compile_pch.sh")
+file(WRITE ${PCH_COMPILE_SCRIPT} 
+"#!/bin/bash
+set -e
+echo \"Building PCH with flags: ${PCH_FLAGS_STRING}\"
+${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header ${PCH_HEADER} -o ${PCH_OUTPUT} -v
+")
+
+# Make script executable
+file(CHMOD ${PCH_COMPILE_SCRIPT} 
+     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+                 GROUP_READ GROUP_EXECUTE 
+                 WORLD_READ WORLD_EXECUTE)
 
 add_custom_command(
   OUTPUT ${PCH_OUTPUT}
-  COMMAND echo "Building PCH with flags: ${PCH_FILTERED_FLAGS}"
-  COMMAND ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER}
-          ${PCH_FILTERED_FLAGS}
-          -I${FASTLED_SOURCE_DIR}
-          -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler
-          -I.
-          -Isrc
-          -x c++-header 
-          ${PCH_HEADER} 
-          -o ${PCH_OUTPUT}
-          -v  # Add verbose flag to show detailed compilation info
-  DEPENDS ${PCH_HEADER}
-  COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with consistent flags"
+  COMMAND ${PCH_COMPILE_SCRIPT}
+  DEPENDS ${PCH_HEADER} ${PCH_COMPILE_SCRIPT}
+  COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
   VERBATIM
 )
 
