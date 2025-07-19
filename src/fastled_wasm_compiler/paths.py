@@ -37,6 +37,33 @@ BUILD_ROOT = path_or_default(_DEFAULT_BUILD_ROOT, "ENV_BUILD_ROOT")
 CONTAINER_JS_ROOT = "/js"
 
 
+def is_volume_mapped_source_defined() -> bool:
+    """Check if volume mapped source is explicitly defined.
+
+    Returns:
+        True if ENV_VOLUME_MAPPED_SRC is set, False otherwise
+    """
+    return os.environ.get("ENV_VOLUME_MAPPED_SRC") is not None
+
+
+def can_use_thin_lto() -> bool:
+    """Determine if thin LTO can be used based on volume mapped source availability.
+
+    When volume mapped source is not defined, cannot use thin LTO (forced to use regular archives).
+    When volume mapped source is defined, can use thin LTO (respects the NO_THIN_LTO flag).
+
+    Returns:
+        True if thin LTO can be used, False to force regular archives
+    """
+    # If volume mapped source is not defined, always use regular archives (no thin LTO)
+    if not is_volume_mapped_source_defined():
+        return False
+
+    # Volume mapped source is defined, respect NO_THIN_LTO flag
+    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+    return not no_thin_lto
+
+
 # Source path mappings for cross-platform compatibility
 def get_fastled_source_path() -> str:
     """Get the FastLED source path for path resolution."""

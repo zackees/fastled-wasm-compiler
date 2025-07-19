@@ -315,11 +315,11 @@ class NativeCompilerImpl:
 
         # Find pre-built FastLED library to link against
         build_mode_lower = build_mode.lower()
-        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
-        archive_type = "regular" if no_thin_lto else "thin"
+        use_thin = paths.can_use_thin_lto()
+        archive_type = "thin" if use_thin else "regular"
 
         # Construct library path
-        if archive_type == "thin":
+        if use_thin:
             fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled-thin.a"
         else:
             fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled.a"

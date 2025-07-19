@@ -182,24 +182,35 @@ env.Append(CXXFLAGS=compile_flags)
 env.Append(LINKFLAGS=link_flags)
 
 
-# Explicit archive selection based on NO_THIN_LTO flag (test version)
+# Archive selection based on volume mapped source availability (test version)
 def get_fastled_library_path_test(build_mode_lower):
-    """Get the FastLED library path based on NO_THIN_LTO flag."""
+    """Get the FastLED library path based on volume mapped source availability."""
     build_root = os.environ.get("ENV_BUILD_ROOT", "/build")
     thin_lib = f"{build_root}/{build_mode_lower}/libfastled-thin.a"
     regular_lib = f"{build_root}/{build_mode_lower}/libfastled.a"
 
-    # Check NO_THIN_LTO flag for explicit selection
-    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+    # Check if volume mapped source is defined
+    is_volume_mapped = os.environ.get("ENV_VOLUME_MAPPED_SRC") is not None
 
-    if no_thin_lto:
-        # NO_THIN_LTO=1: Explicitly use regular archives
-        print(f"NO_THIN_LTO=1: Using regular FastLED library: {regular_lib}")
-        return regular_lib
+    if is_volume_mapped:
+        # Volume mapped source is defined, respect NO_THIN_LTO flag
+        no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+        if no_thin_lto:
+            print(
+                f"Volume mapped source defined, NO_THIN_LTO=1: Using regular FastLED library: {regular_lib}"
+            )
+            return regular_lib
+        else:
+            print(
+                f"Volume mapped source defined, NO_THIN_LTO=0: Using thin FastLED library: {thin_lib}"
+            )
+            return thin_lib
     else:
-        # NO_THIN_LTO=0 or unset: Explicitly use thin archives
-        print(f"NO_THIN_LTO=0: Using thin FastLED library: {thin_lib}")
-        return thin_lib
+        # Volume mapped source not defined, always use regular archives
+        print(
+            f"Volume mapped source not defined: Using regular FastLED library: {regular_lib}"
+        )
+        return regular_lib
 
 
 # Get the appropriate library path based on build mode

@@ -11,7 +11,12 @@ from fastled_wasm_compiler.compile_all_libs import (
     BuildResult,
     compile_all_libs,
 )
-from fastled_wasm_compiler.paths import BUILD_ROOT, FASTLED_SRC, VOLUME_MAPPED_SRC
+from fastled_wasm_compiler.paths import (
+    BUILD_ROOT,
+    FASTLED_SRC,
+    VOLUME_MAPPED_SRC,
+    can_use_thin_lto,
+)
 from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
 from fastled_wasm_compiler.sync import sync_fastled
@@ -54,16 +59,16 @@ class CompilerImpl:
             reason: Reason for deletion (for logging)
         """
 
-        # no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
-        no_thin_lto = not self.thin_lto
+        # Use volume mapped source aware archive selection
+        use_thin = can_use_thin_lto()
 
         for mode in build_modes:
-            if no_thin_lto:
-                lib_path = BUILD_ROOT / mode / "libfastled.a"
-                archive_type = "regular"
-            else:
+            if use_thin:
                 lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
                 archive_type = "thin"
+            else:
+                lib_path = BUILD_ROOT / mode / "libfastled.a"
+                archive_type = "regular"
 
             if lib_path.exists():
                 print(f"Deleting existing {archive_type} library {lib_path} ({reason})")
@@ -88,18 +93,18 @@ class CompilerImpl:
         """
 
         missing_modes = []
-        # no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
-        no_thin_lto = not self.thin_lto
+        # Use volume mapped source aware archive selection
+        use_thin = can_use_thin_lto()
 
         for mode in build_modes:
-            if no_thin_lto:
-                # NO_THIN_LTO=1: Only check for regular archives
-                lib_path = BUILD_ROOT / mode / "libfastled.a"
-                archive_type = "regular"
-            else:
-                # NO_THIN_LTO=0 or unset: Only check for thin archives
+            if use_thin:
+                # Use thin archives
                 lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
                 archive_type = "thin"
+            else:
+                # Use regular archives
+                lib_path = BUILD_ROOT / mode / "libfastled.a"
+                archive_type = "regular"
 
             if lib_path.exists():
                 lib_size = lib_path.stat().st_size

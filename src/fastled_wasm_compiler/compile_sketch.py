@@ -443,17 +443,32 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     printer.tprint(f"\n📋 Sources: {' '.join(str(s) for s in sources)}")
     printer.tprint(f"📋 Sketch directory: {sketch_dir}")
 
-    # Determine which FastLED library to link against - explicit choice based on NO_THIN_LTO
-    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+    # Determine which FastLED library to link against based on volume mapped source availability
+    from fastled_wasm_compiler.paths import (
+        can_use_thin_lto,
+        is_volume_mapped_source_defined,
+    )
 
-    if no_thin_lto:
-        # NO_THIN_LTO=1: Explicitly use regular archives
-        lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
-        printer.tprint("NO_THIN_LTO=1: Using regular archive")
-    else:
-        # NO_THIN_LTO=0 or unset: Explicitly use thin archives
+    use_thin = can_use_thin_lto()
+
+    if use_thin:
+        # Use thin archives
         lib_path = BUILD_ROOT / build_mode.lower() / "libfastled-thin.a"
-        printer.tprint("NO_THIN_LTO=0: Using thin archive")
+        if is_volume_mapped_source_defined():
+            printer.tprint(
+                "Volume mapped source defined, NO_THIN_LTO=0: Using thin archive"
+            )
+        else:
+            printer.tprint("Using thin archive")
+    else:
+        # Use regular archives
+        lib_path = BUILD_ROOT / build_mode.lower() / "libfastled.a"
+        if is_volume_mapped_source_defined():
+            printer.tprint(
+                "Volume mapped source defined, NO_THIN_LTO=1: Using regular archive"
+            )
+        else:
+            printer.tprint("Volume mapped source not defined: Using regular archive")
 
     printer.tprint(f"\n📚 FastLED library: {lib_path}")
 
@@ -587,36 +602,36 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     cmd_link.extend(link_flags)
     cmd_link.extend(map(str, obj_files))
 
-    # Use explicit archive selection based on NO_THIN_LTO (no fallback)
-    no_thin_lto = os.environ.get("NO_THIN_LTO", "0") == "1"
+    # Use volume mapped source aware archive selection
+    use_thin = can_use_thin_lto()
 
     if build_mode.lower() == "debug":
-        if no_thin_lto:
-            debug_lib = BUILD_ROOT / "debug" / "libfastled.a"
-        else:
+        if use_thin:
             debug_lib = BUILD_ROOT / "debug" / "libfastled-thin.a"
+        else:
+            debug_lib = BUILD_ROOT / "debug" / "libfastled.a"
         cmd_link.append(str(debug_lib))
-        archive_type = "regular" if no_thin_lto else "thin"
+        archive_type = "thin" if use_thin else "regular"
         printer.tprint(
             f"🐛 Linking with debug FastLED library: {debug_lib} ({archive_type})"
         )
     elif build_mode.lower() == "release":
-        if no_thin_lto:
-            release_lib = BUILD_ROOT / "release" / "libfastled.a"
-        else:
+        if use_thin:
             release_lib = BUILD_ROOT / "release" / "libfastled-thin.a"
+        else:
+            release_lib = BUILD_ROOT / "release" / "libfastled.a"
         cmd_link.append(str(release_lib))
-        archive_type = "regular" if no_thin_lto else "thin"
+        archive_type = "thin" if use_thin else "regular"
         printer.tprint(
             f"🚀 Linking with release FastLED library: {release_lib} ({archive_type})"
         )
     elif build_mode.lower() == "quick":
-        if no_thin_lto:
-            quick_lib = BUILD_ROOT / "quick" / "libfastled.a"
-        else:
+        if use_thin:
             quick_lib = BUILD_ROOT / "quick" / "libfastled-thin.a"
+        else:
+            quick_lib = BUILD_ROOT / "quick" / "libfastled.a"
         cmd_link.append(str(quick_lib))
-        archive_type = "regular" if no_thin_lto else "thin"
+        archive_type = "thin" if use_thin else "regular"
         printer.tprint(
             f"⚡ Linking with quick FastLED library: {quick_lib} ({archive_type})"
         )
