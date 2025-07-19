@@ -9,6 +9,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-DGL_ENABLE_GET_PROC_ADDRESS=0"
     "-DEMSCRIPTEN_NO_THREADS"
     "-D_REENTRANT=0"
+    "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0"
     "-std=gnu++17"
     "-fpermissive"
     "-Wno-constant-logical-operand"

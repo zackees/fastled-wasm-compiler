@@ -89,6 +89,8 @@ set(SHARED_DEFINES
     # Threading disabled flags
     -DEMSCRIPTEN_NO_THREADS
     -D_REENTRANT=0
+    # Emscripten type name handling
+    -DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0
 )
 
 # Base compiler flags shared by all compilation

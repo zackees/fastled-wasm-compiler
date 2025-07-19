@@ -95,6 +95,7 @@ compile_flags = [
     "-fno-threadsafe-statics",
     "-DEMSCRIPTEN_NO_THREADS",
     "-D_REENTRANT=0",
+    "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",  # Emscripten type name handling
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
     f"-I{FASTLED_SRC_STR}",

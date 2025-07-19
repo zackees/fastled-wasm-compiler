@@ -56,6 +56,8 @@ class NativeCompilerImpl:
             "-fno-threadsafe-statics",  # Disable thread-safe static initialization
             "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
             "-D_REENTRANT=0",  # Disable reentrant code
+            # Emscripten type name handling
+            "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",
             "-I.",
             "-Isrc",
             f"-I{self.fastled_src.as_posix()}",
