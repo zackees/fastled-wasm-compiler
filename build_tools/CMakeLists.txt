@@ -153,8 +153,15 @@ foreach(flag ${PCH_COMPILE_FLAGS})
     endif()
 endforeach()
 
+# Debug: Print PCH compilation flags for troubleshooting
+message(STATUS "PCH compilation flags for ${BUILD_MODE} mode:")
+foreach(flag ${PCH_FILTERED_FLAGS})
+    message(STATUS "  PCH flag: ${flag}")
+endforeach()
+
 add_custom_command(
   OUTPUT ${PCH_OUTPUT}
+  COMMAND echo "Building PCH with flags: ${PCH_FILTERED_FLAGS}"
   COMMAND ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER}
           ${PCH_FILTERED_FLAGS}
           -I${FASTLED_SOURCE_DIR}
@@ -164,6 +171,7 @@ add_custom_command(
           -x c++-header 
           ${PCH_HEADER} 
           -o ${PCH_OUTPUT}
+          -v  # Add verbose flag to show detailed compilation info
   DEPENDS ${PCH_HEADER}
   COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with consistent flags"
   VERBATIM

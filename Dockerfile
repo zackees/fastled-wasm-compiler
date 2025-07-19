@@ -116,7 +116,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 
-RUN echo "update build 41"
+RUN echo "update build 44"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
@@ -128,6 +128,12 @@ RUN /build/download_fastled.sh
 RUN echo "update build 39"
 
 # BEGIN BUILDING STATIC libfastled.a
+# Copy the TOML configuration and generator FIRST for auto-regeneration
+COPY ./src/fastled_wasm_compiler/__init__.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/__init__.py
+COPY ./src/fastled_wasm_compiler/compilation_flags.toml /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.toml
+COPY ./src/fastled_wasm_compiler/compilation_flags.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.py
+COPY ./build_tools/generate_cmake_flags.py /tmp/fastled-wasm-compiler-install/build_tools/generate_cmake_flags.py
+
 # Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
 COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
 COPY ./build_tools/cmake_flags.cmake /git/fastled-wasm/cmake_flags.cmake
