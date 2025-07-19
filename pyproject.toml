@@ -16,7 +16,7 @@ dependencies = [
     "tomli>=2.2.1",
 ]
 
-version = "1.1.0"
+version = "1.1.1"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
