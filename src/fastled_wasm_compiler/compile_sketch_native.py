@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 from fastled_wasm_compiler import paths
+from fastled_wasm_compiler.compilation_flags import get_compilation_flags
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
 from fastled_wasm_compiler.fastled_downloader import ensure_fastled_installed
 
@@ -35,98 +36,35 @@ class NativeCompilerImpl:
         # Ensure FastLED is installed and get the actual source path
         self.fastled_src = ensure_fastled_installed()
 
-        # Base compilation flags - enable unified compilation for efficiency
-        # Use FASTLED_ALL_SRC=1 for unified compilation (compiles all FastLED as one translation unit)
-        self.base_flags = [
-            "-DFASTLED_ALL_SRC=1",  # Enable unified FastLED compilation (was: -UFASTLED_ALL_SRC)
-            "-DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50",
-            "-DFASTLED_FORCE_NAMESPACE=1",
-            "-DFASTLED_USE_PROGMEM=0",
-            "-DUSE_OFFSET_CONVERTER=0",
-            "-DSKETCH_COMPILE=1",
-            "-DFASTLED_WASM_USE_CCALL",
-            "-DGL_ENABLE_GET_PROC_ADDRESS=0",
-            "-std=gnu++17",
-            "-fpermissive",
-            "-Wno-constant-logical-operand",
-            "-Wnon-c-typedef-for-linkage",
-            "-Werror=bad-function-cast",
-            "-Werror=cast-function-type",
-            # Threading enabled for socket emulation
-            "-fno-threadsafe-statics",  # Disable thread-safe static initialization
-            "-pthread",  # Enable pthreads for socket emulation
-            "-D_REENTRANT=1",  # Enable reentrant code for socket emulation
-            # Emscripten type name handling
-            "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",
-            "-I.",
-            "-Isrc",
-            f"-I{self.fastled_src.as_posix()}",
-            f"-I{self.fastled_src.as_posix()}/platforms/wasm/compiler",
+        # Initialize centralized flags system
+        self.flags_loader = get_compilation_flags()
+
+    def get_compilation_flags(
+        self, build_mode: str, strict_mode: bool = False
+    ) -> list[str]:
+        """Get compilation flags for the specified build mode using centralized configuration."""
+        flags = self.flags_loader.get_full_compilation_flags(
+            compilation_type="sketch",
+            build_mode=build_mode,
+            fastled_src_path=self.fastled_src.as_posix(),
+            strict_mode=strict_mode,
+        )
+
+        # Add native-specific flags that aren't in the centralized config
+        native_specific_flags = [
+            "-DFASTLED_ALL_SRC=1",  # Enable unified FastLED compilation for native builds
         ]
 
-        # Debug-specific flags
-        self.debug_flags = [
-            "-g3",
-            "-gsource-map",
-            "-ffile-prefix-map=/=sketchsource/",
-            "-fsanitize=address",
-            "-fsanitize=undefined",
-            "-fno-inline",
-            "-O0",
-        ]
+        return native_specific_flags + flags
 
-        # Quick build flags
-        self.quick_flags = [
-            "-flto=thin",
-            "-O0",
-            # REMOVED: "-sASSERTIONS=0",  # This is a linker setting, not a compiler flag
-            "-g0",
-            "-fno-inline-functions",
-            "-fno-vectorize",
-            "-fno-unroll-loops",
-            "-fno-strict-aliasing",
-        ]
-
-        # Release flags
-        self.release_flags = [
-            "-Oz",
-            "-DNDEBUG",
-            "-ffunction-sections",
-            "-fdata-sections",
-        ]
-
-        # Base linker flags
-        self.base_link_flags = [
-            f"-fuse-ld={os.environ.get('LINKER', 'lld')}",  # Configurable linker
-            "-sWASM=1",
-            "--no-entry",
-            "--emit-symbol-map",
-            "-sMODULARIZE=1",
-            "-sEXPORT_NAME=fastled",
-            # Threading enabled for socket emulation (but no proxy to pthread)
-            "-pthread",  # Enable pthreads for socket emulation
-            "-sUSE_PTHREADS=1",  # Enable POSIX threads
-            "-lwebsocket.js",  # Link websocket library
-            "-sPROXY_POSIX_SOCKETS=1",  # Enable POSIX socket emulation
-            "-sEXIT_RUNTIME=0",
-            "-sALLOW_MEMORY_GROWTH=1",
-            "-sINITIAL_MEMORY=134217728",
-            "-sAUTO_NATIVE_LIBRARIES=0",
-            "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
-            "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
-            "-sFILESYSTEM=0",
-            "-Wl,--gc-sections",
-            "--source-map-base=http://localhost:8000/",
-        ]
-
-        # Debug linker flags
-        self.debug_link_flags = [
-            "-fsanitize=address",
-            "-fsanitize=undefined",
-            "-sSEPARATE_DWARF_URL=fastled.wasm.dwarf",
-            "-sSTACK_OVERFLOW_CHECK=2",
-            "-sASSERTIONS=1",
-        ]
+    def get_linking_flags(self, build_mode: str) -> list[str]:
+        """Get linking flags for the specified build mode using centralized configuration."""
+        linker = os.environ.get("LINKER", "lld")
+        return self.flags_loader.get_full_linking_flags(
+            compilation_type="sketch",
+            linker=linker,
+            build_mode=build_mode,
+        )
 
     def ensure_emsdk(self) -> None:
         """Ensure EMSDK is installed and ready."""
@@ -166,15 +104,7 @@ class NativeCompilerImpl:
         obj_file = build_dir / f"{source_file.stem}.o"
 
         # Get compilation flags
-        flags = self.base_flags.copy()
-        if build_mode.lower() == "debug":
-            flags.extend(self.debug_flags)
-        elif build_mode.lower() == "quick":
-            flags.extend(self.quick_flags)
-        elif build_mode.lower() == "release":
-            flags.extend(self.release_flags)
-        else:
-            raise ValueError(f"Unknown build mode: {build_mode}")
+        flags = self.get_compilation_flags(build_mode)
 
         # Get tool paths and environment
         tool_paths = self.get_tool_paths()
@@ -241,10 +171,10 @@ class NativeCompilerImpl:
         wasm_file = output_dir / f"{output_name}.wasm"
 
         # Get linker flags
-        link_flags = self.base_link_flags.copy()
+        link_flags = self.get_linking_flags(build_mode)
+
+        # Add debug-specific DWARF file generation for debug mode
         if build_mode.lower() == "debug":
-            link_flags.extend(self.debug_link_flags)
-            # Add separate DWARF file for debug mode
             dwarf_file = output_dir / f"{output_name}.wasm.dwarf"
             link_flags.append(f"-gseparate-dwarf={dwarf_file}")
 
