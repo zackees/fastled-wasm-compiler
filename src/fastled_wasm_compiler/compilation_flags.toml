@@ -129,7 +129,7 @@ flags = [
     "-sPROXY_POSIX_SOCKETS=1",
     # Asyncify support for async/await style coding with delay() functions
     "-sASYNCIFY=1",
-    "-sASYNCIFY_STACK_SIZE=16384",  # 16KB stack for asyncify operations
+    "-sASYNCIFY_STACK_SIZE=10485760",  # 10MB stack for asyncify operations
     "-sASYNCIFY_EXPORTS=['_extern_setup','_extern_loop']",  # Allow main FastLED functions to be async
 ]
 

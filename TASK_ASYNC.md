@@ -8,7 +8,7 @@ This document outlines the changes necessary to modify the JavaScript integratio
 
 ✅ **Compiler Support**: Asyncify flags have been added to the WASM compilation:
 - `-sASYNCIFY=1` - Enables asyncify support
-- `-sASYNCIFY_STACK_SIZE=16384` - 16KB stack for async operations  
+- `-sASYNCIFY_STACK_SIZE=10485760` - 10MB stack for async operations (generous allocation for complex sketches)
 - `-sASYNCIFY_EXPORTS=['_extern_setup','_extern_loop']` - Main FastLED functions are async-enabled
 
 ## Required JavaScript Changes
@@ -357,9 +357,22 @@ describe('FastLED Async Integration', () => {
 ## Potential Issues and Solutions
 
 ### Issue: Stack Overflow with Complex Sketches
+**Error**: `Uncaught RuntimeError: Aborted(RuntimeError: unreachable). "unreachable" may be due to ASYNCIFY_STACK_SIZE not`
+
+**Root Cause**: The asyncify stack size is too small for complex FastLED operations with deep call chains.
+
 **Solution**: Increase asyncify stack size in compilation flags:
 ```toml
-"-sASYNCIFY_STACK_SIZE=32768"  # Increase from 16KB to 32KB
+"-sASYNCIFY_STACK_SIZE=10485760"  # 10MB stack (very generous allocation)
+```
+
+**Note**: Stack size has been set to 10MB in the current configuration, which should handle even the most complex FastLED sketches with deep call chains. This is a generous allocation that trades some memory for reliability.
+
+**Alternative sizes** if you need to optimize memory usage:
+```toml
+"-sASYNCIFY_STACK_SIZE=131072"   # 128KB for moderate complexity
+"-sASYNCIFY_STACK_SIZE=1048576"  # 1MB for high complexity
+"-sASYNCIFY_STACK_SIZE=10485760" # 10MB for maximum compatibility (current setting)
 ```
 
 ### Issue: Functions Not Properly Asyncified
