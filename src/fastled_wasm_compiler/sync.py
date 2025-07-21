@@ -328,7 +328,11 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
 
 
 def sync_fastled(
-    src: Path, dst: Path, dryrun: bool = False, sync_examples: bool = True
+    src: Path,
+    dst: Path,
+    dryrun: bool = False,
+    sync_examples: bool = True,
+    update_timestamps: bool | None = None,
 ) -> list[Path]:
     """Sync the source directory to the destination directory using fast Unix tools."""
     start = time.time()
@@ -362,11 +366,22 @@ def sync_fastled(
     elapsed = time.time() - start
     print(f"Fast sync from {src} to {dst} complete in {elapsed:.2f} seconds")
 
-    # Update source timestamp after successful sync (only if changes were made)
+    # Update source timestamp after successful sync (only if changes were made and timestamps are enabled)
     if changed:
-        from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+        # Determine if we should update timestamps
+        should_update = update_timestamps
+        if should_update is None:
+            # Auto-detect if we're in a Docker environment or if /git exists
+            docker_git_root = Path("/git")
+            should_update = docker_git_root.exists() and docker_git_root.is_dir()
 
-        timestamp_manager = get_timestamp_manager()
-        timestamp_manager.update_source_timestamp()
+        if should_update:
+            try:
+                from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+
+                timestamp_manager = get_timestamp_manager()
+                timestamp_manager.update_source_timestamp()
+            except (PermissionError, OSError) as e:
+                logger.warning(f"Could not update source timestamp: {e}")
 
     return changed
