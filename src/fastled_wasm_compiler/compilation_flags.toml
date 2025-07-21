@@ -14,6 +14,8 @@ defines = [
     "-D_REENTRANT=1",
     # Emscripten type name handling
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",
+    # Networking support enabled
+    "-DFASTLED_HAS_NETWORKING=1",
 ]
 
 compiler_flags = [

@@ -21,7 +21,7 @@ wget -O "${FASTLED_ROOT}.zip" ${URL} && \
 cd "${FASTLED_ROOT}/src/platforms"
 shopt -s extglob  # enable extended globing
 for d in */; do
-  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* ]]; then
+  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* ]]; then
     rm -rf "$d"
   fi
 done

@@ -122,7 +122,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile
 
 # changing this number forces a code re-update.
-RUN echo "update build 46"
+RUN echo "update build 48"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
@@ -131,7 +131,6 @@ RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
 
-RUN echo "update build 39"
 
 # BEGIN BUILDING STATIC libfastled.a
 # Copy the TOML configuration and generator FIRST for auto-regeneration
