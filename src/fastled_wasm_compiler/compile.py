@@ -1,7 +1,5 @@
 import os
-import shutil
 import subprocess
-import warnings
 from pathlib import Path
 
 from fastled_wasm_compiler.open_process import open_process
@@ -35,7 +33,6 @@ def compile(
     no_platformio: bool,
     profile_build: bool,
 ) -> int:
-    import platform
 
     print("Starting compilation process...")
     env = os.environ.copy()
@@ -63,28 +60,7 @@ def compile(
         print("⚠️  This fallback behavior will be removed in a future version.")
         no_platformio = True  # Force non-PlatformIO build
 
-    is_linux = platform.system() == "Linux"
-    if is_linux and not no_platformio:
-        # This code path is now dead due to the deprecation above, but keeping for safety
-        if not (compiler_root / "platformio.ini").exists():
-            dst = compiler_root / "platformio.ini"
-            print(
-                f"No platformio.ini found, copying /platformio/platformio.ini to {dst}"
-            )
-            shutil.copy2("/platformio/platformio.ini", dst)
-
-        if not (compiler_root / "wasm_compiler_flags.py").exists():
-            dst_file = compiler_root / "wasm_compiler_flags.py"
-            print(
-                f"No wasm_compiler_flags.py found, copying '/platformio/wasm_compiler_flags.py' to {dst_file}"
-            )
-            shutil.copy2(
-                "/platformio/wasm_compiler_flags.py",
-                dst_file,
-            )
-    else:
-        if not is_linux:
-            warnings.warn("Linux platform not detected. Skipping file copy.")
+    # PlatformIO support has been completely removed - using native compilation only
 
     # Always use non-PlatformIO compilation now
     print(banner("Using direct emcc compilation"))

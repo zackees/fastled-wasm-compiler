@@ -121,10 +121,9 @@ git status build_tools/cmake_flags.cmake
 
 ## Critical Architecture Note
 
-This project has **3 synchronized build systems**:
+This project has **2 synchronized build systems**:
 1. **CMake** (Docker/`build_lib.sh`) - Uses `cmake_flags.cmake`
-2. **PlatformIO** (sketch compilation) - Uses `wasm_compiler_flags.py`
-3. **Native** (direct emcc) - Uses `compile_sketch_native.py`
+2. **Native** (direct emcc) - Uses `compile_sketch_native.py` with centralized flags system
 
 **The PCH is built by CMake but used by sketch compilation**, so flag synchronization is critical for compatibility.
 

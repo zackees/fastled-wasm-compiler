@@ -171,9 +171,7 @@ RUN cp -r /git/fastled/examples/Blink /examples
 
 
 ### Final environment for sketch compilation
-# Note: PlatformIO files kept for backwards compatibility during transition
-COPY ./assets/wasm_compiler_flags.py /platformio/wasm_compiler_flags.py
-COPY ./assets/platformio.ini /platformio/platformio.ini
+# PlatformIO support has been completely removed - using native compilation only
 
 ### Pre-warm the cache (now uses --no-platformio by default)
 RUN fastled-wasm-compiler-prewarm \

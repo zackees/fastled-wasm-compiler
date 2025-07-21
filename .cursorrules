@@ -35,20 +35,14 @@ This project has a complex multi-build-system architecture. When modifying compi
 
 ### 4. Production Build Files
 - `src/fastled_wasm_compiler/compile_sketch_native.py` - Native compilation mode
-- `assets/wasm_compiler_flags.py` - PlatformIO build script (has fallback flags + centralized flags)
-- `assets/platformio.ini` - PlatformIO project configuration  
 - `cmake/shared_build_settings.cmake` - Shared CMake settings
 
-### 5. Test Configuration Files (Mirror Production)
-- `tests/integration/test_data/assets/wasm_compiler_flags.py`
-- `tests/integration/test_data/compiler_root/wasm_compiler_flags.py`
-- `tests/integration/test_data/compiler_root/platformio.ini`
-
-### 6. Build System Coordination
-This project supports 3 build systems that must stay synchronized:
+### 5. Build System Coordination
+This project supports 2 build systems that must stay synchronized:
 - **CMake** (used by Docker/`build_lib.sh`) - Uses `build_tools/cmake_flags.cmake`
-- **PlatformIO** (sketch compilation) - Uses `assets/wasm_compiler_flags.py` and `.ini`
 - **Native** (direct emcc calls) - Uses `compile_sketch_native.py`
+
+Note: PlatformIO support has been completely removed from this project.
 
 ### 7. Systematic Search Strategy for Build Files
 When adding compilation flags (like `-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0`):
