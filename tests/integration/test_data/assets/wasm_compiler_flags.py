@@ -93,8 +93,8 @@ compile_flags = [
     "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
     "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
     "-fno-threadsafe-statics",
-    "-DEMSCRIPTEN_NO_THREADS",
-    "-D_REENTRANT=0",
+    "-pthread",  # Enable pthreads for socket emulation
+    "-D_REENTRANT=1",
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",  # Emscripten type name handling
     "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
     "-Isrc",
@@ -259,8 +259,8 @@ def get_cpp_flags(build_mode: str = "debug") -> list[str]:
         "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
         "-emit-llvm",
         "-fno-threadsafe-statics",
-        "-DEMSCRIPTEN_NO_THREADS",
-        "-D_REENTRANT=0",
+        "-pthread",  # Enable pthreads for socket emulation
+        "-D_REENTRANT=1",
         "-I.",
         "-Isrc",
         f"-I{FASTLED_SRC_STR}",

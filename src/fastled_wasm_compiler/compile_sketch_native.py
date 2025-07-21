@@ -52,10 +52,10 @@ class NativeCompilerImpl:
             "-Wnon-c-typedef-for-linkage",
             "-Werror=bad-function-cast",
             "-Werror=cast-function-type",
-            # Threading disabled flags
+            # Threading enabled for socket emulation
             "-fno-threadsafe-statics",  # Disable thread-safe static initialization
-            "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
-            "-D_REENTRANT=0",  # Disable reentrant code
+            "-pthread",  # Enable pthreads for socket emulation
+            "-D_REENTRANT=1",  # Enable reentrant code for socket emulation
             # Emscripten type name handling
             "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",
             "-I.",
@@ -103,7 +103,11 @@ class NativeCompilerImpl:
             "--emit-symbol-map",
             "-sMODULARIZE=1",
             "-sEXPORT_NAME=fastled",
-            "-sUSE_PTHREADS=0",
+            # Threading enabled for socket emulation (but no proxy to pthread)
+            "-pthread",  # Enable pthreads for socket emulation
+            "-sUSE_PTHREADS=1",  # Enable POSIX threads
+            "-lwebsocket.js",  # Link websocket library
+            "-sPROXY_POSIX_SOCKETS=1",  # Enable POSIX socket emulation
             "-sEXIT_RUNTIME=0",
             "-sALLOW_MEMORY_GROWTH=1",
             "-sINITIAL_MEMORY=134217728",

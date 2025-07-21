@@ -7,8 +7,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-DFASTLED_USE_PROGMEM=0"
     "-DUSE_OFFSET_CONVERTER=0"
     "-DGL_ENABLE_GET_PROC_ADDRESS=0"
-    "-DEMSCRIPTEN_NO_THREADS"
-    "-D_REENTRANT=0"
+    "-D_REENTRANT=1"
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0"
     "-std=gnu++17"
     "-fpermissive"
@@ -19,6 +18,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-fno-threadsafe-statics"
     "-fno-exceptions"
     "-fno-rtti"
+    "-pthread"
     "-emit-llvm"
     "-Wall"
 )

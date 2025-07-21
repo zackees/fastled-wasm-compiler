@@ -10,9 +10,8 @@ defines = [
     "-DFASTLED_USE_PROGMEM=0",
     "-DUSE_OFFSET_CONVERTER=0",
     "-DGL_ENABLE_GET_PROC_ADDRESS=0",
-    # Threading disabled flags
-    "-DEMSCRIPTEN_NO_THREADS",
-    "-D_REENTRANT=0",
+    # Threading enabled for socket emulation
+    "-D_REENTRANT=1",
     # Emscripten type name handling
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",
 ]
@@ -27,6 +26,7 @@ compiler_flags = [
     "-fno-threadsafe-statics",  # Disable thread-safe static initialization
     "-fno-exceptions",  # Disable C++ exceptions for all targets
     "-fno-rtti",  # Disable RTTI for all targets (consistent with library build)
+    "-pthread",  # Enable pthreads for socket emulation
 ]
 
 include_flags = [
@@ -101,8 +101,9 @@ flags = [
 flags = [
     # Linker will be set dynamically: -fuse-ld={linker}
     "-sWASM=1",
-    # Threading disabled flags
-    "-sUSE_PTHREADS=0",
+    # Threading enabled for socket emulation (but no proxy to pthread)
+    "-pthread",
+    "-sUSE_PTHREADS=1",
 ]
 
 [linking.sketch]
@@ -121,6 +122,9 @@ flags = [
     "-sFILESYSTEM=0",
     "-Wl,--gc-sections",
     "--source-map-base=http://localhost:8000/",
+    # Socket emulation flags (emulated POSIX TCP over WebSockets)
+    "-lwebsocket.js",
+    "-sPROXY_POSIX_SOCKETS=1",
 ]
 
 [linking.library]

@@ -86,9 +86,9 @@ set(SHARED_DEFINES
     -DFASTLED_USE_PROGMEM=0
     -DUSE_OFFSET_CONVERTER=0
     -DGL_ENABLE_GET_PROC_ADDRESS=0
-    # Threading disabled flags
-    -DEMSCRIPTEN_NO_THREADS
-    -D_REENTRANT=0
+    # Threading enabled for socket emulation
+    -pthread
+    -D_REENTRANT=1
     # Emscripten type name handling
     -DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0
 )
@@ -173,8 +173,11 @@ set(RELEASE_FLAGS
 set(SHARED_LINK_FLAGS
     -fuse-ld=${SELECTED_LINKER}
     -sWASM=1
-    # Threading disabled flags
-    -sUSE_PTHREADS=0
+    # Threading enabled for socket emulation (but no proxy to pthread)
+    -pthread
+    -sUSE_PTHREADS=1
+    -lwebsocket.js
+    -sPROXY_POSIX_SOCKETS=1
 )
 
 # ================================================================================================

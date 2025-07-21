@@ -34,6 +34,35 @@ _ENABLE = _IS_LINUX or not _IS_GITHUB
 _FULL_PURGE = False
 
 
+def check_docker_availability() -> None:
+    """Check if Docker is available and running, raise clear error if not."""
+    try:
+        # First check if docker command exists
+        result = subprocess.run(
+            ["docker", "--version"], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            raise RuntimeError("Docker command not found. Please install Docker.")
+
+        # Then check if Docker daemon is running
+        result = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            error_msg = "Docker is installed but not running. Please start Docker Desktop or Docker daemon."
+            if (
+                "cannot connect" in result.stderr.lower()
+                or "connection refused" in result.stderr.lower()
+            ):
+                error_msg += f"\nError details: {result.stderr.strip()}"
+            raise RuntimeError(error_msg)
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Docker command timed out. Docker may not be responding.")
+    except FileNotFoundError:
+        raise RuntimeError("Docker command not found. Please install Docker.")
+
+
 class FullBuildTester(unittest.TestCase):
     """Main tester class."""
 
@@ -41,6 +70,11 @@ class FullBuildTester(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Set up test environment by building the Docker container once for all tests."""
         if _ENABLE:
+            # Check Docker availability first before attempting any Docker operations
+            print("Checking Docker availability...")
+            check_docker_availability()
+            print("✅ Docker is available and running")
+
             # Remove any existing containers with the same name
             subprocess.run(
                 ["docker", "rm", "-f", "fastled-test-container"],

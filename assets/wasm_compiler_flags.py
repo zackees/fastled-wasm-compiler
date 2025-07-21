@@ -61,8 +61,7 @@ COMPILER_FLAGS = [
     "-DSKETCH_COMPILE=1",
     "-DGL_ENABLE_GET_PROC_ADDRESS=0",
     "-DIDF_CCACHE_ENABLE=1",
-    "-DEMSCRIPTEN_NO_THREADS",  # Important: disable threads
-    "-D_REENTRANT=0",  # Don't use reentrant code
+    "-D_REENTRANT=1",  # Enable reentrant code for socket emulation
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",  # Emscripten type name handling
 ]
 
@@ -160,10 +159,10 @@ if not CENTRALIZED_FLAGS_AVAILABLE:
         "-Werror=cast-function-type",
         "-sERROR_ON_WASM_CHANGES_AFTER_LINK",
         "-emit-llvm",  # Generate LLVM bitcode for sketch compilation
-        # Threading disabled flags
+        # Threading enabled for socket emulation
         "-fno-threadsafe-statics",  # Disable thread-safe static initialization
-        "-DEMSCRIPTEN_NO_THREADS",  # Define to disable threading
-        "-D_REENTRANT=0",  # Disable reentrant code
+        "-pthread",  # Enable pthreads for socket emulation
+        "-D_REENTRANT=1",  # Enable reentrant code for socket emulation
         "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",  # Emscripten type name handling
         "-I.",  # Add current directory to ensure quoted includes work same as angle bracket includes
         "-Isrc",
@@ -200,8 +199,11 @@ link_flags = [
     "-sAUTO_NATIVE_LIBRARIES=0",
     "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
-    # Threading disabled flags
-    "-sUSE_PTHREADS=0",  # Disable POSIX threads
+    # Threading enabled for socket emulation (but no proxy to pthread)
+    "-pthread",  # Enable pthreads for socket emulation
+    "-sUSE_PTHREADS=1",  # Enable POSIX threads
+    "-lwebsocket.js",  # Link websocket library
+    "-sPROXY_POSIX_SOCKETS=1",  # Enable POSIX socket emulation
     "-sEXIT_RUNTIME=0",  # Don't exit runtime (not thread-related but often paired)
     "--no-entry",
 ]
