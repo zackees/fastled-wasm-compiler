@@ -1,8 +1,27 @@
 # FastLED WASM Shared Build Settings
 # This file contains compilation settings shared between sketch and library builds
 # while keeping linking settings separate.
+#
+# IMPORTANT: This file now uses the centralized TOML build flags system.
+# All compilation flags are loaded from build_flags.toml via cmake_flags.cmake
 
 cmake_minimum_required(VERSION 3.10)
+
+# ================================================================================================
+# CENTRALIZED FLAGS LOADING
+# ================================================================================================
+
+# Load centralized compilation flags from TOML-generated cmake file
+# This ensures consistency with the main build system
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake_flags.cmake)
+
+# Verify the centralized flags are loaded
+list(LENGTH FASTLED_BASE_COMPILE_FLAGS BASE_FLAGS_COUNT)
+if(BASE_FLAGS_COUNT EQUAL 0)
+    message(FATAL_ERROR "❌ CRITICAL: FASTLED_BASE_COMPILE_FLAGS is EMPTY! cmake_flags.cmake not loaded properly from build_flags.toml")
+else()
+    message(STATUS "✅ Shared Build Settings: Successfully loaded ${BASE_FLAGS_COUNT} centralized flags from TOML")
+endif()
 
 # ================================================================================================
 # COMPILER TOOLCHAIN SETUP
@@ -76,35 +95,14 @@ else()
 endif()
 
 # ================================================================================================
-# SHARED COMPILATION FLAGS
+# CENTRALIZED COMPILATION FLAGS (FROM TOML)
 # ================================================================================================
 
-# Base defines shared by all compilation
-set(SHARED_DEFINES
-    -DFASTLED_ENGINE_EVENTS_MAX_LISTENERS=50
-    -DFASTLED_FORCE_NAMESPACE=1
-    -DFASTLED_USE_PROGMEM=0
-    -DUSE_OFFSET_CONVERTER=0
-    -DGL_ENABLE_GET_PROC_ADDRESS=0
-    # Threading enabled for socket emulation
-    -pthread
-    -D_REENTRANT=1
-    # Emscripten type name handling
-    -DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0
-)
+# Base compilation flags are now loaded from centralized TOML system
+# FASTLED_BASE_COMPILE_FLAGS contains: base defines + base compiler flags + library flags
+# This replaces the old hardcoded SHARED_DEFINES and SHARED_COMPILER_FLAGS
 
-# Base compiler flags shared by all compilation
-set(SHARED_COMPILER_FLAGS
-    -std=gnu++17
-    -fpermissive
-    -Wno-constant-logical-operand
-    -Wnon-c-typedef-for-linkage
-    -Werror=bad-function-cast
-    -Werror=cast-function-type
-    -fno-threadsafe-statics  # Disable thread-safe static initialization
-)
-
-# Base include directories
+# Base include directories (still defined here as they're path-dependent)
 set(SHARED_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -113,8 +111,12 @@ set(SHARED_INCLUDE_DIRS
 )
 
 # ================================================================================================
-# SKETCH-SPECIFIC FLAGS
+# SKETCH-SPECIFIC FLAGS (FROM TOML)
 # ================================================================================================
+
+# Sketch-specific flags are extracted from the centralized system
+# Note: These are currently embedded in FASTLED_BASE_COMPILE_FLAGS
+# If needed, they can be separated in the TOML structure
 
 set(SKETCH_DEFINES
     -DSKETCH_COMPILE=1
@@ -126,45 +128,25 @@ set(SKETCH_COMPILER_FLAGS
 )
 
 # ================================================================================================
-# LIBRARY-SPECIFIC FLAGS  
+# LIBRARY-SPECIFIC FLAGS (FROM TOML)
 # ================================================================================================
 
+# Library-specific flags are extracted from the centralized system
+# Note: These are currently embedded in FASTLED_BASE_COMPILE_FLAGS
 set(LIBRARY_DEFINES
     # Library-specific defines (if any)
 )
 
 set(LIBRARY_COMPILER_FLAGS
-    -emit-llvm  # Generate LLVM bitcode for library compilation
-    -Wall
+    # Library-specific flags are in FASTLED_BASE_COMPILE_FLAGS from TOML
 )
 
 # ================================================================================================
-# BUILD MODE FLAGS
+# BUILD MODE FLAGS (FROM TOML)
 # ================================================================================================
 
-set(DEBUG_FLAGS
-    -g3
-    -gsource-map
-    -ffile-prefix-map=/=sketchsource/
-    -fsanitize=address
-    -fsanitize=undefined
-    -fno-inline
-    -O0
-)
-
-set(QUICK_FLAGS
-    -flto=thin
-    -O0
-    -g0
-    -fno-inline-functions
-    -fno-vectorize
-    -fno-unroll-loops
-    -fno-strict-aliasing
-)
-
-set(RELEASE_FLAGS
-    -Oz
-)
+# Build mode flags are now loaded from centralized TOML system
+# FASTLED_DEBUG_FLAGS, FASTLED_QUICK_FLAGS, FASTLED_RELEASE_FLAGS are available
 
 # ================================================================================================
 # BASE LINKING FLAGS (SHARED)
@@ -181,7 +163,7 @@ set(SHARED_LINK_FLAGS
 )
 
 # ================================================================================================
-# SKETCH-SPECIFIC LINKING FLAGS
+# SKETCH-SPECIFIC LINKING FLAGS (FROM TOML)
 # ================================================================================================
 
 set(SKETCH_LINK_FLAGS
@@ -214,14 +196,13 @@ set(DEBUG_LINK_FLAGS
 )
 
 # ================================================================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (UPDATED TO USE CENTRALIZED FLAGS)
 # ================================================================================================
 
 # Function to apply shared compilation flags to a target
 function(apply_shared_compilation_flags target_name compilation_type)
-    # Apply shared defines and compiler flags
-    target_compile_definitions(${target_name} PRIVATE ${SHARED_DEFINES})
-    target_compile_options(${target_name} PRIVATE ${SHARED_COMPILER_FLAGS})
+    # Apply centralized compilation flags from TOML system
+    target_compile_options(${target_name} PRIVATE ${FASTLED_BASE_COMPILE_FLAGS})
     target_include_directories(${target_name} PRIVATE ${SHARED_INCLUDE_DIRS})
     
     # Apply type-specific flags
@@ -235,13 +216,13 @@ function(apply_shared_compilation_flags target_name compilation_type)
         message(FATAL_ERROR "Invalid compilation_type: ${compilation_type}. Must be 'sketch' or 'library'")
     endif()
     
-    # Apply build mode flags
+    # Apply build mode flags from centralized TOML system
     if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-        target_compile_options(${target_name} PRIVATE ${DEBUG_FLAGS})
+        target_compile_options(${target_name} PRIVATE ${FASTLED_DEBUG_FLAGS})
     elseif(CMAKE_BUILD_TYPE STREQUAL "QUICK")
-        target_compile_options(${target_name} PRIVATE ${QUICK_FLAGS})
+        target_compile_options(${target_name} PRIVATE ${FASTLED_QUICK_FLAGS})
     elseif(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-        target_compile_options(${target_name} PRIVATE ${RELEASE_FLAGS})
+        target_compile_options(${target_name} PRIVATE ${FASTLED_RELEASE_FLAGS})
     endif()
 endfunction()
 
@@ -265,10 +246,11 @@ function(apply_shared_linking_flags target_name compilation_type)
     endif()
 endfunction()
 
-message(STATUS "FastLED WASM shared build settings loaded")
+message(STATUS "FastLED WASM shared build settings loaded (using centralized TOML flags)")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Linker: ${SELECTED_LINKER}")
 message(STATUS "  FastLED source: ${FASTLED_SRC_PATH}")
+message(STATUS "  Centralized flags: ${BASE_FLAGS_COUNT} items from build_flags.toml")
 if(CCACHE_EXECUTABLE)
     message(STATUS "  Ccache: enabled")
 else()
