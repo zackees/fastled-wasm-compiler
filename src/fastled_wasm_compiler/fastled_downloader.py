@@ -196,6 +196,7 @@ class FastLEDDownloader:
             "*.css",
             "*.txt",
             "*.html",
+            "*.toml",
         ]
 
         for pattern in file_patterns:

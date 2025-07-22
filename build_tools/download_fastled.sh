@@ -41,7 +41,8 @@ find . -type f ! \( \
   -name "*.mjs"  -o \
   -name "*.css"  -o \
   -name "*.txt"  -o \
-  -name "*.html" \
+  -name "*.html" -o \
+  -name "*.toml" \
 \) -delete
 
 # now normalize all file endings that remain

@@ -45,6 +45,7 @@ ALLOWED_EXTENSIONS = [
     "*.html",  # HTML files
     "*.css",  # CSS files
     "*.ini",  # Configuration files
+    "*.toml",  # TOML configuration files
 ]
 
 
