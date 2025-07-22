@@ -135,7 +135,7 @@ RUN /build/download_fastled.sh
 # BEGIN BUILDING STATIC libfastled.a
 # Copy the TOML configuration and generator FIRST for auto-regeneration
 COPY ./src/fastled_wasm_compiler/__init__.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/__init__.py
-COPY ./src/fastled_wasm_compiler/compilation_flags.toml /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.toml
+COPY ./src/fastled_wasm_compiler/build_flags.toml /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/build_flags.toml
 COPY ./src/fastled_wasm_compiler/compilation_flags.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.py
 COPY ./build_tools/generate_cmake_flags.py /tmp/fastled-wasm-compiler-install/build_tools/generate_cmake_flags.py
 

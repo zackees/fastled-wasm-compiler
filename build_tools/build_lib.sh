@@ -14,23 +14,23 @@ cd "${FASTLED_ROOT}-wasm"
 echo ">>> Checking if cmake_flags.cmake needs regeneration..."
 
 # Paths for TOML source and generated cmake flags
-TOML_FILE="/tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.toml"
+TOML_FILE="/tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/build_flags.toml"
 GENERATOR_SCRIPT="/tmp/fastled-wasm-compiler-install/build_tools/generate_cmake_flags.py"
 CMAKE_FLAGS_FILE="${FASTLED_ROOT}-wasm/cmake_flags.cmake"
 
 # Check if TOML file exists (it will after COPY . step in Docker)
 if [ -f "$TOML_FILE" ] && [ -f "$GENERATOR_SCRIPT" ]; then
-    echo ">>> Found compilation_flags.toml, checking if regeneration needed..."
+    echo ">>> Found build_flags.toml, checking if regeneration needed..."
     
-    # Check if cmake_flags.cmake is older than compilation_flags.toml
+    # Check if cmake_flags.cmake is older than build_flags.toml
     if [ "$CMAKE_FLAGS_FILE" -ot "$TOML_FILE" ] || [ ! -f "$CMAKE_FLAGS_FILE" ]; then
-        echo ">>> Regenerating cmake_flags.cmake from compilation_flags.toml..."
+        echo ">>> Regenerating cmake_flags.cmake from build_flags.toml..."
         cd /tmp/fastled-wasm-compiler-install
         
         # Generate cmake_flags.cmake (tomli is installed system-wide)
         echo ">>> Generating cmake_flags.cmake from TOML..."
         python3 build_tools/generate_cmake_flags.py > "${CMAKE_FLAGS_FILE}" || {
-            echo "FATAL: Failed to generate cmake_flags.cmake from compilation_flags.toml"
+            echo "FATAL: Failed to generate cmake_flags.cmake from build_flags.toml"
             echo "Error output:"
             python3 build_tools/generate_cmake_flags.py 2>&1 || true
             echo "Ensure tomli is installed: uv pip install --system tomli"
@@ -53,7 +53,7 @@ if [ -f "$TOML_FILE" ] && [ -f "$GENERATOR_SCRIPT" ]; then
             fi
         else
             echo ">>> WARNING: Could not regenerate cmake_flags.cmake, using existing version"
-            echo ">>> This may cause PCH flag mismatches if compilation_flags.toml was updated"
+            echo ">>> This may cause PCH flag mismatches if build_flags.toml was updated"
         fi
     else
         echo ">>> cmake_flags.cmake is up-to-date"

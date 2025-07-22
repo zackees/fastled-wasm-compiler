@@ -14,7 +14,7 @@ This project is designed to run with `uv run` instead of `python`.
 This project has a complex multi-build-system architecture. When modifying compilation flags, you MUST update ALL of these locations:
 
 ### 1. Central Source of Truth
-- `src/fastled_wasm_compiler/compilation_flags.toml` - **START HERE FIRST**
+- `src/fastled_wasm_compiler/build_flags.toml` - **START HERE FIRST**
   - This is the centralized configuration that feeds other build systems
   - Contains base flags, build mode flags, and linking flags
 
@@ -30,7 +30,7 @@ This project has a complex multi-build-system architecture. When modifying compi
   ```
   [emcc] fatal error: file 'src/fl/bitset.h' has been modified since the precompiled header '/build/quick/fastled_pch.h.gch' was built: size changed (was 21220, now 21286)
   ```
-- **Fix:** Always regenerate `cmake_flags.cmake` after changing `compilation_flags.toml` and commit both files together
+- **Fix:** Always regenerate `cmake_flags.cmake` after changing `build_flags.toml` and commit both files together
 - **Debugging:** CMake now logs PCH compilation flags and sketch compilation warns about stale PCH files
 
 ### 4. Production Build Files
@@ -47,7 +47,7 @@ Note: PlatformIO support has been completely removed from this project.
 ### 7. Systematic Search Strategy for Build Files
 When adding compilation flags (like `-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0`):
 
-1. **Update central config first:** `compilation_flags.toml`
+1. **Update central config first:** `build_flags.toml`
 2. **Regenerate auto-generated files:** Run the cmake flags generator script
 3. **Search comprehensively:** `grep -r "fno-rtti" --include="*.py" --include="*.ini" --include="*.cmake" .`
 4. **Check test configs:** Always check `tests/integration/test_data/` directories

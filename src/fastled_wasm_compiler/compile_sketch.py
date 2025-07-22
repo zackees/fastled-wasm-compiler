@@ -171,10 +171,10 @@ if not FASTLED_SRC_STR.startswith("/"):
 CC = "/build_tools/ccache-emcc.sh"
 CXX = "/build_tools/ccache-emcxx.sh"
 
-# NOTE: Compilation flags now centralized in compilation_flags.toml
+# NOTE: Compilation flags now centralized in build_flags.toml
 # This ensures sketch and library compilation use compatible flags
 
-# NOTE: Linking flags now centralized in compilation_flags.toml
+# NOTE: Linking flags now centralized in build_flags.toml
 # This ensures sketch and library compilation use compatible flags
 
 
@@ -433,7 +433,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         linker=linker,
     )
 
-    printer.tprint("\n🔧 Compilation configuration (from compilation_flags.toml):")
+    printer.tprint("\n🔧 Compilation configuration (from build_flags.toml):")
     printer.tprint("📋 CXX_FLAGS:")
     for i, flag in enumerate(compilation_flags):
         printer.tprint(f"  {i+1:2d}. {flag}")

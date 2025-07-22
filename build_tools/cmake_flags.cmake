@@ -1,4 +1,4 @@
-# Generated from compilation_flags.toml - DO NOT EDIT MANUALLY
+# Generated from build_flags.toml - DO NOT EDIT MANUALLY
 # Run build_tools/generate_cmake_flags.py to regenerate
 
 set(FASTLED_BASE_COMPILE_FLAGS

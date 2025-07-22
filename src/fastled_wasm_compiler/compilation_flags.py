@@ -1,8 +1,12 @@
 """
 Centralized compilation flags loader.
 
-This module reads the compilation_flags.toml file and provides consistent
+This module reads the build_flags.toml file and provides consistent
 compilation flags for both sketch compilation and libfastled compilation.
+
+Fallback order:
+1. src/platforms/wasm/compile/build_flags.toml (in FastLED source tree)
+2. src/fastled_wasm_compiler/build_flags.toml (fallback)
 """
 
 from pathlib import Path
@@ -18,6 +22,8 @@ except ImportError:
 
 from importlib.resources import files
 
+from .paths import get_fastled_source_path
+
 
 class CompilationFlags:
     """Manages compilation flags from centralized TOML configuration."""
@@ -28,25 +34,47 @@ class CompilationFlags:
         self._config: dict[str, Any] = self._load_config()
 
     def _load_config(self) -> dict[str, Any]:
-        """Load TOML configuration file."""
+        """Load TOML configuration file with fallback logic."""
         if self.config_path is not None:
             # Use custom config path
             if not self.config_path.exists():
                 raise FileNotFoundError(
-                    f"Compilation flags config not found: {self.config_path}"
+                    f"Build flags config not found: {self.config_path}"
                 )
             with open(self.config_path, "rb") as f:
                 return tomllib.load(f)
         else:
-            # Use package resource (default)
+            # Try FastLED source tree first
+            try:
+                fastled_src_path = Path(get_fastled_source_path())
+                fastled_build_flags = (
+                    fastled_src_path
+                    / "platforms"
+                    / "wasm"
+                    / "compile"
+                    / "build_flags.toml"
+                )
+
+                if fastled_build_flags.exists():
+                    print(
+                        f"Using build flags from FastLED source: {fastled_build_flags}"
+                    )
+                    with open(fastled_build_flags, "rb") as f:
+                        return tomllib.load(f)
+            except Exception:
+                # Ignore errors when trying FastLED source tree, fall back to package resource
+                pass
+
+            # Fallback to package resource
             try:
                 package_files = files("fastled_wasm_compiler")
-                config_file = package_files / "compilation_flags.toml"
+                config_file = package_files / "build_flags.toml"
+                print("Using fallback build flags from package: build_flags.toml")
                 with cast(BinaryIO, config_file.open("rb")) as f:
                     return tomllib.load(f)
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    "Compilation flags config not found in package: compilation_flags.toml"
+                    "Build flags config not found in package: build_flags.toml"
                 )
 
     def get_base_flags(self) -> list[str]:

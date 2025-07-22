@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-Generate CMake variables from centralized compilation_flags.toml.
+Generate CMake variables from centralized build_flags.toml.
 This ensures CMakeLists.txt uses the same flags as sketch compilation.
+
+Fallback order:
+1. src/platforms/wasm/compile/build_flags.toml (in FastLED source tree)
+2. src/fastled_wasm_compiler/build_flags.toml (fallback)
 """
 
 import sys
+import os
 from pathlib import Path
 
 # Require tomli - fail if not available
@@ -17,31 +22,48 @@ except ImportError:
     sys.exit(1)
 
 
+def get_fastled_source_path() -> str:
+    """Get the FastLED source path for path resolution."""
+    return os.environ.get("ENV_FASTLED_SOURCE_PATH", "git/fastled/src")
+
+
 def find_toml_file() -> Path:
-    """Find the compilation_flags.toml file."""
-    # Try multiple possible locations
+    """Find the build_flags.toml file with fallback logic."""
+    # Try FastLED source tree first
+    try:
+        fastled_src_path = Path(get_fastled_source_path())
+        fastled_build_flags = fastled_src_path / "platforms" / "wasm" / "compile" / "build_flags.toml"
+        
+        if fastled_build_flags.exists():
+            print(f"# Using build flags from FastLED source: {fastled_build_flags}", file=sys.stderr)
+            return fastled_build_flags
+    except Exception as e:
+        print(f"# Could not check FastLED source tree: {e}", file=sys.stderr)
+    
+    # Fallback to several possible locations for the local build_flags.toml
     possible_paths = [
         # Docker container paths
-        Path("/tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.toml"),
+        Path("/tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/build_flags.toml"),
         # Local development paths
-        Path(__file__).parent.parent / "src" / "fastled_wasm_compiler" / "compilation_flags.toml",
+        Path(__file__).parent.parent / "src" / "fastled_wasm_compiler" / "build_flags.toml",
         # Relative paths
-        Path("src/fastled_wasm_compiler/compilation_flags.toml"),
-        Path("../src/fastled_wasm_compiler/compilation_flags.toml"),
+        Path("src/fastled_wasm_compiler/build_flags.toml"),
+        Path("../src/fastled_wasm_compiler/build_flags.toml"),
     ]
     
     for path in possible_paths:
         if path.exists():
+            print(f"# Using fallback build flags: {path}", file=sys.stderr)
             return path
     
-    print(f"ERROR: Could not find compilation_flags.toml in any of these locations:", file=sys.stderr)
+    print(f"ERROR: Could not find build_flags.toml in any of these locations:", file=sys.stderr)
     for path in possible_paths:
         print(f"  - {path}", file=sys.stderr)
     sys.exit(1)
 
 
 def main() -> None:
-    """Generate CMake variables from compilation_flags.toml."""
+    """Generate CMake variables from build_flags.toml."""
     toml_file = find_toml_file()
     print(f"# Generated from {toml_file} - DO NOT EDIT MANUALLY", file=sys.stderr)
     print(f"# Run build_tools/generate_cmake_flags.py to regenerate", file=sys.stderr)
@@ -63,7 +85,7 @@ def main() -> None:
     all_flags = base_defines + base_compiler_flags + library_compiler_flags
     
     # Generate CMake variables
-    print("# Generated from compilation_flags.toml - DO NOT EDIT MANUALLY")
+    print("# Generated from build_flags.toml - DO NOT EDIT MANUALLY")
     print("# Run build_tools/generate_cmake_flags.py to regenerate")
     print()
     
