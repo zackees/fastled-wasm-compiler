@@ -29,16 +29,24 @@ def get_fastled_source_path() -> str:
 
 def find_toml_file() -> Path:
     """Find the build_flags.toml file with fallback logic."""
+    print("# 🔍 BUILD_FLAGS CMAKE: Searching for build_flags.toml configuration", file=sys.stderr)
+    
     # Try FastLED source tree first
     try:
         fastled_src_path = Path(get_fastled_source_path())
         fastled_build_flags = fastled_src_path / "platforms" / "wasm" / "compile" / "build_flags.toml"
         
+        print(f"# 📍 BUILD_FLAGS CMAKE: Checking primary location: {fastled_build_flags}", file=sys.stderr)
+        
         if fastled_build_flags.exists():
-            print(f"# Using build flags from FastLED source: {fastled_build_flags}", file=sys.stderr)
+            print(f"# ✅ BUILD_FLAGS CMAKE: Using primary FastLED source config: {fastled_build_flags}", file=sys.stderr)
             return fastled_build_flags
+        else:
+            print(f"# ⚠️  BUILD_FLAGS CMAKE: Primary config not found at {fastled_build_flags}", file=sys.stderr)
+            print("# ⚠️  BUILD_FLAGS CMAKE: This is expected when using Docker/standalone builds", file=sys.stderr)
+            
     except Exception as e:
-        print(f"# Could not check FastLED source tree: {e}", file=sys.stderr)
+        print(f"# ⚠️  BUILD_FLAGS CMAKE: Error checking FastLED source tree: {e}", file=sys.stderr)
     
     # Fallback to several possible locations for the local build_flags.toml
     possible_paths = [
@@ -51,15 +59,53 @@ def find_toml_file() -> Path:
         Path("../src/fastled_wasm_compiler/build_flags.toml"),
     ]
     
+    print("# 🔄 BUILD_FLAGS CMAKE: Falling back to package resource locations", file=sys.stderr)
     for path in possible_paths:
         if path.exists():
-            print(f"# Using fallback build flags: {path}", file=sys.stderr)
+            print(f"# ✅ BUILD_FLAGS CMAKE: Using fallback config: {path}", file=sys.stderr)
+            print("# ℹ️  BUILD_FLAGS CMAKE: Using default compiler flags (normal for Docker builds)", file=sys.stderr)
             return path
     
-    print(f"ERROR: Could not find build_flags.toml in any of these locations:", file=sys.stderr)
+    print(f"# ❌ BUILD_FLAGS CMAKE ERROR: Could not find build_flags.toml in any location:", file=sys.stderr)
     for path in possible_paths:
-        print(f"  - {path}", file=sys.stderr)
+        print(f"#   - {path}", file=sys.stderr)
     sys.exit(1)
+
+
+def print_config_status(config: dict, file_path: Path) -> None:
+    """Print status of the loaded configuration."""
+    print(f"# 📋 BUILD_FLAGS CMAKE: Configuration loaded from {file_path}", file=sys.stderr)
+    
+    try:
+        # Count items in each section
+        base_defines = len(config.get("all", {}).get("defines", []))
+        base_flags = len(config.get("all", {}).get("compiler_flags", []))
+        sketch_defines = len(config.get("sketch", {}).get("defines", []))
+        sketch_flags = len(config.get("sketch", {}).get("compiler_flags", []))
+        library_defines = len(config.get("library", {}).get("defines", []))
+        library_flags = len(config.get("library", {}).get("compiler_flags", []))
+        
+        # Build modes
+        build_modes = list(config.get("build_modes", {}).keys())
+        linking_modes = list(config.get("linking", {}).keys())
+        
+        print(f"#   🔧 Universal defines: {base_defines}", file=sys.stderr)
+        print(f"#   🔧 Universal compiler flags: {base_flags}", file=sys.stderr)
+        print(f"#   📝 Sketch-specific defines: {sketch_defines}", file=sys.stderr)
+        print(f"#   📝 Sketch-specific flags: {sketch_flags}", file=sys.stderr)
+        print(f"#   📚 Library-specific defines: {library_defines}", file=sys.stderr)
+        print(f"#   📚 Library-specific flags: {library_flags}", file=sys.stderr)
+        print(f"#   🎯 Build modes: {', '.join(build_modes)}", file=sys.stderr)
+        print(f"#   🔗 Linking modes: {', '.join(linking_modes)}", file=sys.stderr)
+        
+        # Total for CMake generation
+        total_cmake_flags = base_defines + base_flags + library_defines + library_flags
+        print(f"#   📦 Total CMake flags to generate: {len(total_cmake_flags)}", file=sys.stderr)
+        
+    except Exception as e:
+        print(f"#   ⚠️  Error reading configuration: {e}", file=sys.stderr)
+    
+    print("# ✅ BUILD_FLAGS CMAKE: Ready to generate cmake_flags.cmake", file=sys.stderr)
 
 
 def main() -> None:
@@ -73,8 +119,11 @@ def main() -> None:
         with open(toml_file, 'rb') as f:
             config = tomli.load(f)
     except Exception as e:
-        print(f"ERROR: Failed to load {toml_file}: {e}", file=sys.stderr)
+        print(f"# ❌ BUILD_FLAGS CMAKE ERROR: Failed to load {toml_file}: {e}", file=sys.stderr)
         sys.exit(1)
+    
+    # Print configuration status
+    print_config_status(config, toml_file)
     
     # Extract flags from TOML structure
     all_defines = config.get('all', {}).get('defines', [])

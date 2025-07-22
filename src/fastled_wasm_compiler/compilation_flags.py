@@ -32,11 +32,15 @@ class CompilationFlags:
         """Initialize with optional custom config path."""
         self.config_path = config_path
         self._config: dict[str, Any] = self._load_config()
+        self._print_config_status()
 
     def _load_config(self) -> dict[str, Any]:
         """Load TOML configuration file with fallback logic."""
         if self.config_path is not None:
             # Use custom config path
+            print(
+                f"🔧 BUILD_FLAGS STATUS: Using custom config path: {self.config_path}"
+            )
             if not self.config_path.exists():
                 raise FileNotFoundError(
                     f"Build flags config not found: {self.config_path}"
@@ -55,27 +59,91 @@ class CompilationFlags:
                     / "build_flags.toml"
                 )
 
+                print(
+                    f"🔍 BUILD_FLAGS STATUS: Checking primary location: {fastled_build_flags}"
+                )
+
                 if fastled_build_flags.exists():
                     print(
-                        f"Using build flags from FastLED source: {fastled_build_flags}"
+                        f"✅ BUILD_FLAGS STATUS: Using primary FastLED source config: {fastled_build_flags}"
                     )
                     with open(fastled_build_flags, "rb") as f:
                         return tomllib.load(f)
-            except Exception:
-                # Ignore errors when trying FastLED source tree, fall back to package resource
-                pass
+                else:
+                    print(
+                        f"⚠️  BUILD_FLAGS WARNING: Primary config not found at {fastled_build_flags}"
+                    )
+                    print(
+                        "⚠️  BUILD_FLAGS WARNING: This is expected if using standalone FastLED WASM compiler"
+                    )
+
+            except Exception as e:
+                print(
+                    f"⚠️  BUILD_FLAGS WARNING: Error checking FastLED source tree: {e}"
+                )
 
             # Fallback to package resource
             try:
                 package_files = files("fastled_wasm_compiler")
                 config_file = package_files / "build_flags.toml"
-                print("Using fallback build flags from package: build_flags.toml")
+                print(
+                    "🔄 BUILD_FLAGS STATUS: Falling back to package resource: build_flags.toml"
+                )
+                print(
+                    "ℹ️  BUILD_FLAGS INFO: Using default compiler flags (this is normal for standalone usage)"
+                )
                 with cast(BinaryIO, config_file.open("rb")) as f:
                     return tomllib.load(f)
             except FileNotFoundError:
                 raise FileNotFoundError(
-                    "Build flags config not found in package: build_flags.toml"
+                    "BUILD_FLAGS ERROR: No build flags config found in package: build_flags.toml"
                 )
+
+    def _print_config_status(self) -> None:
+        """Print status and summary of the loaded build configuration."""
+        print("📋 BUILD_FLAGS LOADED: Configuration summary")
+
+        # Count items in each section
+        try:
+            base_defines = len(self._config.get("all", {}).get("defines", []))
+            base_flags = len(self._config.get("all", {}).get("compiler_flags", []))
+            sketch_defines = len(self._config.get("sketch", {}).get("defines", []))
+            sketch_flags = len(self._config.get("sketch", {}).get("compiler_flags", []))
+            library_defines = len(self._config.get("library", {}).get("defines", []))
+            library_flags = len(
+                self._config.get("library", {}).get("compiler_flags", [])
+            )
+
+            # Build modes
+            build_modes = list(self._config.get("build_modes", {}).keys())
+            linking_modes = list(self._config.get("linking", {}).keys())
+
+            print(f"   🔧 Universal defines: {base_defines}")
+            print(f"   🔧 Universal compiler flags: {base_flags}")
+            print(f"   📝 Sketch-specific defines: {sketch_defines}")
+            print(f"   📝 Sketch-specific flags: {sketch_flags}")
+            print(f"   📚 Library-specific defines: {library_defines}")
+            print(f"   📚 Library-specific flags: {library_flags}")
+            print(f"   🎯 Build modes available: {', '.join(build_modes)}")
+            print(f"   🔗 Linking configurations: {', '.join(linking_modes)}")
+
+            # Check for DWARF configuration
+            if "dwarf" in self._config:
+                print("   🐛 DWARF debug configuration: Present")
+            else:
+                print("   🐛 DWARF debug configuration: Not found")
+
+            # Check for strict mode
+            if "strict_mode" in self._config:
+                strict_flags = len(self._config.get("strict_mode", {}).get("flags", []))
+                print(f"   ⚡ Strict mode flags: {strict_flags}")
+            else:
+                print("   ⚡ Strict mode configuration: Not found")
+
+        except Exception as e:
+            print(f"   ⚠️  Error reading configuration structure: {e}")
+
+        print("✅ BUILD_FLAGS READY: Configuration loaded and validated")
 
     def get_base_flags(self) -> list[str]:
         """Get universal compilation flags shared by all compilation."""
