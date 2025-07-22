@@ -265,5 +265,110 @@ class TestConvenienceFunction:
         assert result == mock_manifest
 
 
+class TestDumpHeadersToZip:
+    """Test cases for the dump_headers_to_zip programmatic function."""
+
+    @patch("fastled_wasm_compiler.dump_headers.HeaderDumper")
+    def test_dump_headers_to_zip_with_zip_extension(self, mock_dumper_class: MagicMock):
+        """Test dump_headers_to_zip with a path that already has .zip extension."""
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        mock_dumper = Mock()
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dumper.dump_all_headers.return_value = mock_manifest
+        mock_dumper_class.return_value = mock_dumper
+
+        zip_path = Path("/tmp/headers.zip")
+        result = dump_headers_to_zip(zip_path)
+
+        mock_dumper_class.assert_called_once_with(zip_path, False)
+        mock_dumper.dump_all_headers.assert_called_once()
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.HeaderDumper")
+    def test_dump_headers_to_zip_without_zip_extension(
+        self, mock_dumper_class: MagicMock
+    ):
+        """Test dump_headers_to_zip with a path that doesn't have .zip extension - should add it."""
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        mock_dumper = Mock()
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dumper.dump_all_headers.return_value = mock_manifest
+        mock_dumper_class.return_value = mock_dumper
+
+        # Path without .zip extension
+        zip_path = Path("/tmp/headers")
+        result = dump_headers_to_zip(zip_path)
+
+        # Should be called with .zip extension added
+        expected_path = Path("/tmp/headers.zip")
+        mock_dumper_class.assert_called_once_with(expected_path, False)
+        mock_dumper.dump_all_headers.assert_called_once()
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.HeaderDumper")
+    def test_dump_headers_to_zip_with_different_extension(
+        self, mock_dumper_class: MagicMock
+    ):
+        """Test dump_headers_to_zip with a different extension - should replace with .zip."""
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        mock_dumper = Mock()
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dumper.dump_all_headers.return_value = mock_manifest
+        mock_dumper_class.return_value = mock_dumper
+
+        # Path with different extension
+        zip_path = Path("/tmp/headers.tar.gz")
+        result = dump_headers_to_zip(zip_path)
+
+        # Should replace extension with .zip
+        expected_path = Path("/tmp/headers.tar.zip")
+        mock_dumper_class.assert_called_once_with(expected_path, False)
+        mock_dumper.dump_all_headers.assert_called_once()
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.HeaderDumper")
+    def test_dump_headers_to_zip_with_include_source(
+        self, mock_dumper_class: MagicMock
+    ):
+        """Test dump_headers_to_zip with include_source=True."""
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        mock_dumper = Mock()
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dumper.dump_all_headers.return_value = mock_manifest
+        mock_dumper_class.return_value = mock_dumper
+
+        zip_path = Path("/tmp/headers.zip")
+        result = dump_headers_to_zip(zip_path, include_source=True)
+
+        mock_dumper_class.assert_called_once_with(zip_path, True)
+        mock_dumper.dump_all_headers.assert_called_once()
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.HeaderDumper")
+    def test_dump_headers_to_zip_case_insensitive_extension(
+        self, mock_dumper_class: MagicMock
+    ):
+        """Test dump_headers_to_zip with uppercase .ZIP extension."""
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        mock_dumper = Mock()
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dumper.dump_all_headers.return_value = mock_manifest
+        mock_dumper_class.return_value = mock_dumper
+
+        # Path with uppercase .ZIP extension
+        zip_path = Path("/tmp/headers.ZIP")
+        result = dump_headers_to_zip(zip_path)
+
+        # Should not modify the case, just check it's recognized as zip
+        mock_dumper_class.assert_called_once_with(zip_path, False)
+        mock_dumper.dump_all_headers.assert_called_once()
+        assert result == mock_manifest
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

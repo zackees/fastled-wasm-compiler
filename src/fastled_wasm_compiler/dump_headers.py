@@ -456,3 +456,35 @@ def dump_headers(
     """
     dumper = HeaderDumper(output_dir, include_source)
     return dumper.dump_all_headers()
+
+
+def dump_headers_to_zip(
+    zip_path: Path,
+    include_source: bool = False,
+) -> Dict[str, Any]:
+    """Programmatic function to dump headers to a zip file.
+
+    This function always creates a zip archive at the specified path,
+    regardless of the file extension provided by the caller.
+
+    Args:
+        zip_path: Path where the zip file will be created (extension will be enforced as .zip)
+        include_source: Whether to include source files in addition to headers
+
+    Returns:
+        Dictionary with header categories and lists of relative file paths
+
+    Example:
+        >>> import tempfile
+        >>> from pathlib import Path
+        >>> temp_dir = Path(tempfile.mkdtemp())
+        >>> zip_file = temp_dir / "my_headers.zip"
+        >>> manifest = dump_headers_to_zip(zip_file, include_source=True)
+        >>> print(f"Created zip with {manifest['metadata']['total_files']} files")
+    """
+    # Ensure the path has a .zip extension
+    if not str(zip_path).lower().endswith(".zip"):
+        zip_path = zip_path.with_suffix(".zip")
+
+    dumper = HeaderDumper(zip_path, include_source)
+    return dumper.dump_all_headers()

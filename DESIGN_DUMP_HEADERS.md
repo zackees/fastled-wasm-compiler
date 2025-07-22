@@ -143,8 +143,9 @@ parser.add_argument(
 3. **Standalone Mode**: ✅ **DONE** - Works independently with `HeaderDumper` class
 4. **Build Integration**: ✅ **DONE** - Runs after successful compilation
 5. **🆕 Source Support**: ✅ **DONE** - `--add-src` flag in both CLIs
+6. **🆕 NEW: Programmatic API**: ✅ **DONE** - `dump_headers_to_zip()` function for direct use
 
-### Usage Examples
+### CLI Usage Examples
 ```bash
 # Headers only from src/** directories
 uv run fastled-wasm-compiler-native sketch_dir --headers out/headers
@@ -157,6 +158,60 @@ uv run fastled-wasm-compiler-native sketch_dir --headers out/headers.zip --add-s
 
 # With Docker CLI
 uv run fastled-wasm-compiler --headers out/headers.zip --add-src
+```
+
+### 🆕 **Programmatic API** ✅ **NEW**
+
+#### Function: `dump_headers_to_zip()`
+For programmatic use, a new function provides direct access to header dumping functionality that **always** creates a zip file:
+
+```python
+from fastled_wasm_compiler import dump_headers_to_zip
+from pathlib import Path
+
+# Always creates a zip file, regardless of extension
+manifest = dump_headers_to_zip(
+    zip_path=Path("my_headers.dat"),  # Will become "my_headers.zip"
+    include_source=True               # Optional: include source files
+)
+
+print(f"Created zip with {manifest['metadata']['total_files']} files")
+```
+
+#### Key Features
+- **🎯 Always Zip**: Automatically enforces `.zip` extension regardless of input path
+- **📦 Complete API**: Same functionality as CLI with programmatic control
+- **🔄 Manifest Return**: Returns complete manifest data for further processing
+- **🆕 Source Control**: Optional source file inclusion with `include_source` parameter
+- **🚀 Performance**: Uses optimized zip creation for fast, portable output
+
+#### API Specification
+```python
+def dump_headers_to_zip(
+    zip_path: Path,           # Path where zip will be created (auto-.zip extension)
+    include_source: bool = False  # Include .c/.cpp/.ino files in addition to headers
+) -> Dict[str, Any]:          # Returns manifest with file lists and metadata
+```
+
+#### Example Integration
+```python
+import tempfile
+from pathlib import Path
+from fastled_wasm_compiler import dump_headers_to_zip
+
+def setup_development_environment():
+    """Example: Create headers for IDE integration."""
+    
+    # Create headers zip for project
+    project_headers = Path("ide_support/fastled_headers.zip")
+    manifest = dump_headers_to_zip(project_headers, include_source=True)
+    
+    # Process results
+    total_files = manifest["metadata"]["total_files"]
+    categories = [k for k in manifest.keys() if k != "metadata"]
+    
+    print(f"✅ IDE headers ready: {total_files} files in {len(categories)} categories")
+    return project_headers
 ```
 
 ## Implementation Details ✅ **ALL PHASES COMPLETED + ENHANCED**

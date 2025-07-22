@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compiler import UpdateSrcResult
+from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
 
 
 class Compiler:
@@ -66,4 +67,5 @@ class CompilerNative:
 __all__ = [
     "Compiler",
     "CompilerNative",
+    "dump_headers_to_zip",
 ]
