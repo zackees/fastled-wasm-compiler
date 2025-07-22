@@ -93,19 +93,33 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
         # Check if destination exists and compare (with error handling)
         dst_exists: bool = False
         dst_bytes: bytes | None = None
+        dst_mtime: float = 0.0
         try:
             if dst_path.exists() and dst_path.is_file():
                 dst_exists = True
                 dst_bytes = dst_path.read_bytes()
+                dst_mtime = dst_path.stat().st_mtime
         except (FileNotFoundError, PermissionError):
             # Destination was deleted or not accessible - treat as not existing
             dst_exists = False
         except OSError as e:
             return OSError(f"Error reading destination file {dst_path}: {e}")
 
-        # Compare content if destination exists
+        # Get source file modification time for timestamp comparison
+        try:
+            src_mtime = src_path.stat().st_mtime
+        except OSError as e:
+            return OSError(f"Error getting source file timestamp {src_path}: {e}")
+
+        # Compare content AND timestamps if destination exists
         if dst_exists and dst_bytes is not None:
-            if final_bytes == dst_bytes:
+            # Check if source file is newer than destination (for build system integration)
+            if src_mtime > dst_mtime:
+                # Source is newer - always update to preserve timestamps for build system
+                # This is critical for build flags change detection
+                pass  # Continue to file writing
+            elif final_bytes == dst_bytes:
+                # Content is same and destination is not older - no update needed
                 return False  # Files are the same, no update needed
 
         # Files are different or destination doesn't exist - write the file
