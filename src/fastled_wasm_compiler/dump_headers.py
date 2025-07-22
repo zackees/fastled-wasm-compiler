@@ -171,8 +171,9 @@ class HeaderDumper:
         fastled_output = self.output_dir / "fastled"
         copied_files = []
 
-        # Only look in the src directory
-        fastled_src_dir = self.fastled_src / "src"
+        # self.fastled_src already points to the src directory (e.g., /git/fastled/src)
+        # No need to append another "src"
+        fastled_src_dir = self.fastled_src
         if not fastled_src_dir.exists():
             print(f"⚠️  FastLED src directory not found at {fastled_src_dir}")
             return []

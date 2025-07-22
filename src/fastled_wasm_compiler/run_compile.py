@@ -45,14 +45,25 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
 
 
 def find_project_dir(mapped_dir: Path) -> Path:
-    mapped_dirs: list[Path] = list(mapped_dir.iterdir())
-    if len(mapped_dirs) > 1:
-        raise ValueError(
-            f"Error: More than one directory found in {mapped_dir}, which are {mapped_dirs}"
-        )
+    """Find the sketch directory within the mapped directory.
 
-    src_dir: Path = mapped_dirs[0]
-    return src_dir
+    The mapped directory may contain multiple subdirectories including 'sketch' and 'headers_output'.
+    This function specifically looks for and returns the 'sketch' directory.
+    """
+    sketch_dir = mapped_dir / "sketch"
+    if sketch_dir.exists() and sketch_dir.is_dir():
+        return sketch_dir
+
+    # Fallback: if no 'sketch' directory found, check if there's only one directory
+    # (for backward compatibility with older test data structures)
+    mapped_dirs: list[Path] = [d for d in mapped_dir.iterdir() if d.is_dir()]
+    if len(mapped_dirs) == 1:
+        return mapped_dirs[0]
+
+    raise ValueError(
+        f"Error: Could not find 'sketch' directory in {mapped_dir}. "
+        + f"Available directories: {mapped_dirs}"
+    )
 
 
 def process_compile(
