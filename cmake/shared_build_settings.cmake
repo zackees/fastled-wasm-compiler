@@ -192,7 +192,7 @@ set(SKETCH_LINK_FLAGS
     -sALLOW_MEMORY_GROWTH=1
     -sINITIAL_MEMORY=134217728  # 128 MB
     -sAUTO_NATIVE_LIBRARIES=0
-    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']"
+    "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','UTF8ToString','lengthBytesUTF8','HEAPU8','getValue']"
     "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData','_getFrameData','_freeFrameData']"
     -sEXIT_RUNTIME=0
     -sFILESYSTEM=0
