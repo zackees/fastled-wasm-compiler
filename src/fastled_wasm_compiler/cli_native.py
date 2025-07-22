@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastled_wasm_compiler.compile_sketch_native import compile_sketch_native
+from fastled_wasm_compiler.dump_headers import HeaderDumper
 from fastled_wasm_compiler.emsdk_manager import get_emsdk_manager
 from fastled_wasm_compiler.env_validation import (
     add_environment_arguments,
@@ -29,6 +30,8 @@ class NativeCliArgs:
     keep_files: bool
     profile: bool
     strict: bool
+    headers: Path | None
+    add_src: bool
 
     @staticmethod
     def parse_args() -> "NativeCliArgs":
@@ -83,6 +86,17 @@ def _parse_args() -> NativeCliArgs:
         help="Treat all compiler warnings as errors",
     )
 
+    parser.add_argument(
+        "--headers",
+        type=Path,
+        help="Output directory for header files dump (e.g., 'out/headers')",
+    )
+    parser.add_argument(
+        "--add-src",
+        action="store_true",
+        help="Include source files (.c, .cpp, .ino) in addition to headers when using --headers",
+    )
+
     # Add environment variable arguments
     add_environment_arguments(parser)
 
@@ -105,6 +119,8 @@ def _parse_args() -> NativeCliArgs:
         keep_files=args.keep_files,
         profile=args.profile,
         strict=args.strict,
+        headers=args.headers,
+        add_src=args.add_src,
     )
     return out
 
@@ -146,6 +162,14 @@ def main() -> int:
         print("\n✅ Compilation successful!")
         print(f"📄 JavaScript: {js_file}")
         print(f"🔧 WASM: {js_file.with_suffix('.wasm')}")
+
+        # Dump headers if requested
+        if cli_args.headers:
+            print(f"\n🔧 Dumping headers to: {cli_args.headers}")
+            header_dumper = HeaderDumper(cli_args.headers, cli_args.add_src)
+            header_dumper.dump_all_headers()
+            print(f"✅ Headers dumped to: {cli_args.headers}")
+            print(f"📄 Manifest: {cli_args.headers / 'manifest.json'}")
 
         # Clean up intermediate files if not keeping them
         if not cli_args.keep_files:

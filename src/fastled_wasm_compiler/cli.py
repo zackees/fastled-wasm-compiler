@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastled_wasm_compiler.compiler import CompilerImpl
+from fastled_wasm_compiler.dump_headers import HeaderDumper
 from fastled_wasm_compiler.env_validation import (
     add_environment_arguments,
     ensure_environment_configured,
@@ -37,6 +38,8 @@ class CliArgs:
     clear_ccache: bool
     update_fastled_src: Path | None
     strict: bool
+    headers: Path | None
+    add_src: bool
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -96,6 +99,16 @@ def _parse_args() -> CliArgs:
         action="store_true",
         help="Treat all compiler warnings as errors",
     )
+    parser.add_argument(
+        "--headers",
+        type=Path,
+        help="Output directory for header files dump (e.g., 'out/headers')",
+    )
+    parser.add_argument(
+        "--add-src",
+        action="store_true",
+        help="Include source files (.c, .cpp, .ino) in addition to headers when using --headers",
+    )
 
     # Add environment variable arguments
     add_environment_arguments(parser)
@@ -134,6 +147,8 @@ def _parse_args() -> CliArgs:
         clear_ccache=args.clear_ccache,
         update_fastled_src=args.update_fastled_src,
         strict=args.strict,
+        headers=args.headers,
+        add_src=args.add_src,
     )
     return out
 
@@ -175,6 +190,16 @@ def main() -> int:
     if isinstance(err, Exception):
         print(f"Compilation error: {err}")
         return 1
+
+    # Dump headers if requested
+    if cli_args.headers:
+        print("\n🔧 Dumping headers...")
+        header_dumper = HeaderDumper(cli_args.headers, cli_args.add_src)
+        header_dumper.dump_all_headers()
+        print(f"✅ Headers dumped to: {cli_args.headers}")
+        if not str(cli_args.headers).lower().endswith(".zip"):
+            print(f"📄 Manifest: {cli_args.headers / 'manifest.json'}")
+
     return 0
 
 

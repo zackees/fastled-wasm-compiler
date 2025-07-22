@@ -75,6 +75,8 @@ class TestNativeCliModule(unittest.TestCase):
                     keep_files=False,
                     profile=False,
                     strict=False,
+                    headers=None,
+                    add_src=False,
                 )
                 mock_parse.return_value = mock_args
 
@@ -169,6 +171,8 @@ class TestNativeCliModule(unittest.TestCase):
                     keep_files=False,
                     profile=False,
                     strict=False,
+                    headers=None,
+                    add_src=False,
                 )
                 mock_parse.return_value = mock_args
 
@@ -264,6 +268,8 @@ class TestNativeCliModule(unittest.TestCase):
                     keep_files=False,
                     profile=False,
                     strict=False,
+                    headers=None,
+                    add_src=False,
                 )
                 mock_parse.return_value = mock_args
 

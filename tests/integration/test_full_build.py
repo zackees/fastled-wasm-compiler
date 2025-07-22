@@ -997,6 +997,202 @@ class FullBuildTester(unittest.TestCase):
         print("   - PCH optimization also works correctly in DEBUG mode")
         print("   - Appropriate user feedback messages are displayed")
 
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_headers_dump(self) -> None:
+        """Test the --headers feature to dump FastLED and WASM headers."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-headers-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Create a temporary directory for headers output
+        headers_output_dir = MAPPED_DIR / "headers_output"
+        if headers_output_dir.exists():
+            shutil.rmtree(headers_output_dir)
+        headers_output_dir.mkdir(parents=True, exist_ok=True)
+
+        print("\nTesting headers dump functionality...")
+
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-headers-container",
+            # Mount the test data directories and headers output
+            "-v",
+            f"{MAPPED_DIR.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            IMAGE_NAME,
+            # Required arguments
+            "--compiler-root",
+            CONTAINER_JS_ROOT,
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            # Headers dump argument
+            "--headers",
+            "/mapped/headers_output",
+            # Optional arguments for quick compilation
+            "--quick",
+            "--no-platformio",  # Use direct emcc calls instead of platformio
+            "--keep-files",  # Keep intermediate files for debugging
+        ]
+
+        cmdstr = subprocess.list2cmdline(cmd_list)
+        print(f"Running command: {cmdstr}")
+
+        headers_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert headers_proc.stdout is not None
+
+        # Capture output for validation
+        output_lines = []
+        for line in headers_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            print(line_str)
+            output_lines.append(line_str)
+
+        headers_proc.wait()
+        headers_proc.stdout.close()
+        headers_proc.terminate()
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-headers-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Check if headers dump was successful
+        self.assertEqual(headers_proc.returncode, 0, "Headers dump failed")
+
+        # Verify the headers directory structure exists
+        self.assertTrue(
+            headers_output_dir.exists(), "Headers output directory was not created"
+        )
+
+        # Check for expected directory structure
+        fastled_headers_dir = headers_output_dir / "fastled"
+        wasm_headers_dir = headers_output_dir / "wasm"
+        arduino_headers_dir = headers_output_dir / "arduino"
+        manifest_file = headers_output_dir / "manifest.json"
+
+        self.assertTrue(
+            fastled_headers_dir.exists(), "FastLED headers directory not found"
+        )
+        self.assertTrue(wasm_headers_dir.exists(), "WASM headers directory not found")
+        self.assertTrue(
+            arduino_headers_dir.exists(), "Arduino headers directory not found"
+        )
+        self.assertTrue(manifest_file.exists(), "manifest.json file not found")
+
+        # Verify FastLED.h is present in the FastLED headers
+        fastled_h_files = list(fastled_headers_dir.rglob("FastLED.h"))
+        self.assertTrue(
+            len(fastled_h_files) > 0, "FastLED.h not found in dumped headers"
+        )
+
+        # Verify some other important FastLED headers
+        important_headers = ["CRGB.h", "colorutils.h", "FastLED.h"]
+        for header in important_headers:
+            header_files = list(fastled_headers_dir.rglob(header))
+            self.assertTrue(
+                len(header_files) > 0,
+                f"Important header {header} not found in dumped headers",
+            )
+
+        # Verify Arduino.h is present in Arduino headers
+        arduino_h_files = list(arduino_headers_dir.rglob("Arduino.h"))
+        self.assertTrue(
+            len(arduino_h_files) > 0, "Arduino.h not found in dumped Arduino headers"
+        )
+
+        # Verify some WASM/Emscripten headers are present
+        wasm_header_files = list(wasm_headers_dir.rglob("*.h"))
+        self.assertTrue(
+            len(wasm_header_files) > 0, "No WASM headers found in dumped headers"
+        )
+
+        # Specifically verify emscripten headers are included
+        emscripten_headers_dir = wasm_headers_dir / "emscripten"
+        self.assertTrue(
+            emscripten_headers_dir.exists(), "Emscripten headers directory not found"
+        )
+
+        # Verify key emscripten headers exist
+        key_emscripten_headers = ["emscripten.h", "bind.h", "val.h"]
+        for header in key_emscripten_headers:
+            emscripten_header_files = list(emscripten_headers_dir.rglob(header))
+            if len(emscripten_header_files) > 0:
+                print(f"   ✅ Found emscripten header: {header}")
+            # Note: Not all headers may be present in all EMSDK versions, so we warn but don't fail
+
+        # Verify at least some emscripten headers exist
+        emscripten_header_count = len(list(emscripten_headers_dir.rglob("*.h")))
+        self.assertTrue(
+            emscripten_header_count > 0,
+            "No emscripten headers found in emscripten/ subdirectory",
+        )
+        print(f"   Found {emscripten_header_count} emscripten-specific headers")
+
+        # Verify manifest.json contains valid JSON and expected structure
+        import json
+
+        with open(manifest_file, "r") as f:
+            manifest_data = json.load(f)
+
+        self.assertIn(
+            "fastled", manifest_data, "manifest.json missing 'fastled' section"
+        )
+        self.assertIn("wasm", manifest_data, "manifest.json missing 'wasm' section")
+        self.assertIn(
+            "arduino", manifest_data, "manifest.json missing 'arduino' section"
+        )
+
+        # Verify each section contains file lists
+        self.assertIsInstance(
+            manifest_data["fastled"], list, "FastLED section should be a list of files"
+        )
+        self.assertIsInstance(
+            manifest_data["wasm"], list, "WASM section should be a list of files"
+        )
+        self.assertIsInstance(
+            manifest_data["arduino"], list, "Arduino section should be a list of files"
+        )
+
+        # Verify FastLED.h is listed in the manifest
+        fastled_files = [str(f) for f in manifest_data["fastled"]]
+        fastled_h_in_manifest = any("FastLED.h" in f for f in fastled_files)
+        self.assertTrue(fastled_h_in_manifest, "FastLED.h not found in manifest")
+
+        print("\n✅ Headers dump test PASSED!")
+        print(f"   - Headers successfully dumped to: {headers_output_dir}")
+        print(
+            f"   - FastLED headers found: {len(list(fastled_headers_dir.rglob('*.h')))}"
+        )
+        print(f"   - WASM headers found: {len(list(wasm_headers_dir.rglob('*.h')))}")
+        print(
+            f"   - Arduino headers found: {len(list(arduino_headers_dir.rglob('*.h')))}"
+        )
+        print("   - FastLED.h verified in output")
+        print("   - Emscripten headers verified in wasm/emscripten/ subdirectory")
+        print("   - manifest.json created and validated")
+
+        # Clean up the headers output directory
+        if headers_output_dir.exists():
+            shutil.rmtree(headers_output_dir)
+
 
 if __name__ == "__main__":
     unittest.main()

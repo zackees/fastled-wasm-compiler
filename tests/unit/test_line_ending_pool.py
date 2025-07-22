@@ -176,12 +176,12 @@ class TestLineEndingPool(unittest.TestCase):
 
     def test_timestamp_aware_change_detection(self):
         """Test that newer source files are always updated, even with identical content.
-        
+
         This is critical for build flags change detection, where timestamps matter
         for downstream build system integration.
         """
         import time
-        
+
         pool = LineEndingProcessPool(max_workers=2)
 
         try:
@@ -191,48 +191,48 @@ class TestLineEndingPool(unittest.TestCase):
 
             # Unix line endings (same after normalization)
             content = b"line1\nline2\nline3\n"
-            
+
             # Create destination file first (older)
             dst_file.write_bytes(content)
             old_dst_mtime = dst_file.stat().st_mtime
-            
+
             # Wait a bit to ensure timestamp difference
             time.sleep(0.1)
-            
+
             # Create source file (newer) with same content
             src_file.write_bytes(content)
             src_mtime = src_file.stat().st_mtime
-            
+
             # Verify source is newer
             self.assertGreater(src_mtime, old_dst_mtime)
-            
+
             # Test that worker updates the file despite identical content
             result = _line_ending_worker(str(src_file), str(dst_file))
             self.assertTrue(result)  # Should return True (file updated)
-            
+
             # Verify destination timestamp was updated
             new_dst_mtime = dst_file.stat().st_mtime
             self.assertGreater(new_dst_mtime, old_dst_mtime)
-            
+
             # Content should remain the same
             self.assertEqual(dst_file.read_bytes(), content)
-            
+
             # Test with pool interface as well
             time.sleep(0.1)
             src_file.write_bytes(content)  # Touch source again
-            
+
             result = pool.convert_file_line_endings(src_file, dst_file)
             self.assertTrue(result)  # Should return True (file updated)
-            
+
             # Test with line ending conversion scenario
             time.sleep(0.1)
             windows_content = b"line1\r\nline2\r\nline3\r\n"
             src_file.write_bytes(windows_content)  # Source has Windows line endings
             # Destination still has Unix line endings from before
-            
+
             result = pool.convert_file_line_endings(src_file, dst_file)
             self.assertTrue(result)  # Should return True (file updated for timestamp)
-            
+
             # Content should be normalized to Unix line endings
             self.assertEqual(dst_file.read_bytes(), content)
 
