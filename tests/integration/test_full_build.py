@@ -999,14 +999,7 @@ class FullBuildTester(unittest.TestCase):
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_headers_dump(self) -> None:
-        """Test the --headers feature to dump FastLED and WASM headers."""
-
-        # Remove any existing containers with the same name
-        subprocess.run(
-            ["docker", "rm", "-f", "fastled-headers-container"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        """Test the --headers feature to dump FastLED and WASM headers (headers-only, no compilation)."""
 
         # Create a temporary directory for headers output
         headers_output_dir = MAPPED_DIR / "headers_output"
@@ -1014,68 +1007,35 @@ class FullBuildTester(unittest.TestCase):
             shutil.rmtree(headers_output_dir)
         headers_output_dir.mkdir(parents=True, exist_ok=True)
 
-        print("\nTesting headers dump functionality...")
+        print("\nTesting headers dump functionality (standalone, no compilation)...")
 
-        cmd_list: list[str] = [
-            "docker",
-            "run",
-            "--name",
-            "fastled-headers-container",
-            # Mount the test data directories and headers output
-            "-v",
-            f"{MAPPED_DIR.absolute()}:/mapped",
-            "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
-            "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
-            IMAGE_NAME,
-            # Required arguments
-            "--compiler-root",
-            CONTAINER_JS_ROOT,
-            "--assets-dirs",
-            "/assets",
-            "--mapped-dir",
-            "/mapped",
-            # Headers dump argument
-            "--headers",
-            "/mapped/headers_output",
-            # Optional arguments for quick compilation
-            "--quick",
-            "--no-platformio",  # Use direct emcc calls instead of platformio
-            "--keep-files",  # Keep intermediate files for debugging
-        ]
+        # Use the native CompilerNative API to dump headers directly
+        # This avoids the slow Docker compilation and tests just the headers functionality
+        try:
+            from fastled_wasm_compiler import CompilerNative
 
-        cmdstr = subprocess.list2cmdline(cmd_list)
-        print(f"Running command: {cmdstr}")
+            print("🔧 Creating native compiler instance...")
+            compiler = CompilerNative()
 
-        headers_proc = subprocess.Popen(
-            cmd_list,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
+            print("📦 Ensuring EMSDK is available...")
+            compiler.ensure_emsdk()
 
-        assert headers_proc.stdout is not None
+            print(f"🔄 Dumping headers to: {headers_output_dir}")
+            # Use directory output instead of zip for easier testing
+            from fastled_wasm_compiler.dump_headers import HeaderDumper
 
-        # Capture output for validation
-        output_lines = []
-        for line in headers_proc.stdout:
-            line_str = line.decode("utf-8", errors="replace").strip()
-            print(line_str)
-            output_lines.append(line_str)
+            header_dumper = HeaderDumper(headers_output_dir, include_source=False)
+            _ = header_dumper.dump_all_headers()
 
-        headers_proc.wait()
-        headers_proc.stdout.close()
-        headers_proc.terminate()
+            print("✅ Headers dumped successfully")
+            return_code = 0
 
-        # Clean up the container
-        subprocess.run(
-            ["docker", "rm", "-f", "fastled-headers-container"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        except Exception as e:
+            print(f"❌ Headers dump failed: {e}")
+            return_code = 1
 
         # Check if headers dump was successful
-        self.assertEqual(headers_proc.returncode, 0, "Headers dump failed")
+        self.assertEqual(return_code, 0, "Headers dump failed")
 
         # Verify the headers directory structure exists
         self.assertTrue(
@@ -1102,6 +1062,27 @@ class FullBuildTester(unittest.TestCase):
         self.assertTrue(
             len(fastled_h_files) > 0, "FastLED.h not found in dumped headers"
         )
+
+        # Verify manifest contains expected metadata
+        import json
+
+        with open(manifest_file, "r") as f:
+            manifest_data = json.load(f)
+
+        self.assertIn("fastled", manifest_data, "Manifest missing FastLED section")
+        self.assertIn("wasm", manifest_data, "Manifest missing WASM section")
+        self.assertIn("arduino", manifest_data, "Manifest missing Arduino section")
+        self.assertIn("metadata", manifest_data, "Manifest missing metadata section")
+
+        # Verify some headers were actually collected
+        total_files = manifest_data["metadata"]["total_files"]
+        self.assertGreater(total_files, 0, "No files were collected in headers dump")
+
+        print("✅ Headers dump test completed successfully!")
+        print(f"   - Total files collected: {total_files}")
+        print(f"   - FastLED headers: {len(manifest_data['fastled'])}")
+        print(f"   - WASM headers: {len(manifest_data['wasm'])}")
+        print(f"   - Arduino headers: {len(manifest_data['arduino'])}")
 
         # Verify some other important FastLED headers
         important_headers = ["CRGB.h", "colorutils.h", "FastLED.h"]

@@ -165,3 +165,6 @@ tests/**/src/Arduino.h
 **/*.ino.cpp
 
 tests/unit/.sync_data
+
+tests/integration/test_data/mapped/** */
+tests/integration/test_data/compiler_root/src/data/**
