@@ -77,21 +77,21 @@ def main() -> None:
         sys.exit(1)
     
     # Extract flags from TOML structure
-    base_defines = config.get('base', {}).get('defines', [])
-    base_compiler_flags = config.get('base', {}).get('compiler_flags', [])
+    all_defines = config.get('all', {}).get('defines', [])
+    all_compiler_flags = config.get('all', {}).get('compiler_flags', [])
     library_compiler_flags = config.get('library', {}).get('compiler_flags', [])
     
-    # Combine base + library flags for CMake (matches the original logic)
-    all_flags = base_defines + base_compiler_flags + library_compiler_flags
+    # Combine universal + library flags for CMake (matches the original logic)
+    combined_flags = all_defines + all_compiler_flags + library_compiler_flags
     
     # Generate CMake variables
     print("# Generated from build_flags.toml - DO NOT EDIT MANUALLY")
     print("# Run build_tools/generate_cmake_flags.py to regenerate")
     print()
     
-    # Base compilation flags
+    # Universal compilation flags (shared by all targets)
     print("set(FASTLED_BASE_COMPILE_FLAGS")
-    for flag in all_flags:
+    for flag in combined_flags:
         # Escape any special characters for CMake
         escaped_flag = flag.replace('"', '\\"')
         print(f'    "{escaped_flag}"')
@@ -101,6 +101,15 @@ def main() -> None:
     # Build mode flags
     for mode in ["debug", "quick", "release"]:
         mode_flags = config.get('build_modes', {}).get(mode, {}).get('flags', [])
+        
+        # For debug mode, add the file prefix map flag from dwarf config
+        if mode == "debug":
+            dwarf_config = config.get('dwarf', {})
+            file_prefix_from = dwarf_config.get('file_prefix_map_from', '/')
+            file_prefix_to = dwarf_config.get('file_prefix_map_to', 'sketchsource/')
+            file_prefix_flag = f"-ffile-prefix-map={file_prefix_from}={file_prefix_to}"
+            mode_flags = mode_flags + [file_prefix_flag]
+        
         print(f"set(FASTLED_{mode.upper()}_FLAGS")
         for flag in mode_flags:
             escaped_flag = flag.replace('"', '\\"')

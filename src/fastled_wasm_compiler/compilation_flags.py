@@ -78,15 +78,20 @@ class CompilationFlags:
                 )
 
     def get_base_flags(self) -> list[str]:
-        """Get base compilation flags shared by all compilation."""
+        """Get universal compilation flags shared by all compilation."""
         flags = []
-        flags.extend(self._config["base"]["defines"])
-        flags.extend(self._config["base"]["compiler_flags"])
+        flags.extend(self._config["all"]["defines"])
+        flags.extend(self._config["all"]["compiler_flags"])
         return flags
+
+    # Backward compatibility alias
+    def get_all_flags(self) -> list[str]:
+        """Get universal compilation flags shared by all compilation (alias for get_base_flags)."""
+        return self.get_base_flags()
 
     def get_include_flags(self, fastled_src_path: str) -> list[str]:
         """Get include flags with FastLED source path added."""
-        flags = list(self._config["base"]["include_flags"])
+        flags = list(self._config["all"]["include_flags"])
         flags.extend(
             [
                 f"-I{fastled_src_path}",
@@ -115,7 +120,13 @@ class CompilationFlags:
         if build_mode_lower not in self._config["build_modes"]:
             raise ValueError(f"Unknown build mode: {build_mode}")
 
-        return list(self._config["build_modes"][build_mode_lower]["flags"])
+        flags = list(self._config["build_modes"][build_mode_lower]["flags"])
+
+        # For debug mode, automatically add the file prefix map flag from dwarf config
+        if build_mode_lower == "debug":
+            flags.append(self.get_file_prefix_map_flag())
+
+        return flags
 
     def get_build_mode_link_flags(self, build_mode: str) -> list[str]:
         """Get build mode specific linking flags."""
@@ -129,6 +140,25 @@ class CompilationFlags:
     def get_strict_mode_flags(self) -> list[str]:
         """Get strict mode warning flags."""
         return list(self._config["strict_mode"]["flags"])
+
+    def get_dwarf_config(self) -> dict[str, str]:
+        """Get DWARF debug configuration."""
+        dwarf_config = self._config.get("dwarf", {})
+        return {
+            "fastled_prefix": dwarf_config.get("fastled_prefix", "fastledsource"),
+            "sketch_prefix": dwarf_config.get("sketch_prefix", "sketchsource"),
+            "dwarf_prefix": dwarf_config.get("dwarf_prefix", "dwarfsource"),
+            "dwarf_filename": dwarf_config.get("dwarf_filename", "fastled.wasm.dwarf"),
+            "file_prefix_map_from": dwarf_config.get("file_prefix_map_from", "/"),
+            "file_prefix_map_to": dwarf_config.get(
+                "file_prefix_map_to", "sketchsource/"
+            ),
+        }
+
+    def get_file_prefix_map_flag(self) -> str:
+        """Get the file prefix map flag for debug builds."""
+        dwarf_config = self.get_dwarf_config()
+        return f"-ffile-prefix-map={dwarf_config['file_prefix_map_from']}={dwarf_config['file_prefix_map_to']}"
 
     def get_base_link_flags(self, linker: str = "lld") -> list[str]:
         """Get base linking flags with dynamic linker selection."""

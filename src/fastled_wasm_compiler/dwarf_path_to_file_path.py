@@ -1,8 +1,11 @@
 import logging
 import platform
+import time
 import warnings
 from pathlib import Path
+from typing import Dict
 
+from fastled_wasm_compiler.compilation_flags import get_compilation_flags
 from fastled_wasm_compiler.paths import (
     FASTLED_SRC,
     get_emsdk_path,
@@ -53,10 +56,82 @@ SKETCH_PATH = _normalize_windows_path(get_sketch_path())
 FASTLED_HEADERS_PATH = _normalize_windows_path(get_fastled_source_path())
 EMSDK_PATH = _normalize_windows_path(get_emsdk_path())
 
-# As defined in the fastled-wasm-compiler.
-FASTLED_PREFIX = "fastledsource"
-SKETCH_PREFIX = "sketchsource"
-DWARF_PREFIX = "dwarfsource"
+
+# Periodic configuration reloading for dynamic source resolution
+class DwarfConfigManager:
+    """Manages DWARF configuration with periodic reloading from build_flags.toml."""
+
+    def __init__(self, reload_interval: float = 1.0):
+        self.reload_interval = reload_interval
+        self.last_reload_time = 0.0
+        self.cached_config: Dict[str, str] | None = None
+        self._load_config()
+
+    def _load_config(self):
+        """Load DWARF configuration from build_flags.toml."""
+        try:
+            # Reset compilation flags to pick up any changes
+            from fastled_wasm_compiler.compilation_flags import reset_compilation_flags
+
+            reset_compilation_flags()
+
+            flags_loader = get_compilation_flags()
+            dwarf_config = flags_loader.get_dwarf_config()
+            self.cached_config = {
+                "fastled_prefix": dwarf_config["fastled_prefix"],
+                "sketch_prefix": dwarf_config["sketch_prefix"],
+                "dwarf_prefix": dwarf_config["dwarf_prefix"],
+                "dwarf_filename": dwarf_config["dwarf_filename"],
+                "file_prefix_map_from": dwarf_config["file_prefix_map_from"],
+                "file_prefix_map_to": dwarf_config["file_prefix_map_to"],
+            }
+            self.last_reload_time = time.time()
+            logger.debug(f"Loaded DWARF config: {self.cached_config}")
+        except Exception as e:
+            # Fallback to defaults if TOML loading fails
+            logger.warning(
+                f"Failed to load DWARF config from TOML, using defaults: {e}"
+            )
+            self.cached_config = {
+                "fastled_prefix": "fastledsource",
+                "sketch_prefix": "sketchsource",
+                "dwarf_prefix": "dwarfsource",
+                "dwarf_filename": "fastled.wasm.dwarf",
+                "file_prefix_map_from": "/",
+                "file_prefix_map_to": "sketchsource/",
+            }
+            self.last_reload_time = time.time()
+
+    def get_config(self) -> Dict[str, str]:
+        """Get current DWARF configuration, reloading if needed."""
+        current_time = time.time()
+        if current_time - self.last_reload_time >= self.reload_interval:
+            logger.debug("Reloading DWARF configuration from build_flags.toml")
+            self._load_config()
+        assert self.cached_config is not None, "Configuration should be loaded"
+        return self.cached_config
+
+    def get_prefixes(self) -> tuple[str, str, str]:
+        """Get the three prefixes as a tuple."""
+        config = self.get_config()
+        return (
+            config["fastled_prefix"],
+            config["sketch_prefix"],
+            config["dwarf_prefix"],
+        )
+
+
+# Global configuration manager instance
+_dwarf_config_manager = DwarfConfigManager()
+
+
+def _get_dwarf_prefixes():
+    """Get DWARF prefixes from centralized configuration with periodic reloading."""
+    return _dwarf_config_manager.get_prefixes()
+
+
+# Get prefixes from centralized configuration (will be refreshed periodically)
+FASTLED_PREFIX, SKETCH_PREFIX, DWARF_PREFIX = _get_dwarf_prefixes()
 
 SOURCE_PATHS = [
     FASTLED_SOURCE_PATH,
@@ -68,14 +143,20 @@ SOURCE_PATHS = [
 # Sorted by longest first.
 SOURCE_PATHS_NO_LEADING_SLASH = [p.lstrip("/") for p in SOURCE_PATHS]
 
-PREFIXES = [FASTLED_PREFIX, SKETCH_PREFIX, DWARF_PREFIX]
+
+def _get_current_prefixes():
+    """Get current prefixes (refreshed periodically)."""
+    return list(_dwarf_config_manager.get_prefixes())
 
 
 def dwarf_path_to_file_path(
     request_path: str,
     check_exists: bool = True,
 ) -> Path | Exception:
-    """Resolve the path for dwarfsource."""
+    """Resolve the path for dwarfsource with periodic config reloading."""
+    # Force a check for config updates before resolving paths
+    _dwarf_config_manager.get_config()  # This will reload if needed
+
     logger.debug(f"Resolving dwarf path: {request_path}")
     path_or_error = _dwarf_path_to_file_path_inner(request_path)
     if isinstance(path_or_error, Exception):
@@ -118,13 +199,15 @@ def prune_paths(path: str) -> str | None:
         path = path[1:]
     p: Path = Path(path)
     # pop off the leaf and store it in a buffer.
-    # When you hit one of the PREFIXES, then stop
+    # When you hit one of the current PREFIXES, then stop
     # and return the path that was popped.
+    current_prefixes = _get_current_prefixes()
+    logger.debug(f"Using current prefixes: {current_prefixes}")
     parts = p.parts
     buffer = []
     parts_reversed = parts[::-1]
     for part in parts_reversed:
-        if part in PREFIXES:
+        if part in current_prefixes:
             logger.debug(f"Found prefix: {part}")
             break
         buffer.append(part)

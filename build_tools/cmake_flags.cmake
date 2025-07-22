@@ -27,11 +27,11 @@ set(FASTLED_BASE_COMPILE_FLAGS
 set(FASTLED_DEBUG_FLAGS
     "-g3"
     "-gsource-map"
-    "-ffile-prefix-map=/=sketchsource/"
     "-fsanitize=address"
     "-fsanitize=undefined"
     "-fno-inline"
     "-O0"
+    "-ffile-prefix-map=/=sketchsource/"
 )
 
 set(FASTLED_QUICK_FLAGS
