@@ -108,7 +108,10 @@ class DwarfConfigManager:
         if current_time - self.last_reload_time >= self.reload_interval:
             logger.debug("Reloading DWARF configuration from build_flags.toml")
             self._load_config()
-        assert self.cached_config is not None, "Configuration should be loaded"
+
+        if self.cached_config is None:
+            raise RuntimeError("Configuration failed to load properly")
+
         return self.cached_config
 
     def get_prefixes(self) -> tuple[str, str, str]:
@@ -125,7 +128,7 @@ class DwarfConfigManager:
 _dwarf_config_manager = DwarfConfigManager()
 
 
-def _get_dwarf_prefixes():
+def _get_dwarf_prefixes() -> tuple[str, str, str]:
     """Get DWARF prefixes from centralized configuration with periodic reloading."""
     return _dwarf_config_manager.get_prefixes()
 
@@ -144,7 +147,7 @@ SOURCE_PATHS = [
 SOURCE_PATHS_NO_LEADING_SLASH = [p.lstrip("/") for p in SOURCE_PATHS]
 
 
-def _get_current_prefixes():
+def _get_current_prefixes() -> list[str]:
     """Get current prefixes (refreshed periodically)."""
     return list(_dwarf_config_manager.get_prefixes())
 
