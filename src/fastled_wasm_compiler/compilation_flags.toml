@@ -119,7 +119,7 @@ flags = [
     "-sINITIAL_MEMORY=134217728",  # 128 MB
     "-sAUTO_NATIVE_LIBRARIES=0",
     "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']",
-    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']",
+    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData','_getFrameData','_freeFrameData']",
     "-sEXIT_RUNTIME=0",
     "-sFILESYSTEM=0",
     "-Wl,--gc-sections",
