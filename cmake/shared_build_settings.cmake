@@ -193,11 +193,15 @@ set(SKETCH_LINK_FLAGS
     -sINITIAL_MEMORY=134217728  # 128 MB
     -sAUTO_NATIVE_LIBRARIES=0
     "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','stringToUTF8','lengthBytesUTF8','HEAPU8','getValue']"
-    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData']"
+    "-sEXPORTED_FUNCTIONS=['_malloc','_free','_extern_setup','_extern_loop','_fastled_declare_files','_getStripPixelData','_getFrameData','_freeFrameData']"
     -sEXIT_RUNTIME=0
     -sFILESYSTEM=0
     -Wl,--gc-sections
     --source-map-base=http://localhost:8000/
+    # Asyncify support for async/await style coding with delay() functions
+    -sASYNCIFY=1
+    -sASYNCIFY_STACK_SIZE=10485760  # 10MB stack for asyncify operations
+    "-sASYNCIFY_EXPORTS=['_extern_setup','_extern_loop']"  # Allow main FastLED functions to be async
 )
 
 # Debug-specific linking flags
