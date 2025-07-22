@@ -1,8 +1,8 @@
 from pathlib import Path
+from typing import Any, Dict
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compiler import UpdateSrcResult
-from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
 
 
 class Compiler:
@@ -63,9 +63,32 @@ class CompilerNative:
     ) -> Path:
         return self._impl.compile_sketch(sketch_dir, build_mode, output_dir)
 
+    def dump_headers(
+        self, zip_path: Path, include_source: bool = False
+    ) -> Dict[str, Any]:
+        """Dump FastLED and WASM headers to a zip file.
+
+        This method provides programmatic access to header dumping functionality
+        that always creates a zip archive at the specified path.
+
+        Args:
+            zip_path: Path where the zip file will be created (extension will be enforced as .zip)
+            include_source: Whether to include source files (.c, .cpp, .ino) in addition to headers
+
+        Returns:
+            Dictionary with header categories and lists of relative file paths
+
+        Example:
+            >>> compiler = CompilerNative()
+            >>> manifest = compiler.dump_headers(Path("my_headers.zip"), include_source=True)
+            >>> print(f"Created zip with {manifest['metadata']['total_files']} files")
+        """
+        from fastled_wasm_compiler.dump_headers import dump_headers_to_zip
+
+        return dump_headers_to_zip(zip_path, include_source)
+
 
 __all__ = [
     "Compiler",
     "CompilerNative",
-    "dump_headers_to_zip",
 ]

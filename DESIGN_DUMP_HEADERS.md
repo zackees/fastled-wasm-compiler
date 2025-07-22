@@ -162,15 +162,18 @@ uv run fastled-wasm-compiler --headers out/headers.zip --add-src
 
 ### 🆕 **Programmatic API** ✅ **NEW**
 
-#### Function: `dump_headers_to_zip()`
-For programmatic use, a new function provides direct access to header dumping functionality that **always** creates a zip file:
+#### API Method: `CompilerNative.dump_headers()`
+For programmatic use, the functionality is now integrated into the main `CompilerNative` API class:
 
 ```python
-from fastled_wasm_compiler import dump_headers_to_zip
+from fastled_wasm_compiler import CompilerNative
 from pathlib import Path
 
+# Create compiler instance
+compiler = CompilerNative()
+
 # Always creates a zip file, regardless of extension
-manifest = dump_headers_to_zip(
+manifest = compiler.dump_headers(
     zip_path=Path("my_headers.dat"),  # Will become "my_headers.zip"
     include_source=True               # Optional: include source files
 )
@@ -184,27 +187,35 @@ print(f"Created zip with {manifest['metadata']['total_files']} files")
 - **🔄 Manifest Return**: Returns complete manifest data for further processing
 - **🆕 Source Control**: Optional source file inclusion with `include_source` parameter
 - **🚀 Performance**: Uses optimized zip creation for fast, portable output
+- **🏗️ Integrated API**: Part of the main `CompilerNative` API class
 
 #### API Specification
 ```python
-def dump_headers_to_zip(
-    zip_path: Path,           # Path where zip will be created (auto-.zip extension)
-    include_source: bool = False  # Include .c/.cpp/.ino files in addition to headers
-) -> Dict[str, Any]:          # Returns manifest with file lists and metadata
+class CompilerNative:
+    def dump_headers(
+        self, 
+        zip_path: Path,           # Path where zip will be created (auto-.zip extension)
+        include_source: bool = False  # Include .c/.cpp/.ino files in addition to headers
+    ) -> Dict[str, Any]:          # Returns manifest with file lists and metadata
 ```
 
 #### Example Integration
 ```python
-import tempfile
 from pathlib import Path
-from fastled_wasm_compiler import dump_headers_to_zip
+from fastled_wasm_compiler import CompilerNative
 
 def setup_development_environment():
     """Example: Create headers for IDE integration."""
     
+    # Create compiler instance (can specify custom EMSDK path)
+    compiler = CompilerNative()
+    
+    # Ensure EMSDK is available
+    compiler.ensure_emsdk()
+    
     # Create headers zip for project
     project_headers = Path("ide_support/fastled_headers.zip")
-    manifest = dump_headers_to_zip(project_headers, include_source=True)
+    manifest = compiler.dump_headers(project_headers, include_source=True)
     
     # Process results
     total_files = manifest["metadata"]["total_files"]
@@ -212,6 +223,24 @@ def setup_development_environment():
     
     print(f"✅ IDE headers ready: {total_files} files in {len(categories)} categories")
     return project_headers
+
+def complete_workflow_example():
+    """Example: Complete workflow with compilation and header dumping."""
+    
+    compiler = CompilerNative()
+    
+    # Step 1: Compile a sketch
+    sketch_dir = Path("my_sketch")
+    if sketch_dir.exists():
+        wasm_output = compiler.compile_sketch(sketch_dir, "release")
+        print(f"✅ Compiled sketch to: {wasm_output}")
+    
+    # Step 2: Dump headers for external tools
+    headers_zip = Path("output/headers.zip")
+    manifest = compiler.dump_headers(headers_zip, include_source=True)
+    print(f"✅ Headers dumped: {manifest['metadata']['total_files']} files")
+    
+    return wasm_output, headers_zip
 ```
 
 ## Implementation Details ✅ **ALL PHASES COMPLETED + ENHANCED**

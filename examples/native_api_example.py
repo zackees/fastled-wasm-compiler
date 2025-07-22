@@ -14,7 +14,7 @@ Usage:
 import tempfile
 from pathlib import Path
 
-from fastled_wasm_compiler import CompilerNative, dump_headers_to_zip
+from fastled_wasm_compiler import CompilerNative
 
 
 def main():
@@ -48,7 +48,7 @@ def main():
     else:
         print(f"⚠️  Sketch directory {sketch_dir} not found, skipping compilation")
 
-    # Example 2: Dump headers to zip programmatically
+    # Example 2: Dump headers to zip programmatically using the API
     print("\n📦 Demonstrating programmatic header dumping...")
     
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -57,7 +57,8 @@ def main():
         
         try:
             print(f"🔄 Dumping headers to: {headers_zip}")
-            manifest = dump_headers_to_zip(headers_zip, include_source=True)
+            # Use the API method instead of direct function call
+            manifest = compiler.dump_headers(headers_zip, include_source=True)
             
             total_files = manifest["metadata"]["total_files"]
             print(f"✅ Successfully created zip with {total_files} files")

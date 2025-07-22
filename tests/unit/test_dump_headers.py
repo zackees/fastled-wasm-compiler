@@ -370,5 +370,81 @@ class TestDumpHeadersToZip:
         assert result == mock_manifest
 
 
+class TestCompilerNativeAPI:
+    """Test cases for the CompilerNative.dump_headers() API method."""
+
+    @patch("fastled_wasm_compiler.dump_headers.dump_headers_to_zip")
+    @patch("fastled_wasm_compiler.compile_sketch_native.NativeCompilerImpl")
+    def test_compiler_native_dump_headers_basic(
+        self, mock_impl_class: MagicMock, mock_dump_func: MagicMock
+    ):
+        """Test CompilerNative.dump_headers with basic parameters."""
+        from fastled_wasm_compiler import CompilerNative
+
+        # Setup mocks
+        mock_impl = Mock()
+        mock_impl_class.return_value = mock_impl
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dump_func.return_value = mock_manifest
+
+        # Create API instance and call method
+        compiler = CompilerNative()
+        zip_path = Path("/tmp/headers.zip")
+        result = compiler.dump_headers(zip_path)
+
+        # Verify the underlying function was called correctly
+        mock_dump_func.assert_called_once_with(zip_path, False)
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.dump_headers_to_zip")
+    @patch("fastled_wasm_compiler.compile_sketch_native.NativeCompilerImpl")
+    def test_compiler_native_dump_headers_with_source(
+        self, mock_impl_class: MagicMock, mock_dump_func: MagicMock
+    ):
+        """Test CompilerNative.dump_headers with include_source=True."""
+        from fastled_wasm_compiler import CompilerNative
+
+        # Setup mocks
+        mock_impl = Mock()
+        mock_impl_class.return_value = mock_impl
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dump_func.return_value = mock_manifest
+
+        # Create API instance and call method with source inclusion
+        compiler = CompilerNative()
+        zip_path = Path("/tmp/headers_with_source.zip")
+        result = compiler.dump_headers(zip_path, include_source=True)
+
+        # Verify the underlying function was called correctly
+        mock_dump_func.assert_called_once_with(zip_path, True)
+        assert result == mock_manifest
+
+    @patch("fastled_wasm_compiler.dump_headers.dump_headers_to_zip")
+    @patch("fastled_wasm_compiler.compile_sketch_native.NativeCompilerImpl")
+    def test_compiler_native_dump_headers_with_custom_emsdk(
+        self, mock_impl_class: MagicMock, mock_dump_func: MagicMock
+    ):
+        """Test CompilerNative.dump_headers with custom EMSDK installation directory."""
+        from fastled_wasm_compiler import CompilerNative
+
+        # Setup mocks
+        mock_impl = Mock()
+        mock_impl_class.return_value = mock_impl
+        mock_manifest = {"test": "manifest", "metadata": {"total_files": 42}}
+        mock_dump_func.return_value = mock_manifest
+
+        # Create API instance with custom EMSDK path
+        custom_emsdk = Path("/custom/emsdk")
+        compiler = CompilerNative(emsdk_install_dir=custom_emsdk)
+        zip_path = Path("/tmp/headers.zip")
+        result = compiler.dump_headers(zip_path)
+
+        # Verify the compiler was initialized with custom EMSDK
+        mock_impl_class.assert_called_once_with(custom_emsdk)
+        # Verify the dump function was called correctly
+        mock_dump_func.assert_called_once_with(zip_path, False)
+        assert result == mock_manifest
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
