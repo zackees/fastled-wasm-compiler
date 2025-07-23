@@ -24,7 +24,7 @@ except ImportError:
 
 def get_fastled_source_path() -> str:
     """Get the FastLED source path for path resolution."""
-    return os.environ.get("ENV_FASTLED_SOURCE_PATH", "git/fastled/src")
+    return os.environ.get("ENV_FASTLED_SOURCE_PATH", "/git/fastled/src")
 
 
 def find_toml_file() -> Path:

@@ -34,14 +34,14 @@ class SourceFileResolverTester(unittest.TestCase):
         """Test the path pruning function."""
 
         # Test with environment-variable driven path
-        path = (
-            f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h"
-        )
+        # Remove leading slash from FASTLED_SRC_STR_RELATIVE to avoid double slashes
+        fastled_path = FASTLED_SRC_STR_RELATIVE.lstrip("/")
+        path = f"fastledsource/js/src/fastledsource/{fastled_path}/FastLED.h"
         out = prune_paths(path)
         self.assertIsInstance(out, str)
         self.assertEqual(
             out,
-            f"{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
+            f"{fastled_path}/FastLED.h",
         )
 
         path = "sketchsource/js/sketchsource/emsdk/upstream/lib/clang/21/include/__stddef_max_align_t.h"
@@ -65,19 +65,22 @@ class SourceFileResolverTester(unittest.TestCase):
 
     def test_fastled_patterns(self) -> None:
         """Test command line interface (CLI)."""
+        # Remove leading slash from FASTLED_SRC_STR_RELATIVE to avoid double slashes
+        fastled_path = FASTLED_SRC_STR_RELATIVE.lstrip("/")
+
         self.check_path(
-            f"fastledsource/js/src/fastledsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
-            f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
+            f"fastledsource/js/src/fastledsource/{fastled_path}/FastLED.h",
+            f"/{fastled_path}/FastLED.h",
         )
 
         self.check_path(
-            f"/dwarfsource/js/dwarfsource/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
-            f"/{FASTLED_SRC_STR_RELATIVE}/pixel_iterator.h",
+            f"/dwarfsource/js/dwarfsource/{fastled_path}/pixel_iterator.h",
+            f"/{fastled_path}/pixel_iterator.h",
         )
 
         self.check_path(
-            f"dwarfsource/js/sketchsource/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
-            f"/{FASTLED_SRC_STR_RELATIVE}/FastLED.h",
+            f"dwarfsource/js/sketchsource/{fastled_path}/FastLED.h",
+            f"/{fastled_path}/FastLED.h",
         )
 
         self.check_path(

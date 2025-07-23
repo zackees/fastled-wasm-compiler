@@ -27,24 +27,23 @@ def _normalize_windows_path(path_str: str) -> str:
         return path_str
 
     # Check if this looks like a Git Bash converted path
-    git_bash_prefix = "C:/Program Files/Git/"
-    if path_str.startswith(git_bash_prefix):
-        # Convert back to relative path by removing the Git Bash prefix
-        relative_path = path_str[len(git_bash_prefix) :]
-        logger.debug(f"Converted Git Bash path {path_str} -> {relative_path}")
-        return relative_path
-
-    # Also handle other common Git Bash conversions
-    msys_prefixes = [
+    git_bash_prefixes = [
+        "C:/Program Files/Git/",
         "C:/Program Files (x86)/Git/",
         "/c/Program Files/Git/",
         "/c/Program Files (x86)/Git/",
+        "/C:/Program Files/Git/",
+        "/C:/Program Files (x86)/Git/",
     ]
 
-    for prefix in msys_prefixes:
+    for prefix in git_bash_prefixes:
         if path_str.startswith(prefix):
+            # Convert back to relative path by removing the Git Bash prefix
             relative_path = path_str[len(prefix) :]
-            logger.debug(f"Converted MSYS path {path_str} -> {relative_path}")
+            # Ensure the relative path starts with / for absolute-style resolution
+            if not relative_path.startswith("/"):
+                relative_path = "/" + relative_path
+            logger.debug(f"Converted Git Bash path {path_str} -> {relative_path}")
             return relative_path
 
     return path_str
@@ -225,11 +224,18 @@ def prune_paths(path: str) -> str | None:
         if "fastled/src" in result:
             fastled_index = result.find("fastled/src")
             if fastled_index != -1:
-                result = (
-                    FASTLED_SOURCE_PATH
-                    + "/"
-                    + result[fastled_index + len("fastled/src") :].lstrip("/")
-                )
+                fastled_relative = FASTLED_SOURCE_PATH.lstrip(
+                    "/"
+                )  # Remove leading slash for relative path
+                suffix = result[fastled_index + len("fastled/src") :].lstrip("/")
+                if suffix:
+                    result = f"{fastled_relative}/{suffix}"
+                else:
+                    result = fastled_relative
+
+    # For paths that start with leading slash, remove it for relative path format
+    if result.startswith("/"):
+        result = result[1:]
 
     logger.debug(f"Pruned path {path} to {result}")
     return result

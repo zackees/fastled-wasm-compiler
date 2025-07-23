@@ -67,14 +67,36 @@ def can_use_thin_lto() -> bool:
 # Source path mappings for cross-platform compatibility
 def get_fastled_source_path() -> str:
     """Get the FastLED source path for path resolution."""
-    # Use environment variable or default to relative path
-    return os.environ.get("ENV_FASTLED_SOURCE_PATH", "git/fastled/src")
+    # Use environment variable or default to absolute path
+    path = os.environ.get("ENV_FASTLED_SOURCE_PATH", "/git/fastled/src")
+
+    # On Windows with Git Bash, normalize paths that got converted
+    if _IS_WINDOWS:
+        git_bash_prefixes = [
+            "C:/Program Files/Git/",
+            "C:/Program Files (x86)/Git/",
+            "/c/Program Files/Git/",
+            "/c/Program Files (x86)/Git/",
+            "/C:/Program Files/Git/",
+            "/C:/Program Files (x86)/Git/",
+        ]
+
+        for prefix in git_bash_prefixes:
+            if path.startswith(prefix):
+                # Convert back to the intended relative path
+                relative_path = path[len(prefix) :]
+                # Ensure the relative path starts with / for absolute-style resolution
+                if not relative_path.startswith("/"):
+                    relative_path = "/" + relative_path
+                return relative_path
+
+    return path
 
 
 def get_emsdk_path() -> str:
     """Get the EMSDK path for path resolution."""
-    # Use environment variable or default to relative path
-    return os.environ.get("ENV_EMSDK_PATH", "emsdk")
+    # Use environment variable or default to absolute path
+    return os.environ.get("ENV_EMSDK_PATH", "/emsdk")
 
 
 def get_sketch_path() -> str:

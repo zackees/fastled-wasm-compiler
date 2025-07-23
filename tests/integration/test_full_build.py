@@ -497,10 +497,12 @@ class FullBuildTester(unittest.TestCase):
 
         assert compile_proc.stdout is not None
 
-        # Print output in real-time
+        # Capture output for validation while printing in real-time
+        output_lines = []
         for line in compile_proc.stdout:
             line_str = line.decode("utf-8", errors="replace")
             print(line_str.strip())
+            output_lines.append(line_str.strip())
 
         compile_proc.wait()
         compile_proc.stdout.close()
@@ -515,6 +517,27 @@ class FullBuildTester(unittest.TestCase):
 
         # Check if compilation was successful
         self.assertEqual(compile_proc.returncode, 0, "Sketch compilation failed")
+
+        # Join all output for analysis
+        full_output = "\n".join(output_lines)
+
+        # In Docker environment using official FastLED source, fallback behavior is expected
+        # The primary config only exists when using a custom FastLED build with WASM compiler integration
+        # So we should expect fallback messages and verify the build still succeeds
+        if "Primary config not found" in full_output:
+            # This is expected when using official FastLED source - verify fallback is working
+            self.assertIn(
+                "BUILD_FLAGS STATUS: Falling back to package resource",
+                full_output,
+                "Expected fallback message not found when primary config is missing",
+            )
+            print(
+                "✅ Expected fallback behavior detected - using package build_flags.toml"
+            )
+        else:
+            print(
+                "✅ Primary config found - using FastLED source tree build_flags.toml"
+            )
 
         # Check if output files were generated
         output_dir = MAPPED_DIR / "sketch" / "fastled_js"
