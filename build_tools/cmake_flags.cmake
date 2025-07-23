@@ -35,13 +35,20 @@ set(FASTLED_DEBUG_FLAGS
 )
 
 set(FASTLED_QUICK_FLAGS
-    "-flto=thin"
-    "-O0"
+    "-O1"
     "-g0"
     "-fno-inline-functions"
     "-fno-vectorize"
     "-fno-unroll-loops"
     "-fno-strict-aliasing"
+    "-fno-merge-constants"
+    "-fno-merge-all-constants"
+    "-fno-delayed-template-parsing"
+    "-fmax-type-align=4"
+    "-ffast-math"
+    "-fno-math-errno"
+    "-fno-exceptions"
+    "-fno-rtti"
 )
 
 set(FASTLED_RELEASE_FLAGS

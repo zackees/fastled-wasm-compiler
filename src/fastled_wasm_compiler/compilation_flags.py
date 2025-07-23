@@ -9,6 +9,7 @@ Fallback order:
 2. src/fastled_wasm_compiler/build_flags.toml (fallback)
 """
 
+import os
 from pathlib import Path
 from typing import Any, BinaryIO, cast
 
@@ -48,50 +49,69 @@ class CompilationFlags:
             with open(self.config_path, "rb") as f:
                 return tomllib.load(f)
         else:
-            # Try FastLED source tree first
-            try:
-                fastled_src_path = Path(get_fastled_source_path())
-                fastled_build_flags = (
-                    fastled_src_path
-                    / "platforms"
-                    / "wasm"
-                    / "compile"
-                    / "build_flags.toml"
-                )
+            # Check if forced to use built-in flags (for performance optimization testing)
+            force_builtin = os.environ.get(
+                "FASTLED_FORCE_BUILTIN_FLAGS", "0"
+            ).lower() in ("1", "true", "yes")
 
+            if force_builtin:
                 print(
-                    f"🔍 BUILD_FLAGS STATUS: Checking primary location: {fastled_build_flags}"
+                    "🚀 BUILD_FLAGS STATUS: FASTLED_FORCE_BUILTIN_FLAGS=1 - Using optimized built-in flags"
                 )
-
-                if fastled_build_flags.exists():
-                    print(
-                        f"✅ BUILD_FLAGS STATUS: Using primary FastLED source config: {fastled_build_flags}"
-                    )
-                    with open(fastled_build_flags, "rb") as f:
-                        return tomllib.load(f)
-                else:
-                    print(
-                        f"⚠️  BUILD_FLAGS WARNING: Primary config not found at {fastled_build_flags}"
-                    )
-                    print(
-                        "⚠️  BUILD_FLAGS WARNING: This is expected if using standalone FastLED WASM compiler"
-                    )
-
-            except Exception as e:
                 print(
-                    f"⚠️  BUILD_FLAGS WARNING: Error checking FastLED source tree: {e}"
+                    "⚡ BUILD_FLAGS INFO: Skipping FastLED source tree config to use performance optimizations"
                 )
+                # Skip FastLED source tree check and go directly to package resource
+            else:
+                # Try FastLED source tree first (original behavior)
+                try:
+                    fastled_src_path = Path(get_fastled_source_path())
+                    fastled_build_flags = (
+                        fastled_src_path
+                        / "platforms"
+                        / "wasm"
+                        / "compile"
+                        / "build_flags.toml"
+                    )
 
-            # Fallback to package resource
+                    print(
+                        f"🔍 BUILD_FLAGS STATUS: Checking primary location: {fastled_build_flags}"
+                    )
+
+                    if fastled_build_flags.exists():
+                        print(
+                            f"✅ BUILD_FLAGS STATUS: Using primary FastLED source config: {fastled_build_flags}"
+                        )
+                        with open(fastled_build_flags, "rb") as f:
+                            return tomllib.load(f)
+                    else:
+                        print(
+                            f"⚠️  BUILD_FLAGS WARNING: Primary config not found at {fastled_build_flags}"
+                        )
+                        print(
+                            "⚠️  BUILD_FLAGS WARNING: This is expected if using standalone FastLED WASM compiler"
+                        )
+
+                except Exception as e:
+                    print(
+                        f"⚠️  BUILD_FLAGS WARNING: Error checking FastLED source tree: {e}"
+                    )
+
+            # Fallback to package resource (both when forced and when FastLED source not found)
             try:
                 package_files = files("fastled_wasm_compiler")
                 config_file = package_files / "build_flags.toml"
                 print(
                     "🔄 BUILD_FLAGS STATUS: Falling back to package resource: build_flags.toml"
                 )
-                print(
-                    "ℹ️  BUILD_FLAGS INFO: Using default compiler flags (this is normal for standalone usage)"
-                )
+                if force_builtin:
+                    print(
+                        "⚡ BUILD_FLAGS INFO: Using optimized compiler flags for faster builds"
+                    )
+                else:
+                    print(
+                        "ℹ️  BUILD_FLAGS INFO: Using default compiler flags (this is normal for standalone usage)"
+                    )
                 with cast(BinaryIO, config_file.open("rb")) as f:
                     return tomllib.load(f)
             except FileNotFoundError:

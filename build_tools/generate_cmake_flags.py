@@ -100,7 +100,7 @@ def print_config_status(config: dict, file_path: Path) -> None:
         
         # Total for CMake generation
         total_cmake_flags = base_defines + base_flags + library_defines + library_flags
-        print(f"#   📦 Total CMake flags to generate: {len(total_cmake_flags)}", file=sys.stderr)
+        print(f"#   📦 Total CMake flags to generate: {total_cmake_flags}", file=sys.stderr)
         
     except Exception as e:
         print(f"#   ⚠️  Error reading configuration: {e}", file=sys.stderr)

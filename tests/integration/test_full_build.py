@@ -1199,4 +1199,37 @@ class FullBuildTester(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description="Run FastLED WASM Compiler full build tests"
+    )
+    parser.add_argument("--log", metavar="FILE", help="Log output to specified file")
+
+    # Parse known args to avoid conflicts with unittest args
+    args, remaining_args = parser.parse_known_args()
+
+    from typing import TextIO
+
+    log_file: TextIO | None = None
+
+    # Set up logging if requested
+    if args.log:
+        log_file = open(args.log, "w", encoding="utf-8")
+        sys.stdout = log_file
+        sys.stderr = log_file
+        print(f"Logging to: {args.log}")
+
+    try:
+        # Pass remaining args to unittest
+        sys.argv = [sys.argv[0]] + remaining_args
+        unittest.main()
+    finally:
+        # Clean up logging
+        if args.log:
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            if log_file is not None:
+                log_file.close()
+            print(f"Output logged to: {args.log}")
