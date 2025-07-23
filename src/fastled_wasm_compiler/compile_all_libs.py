@@ -51,7 +51,13 @@ def _build_archives(
         env_thin = os.environ.copy()
         env_thin["NO_THIN_LTO"] = "0"
 
-        result = subprocess.run(cmd, env=env_thin, cwd="/git/fastled-wasm")
+        result = subprocess.run(
+            cmd,
+            env=env_thin,
+            cwd="/git/fastled-wasm",
+            capture_output=False,  # Always show output in real-time
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to build thin archives for {build_mode}")
             return result.returncode
@@ -62,7 +68,13 @@ def _build_archives(
         env_regular = os.environ.copy()
         env_regular["NO_THIN_LTO"] = "1"
 
-        result = subprocess.run(cmd, env=env_regular, cwd="/git/fastled-wasm")
+        result = subprocess.run(
+            cmd,
+            env=env_regular,
+            cwd="/git/fastled-wasm",
+            capture_output=False,  # Always show output in real-time
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to build regular archives for {build_mode}")
             return result.returncode
@@ -83,7 +95,13 @@ def _build_archives(
         # Remove any existing NO_THIN_LTO to let the script control it
         env.pop("NO_THIN_LTO", None)
 
-        result = subprocess.run(cmd, env=env, cwd="/git/fastled-wasm")
+        result = subprocess.run(
+            cmd,
+            env=env,
+            cwd="/git/fastled-wasm",
+            capture_output=False,  # Always show output in real-time
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to build archives for {build_mode}")
             return result.returncode

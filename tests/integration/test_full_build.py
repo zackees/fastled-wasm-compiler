@@ -979,7 +979,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Verify PCH optimization messages are present in quick mode
         pch_optimization_applied = any(
-            "PCH OPTIMIZATION APPLIED" in line for line in quick_output.split("\n")
+            "PCH OPTIMIZATION:" in line for line in quick_output.split("\n")
         )
         pch_precompiled_header_used = any(
             "Using precompiled header" in line for line in quick_output.split("\n")
@@ -987,7 +987,7 @@ class FullBuildTester(unittest.TestCase):
 
         self.assertTrue(
             pch_optimization_applied,
-            "PCH optimization should be applied in quick mode, but 'PCH OPTIMIZATION APPLIED' message not found in output",
+            "PCH optimization should be applied in quick mode, but 'PCH OPTIMIZATION:' message not found in output",
         )
         self.assertTrue(
             pch_precompiled_header_used,
@@ -1000,7 +1000,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Verify PCH optimization messages are present in debug mode too
         pch_optimization_applied_debug = any(
-            "PCH OPTIMIZATION APPLIED" in line for line in debug_output.split("\n")
+            "PCH OPTIMIZATION:" in line for line in debug_output.split("\n")
         )
         pch_precompiled_header_used_debug = any(
             "Using precompiled header" in line for line in debug_output.split("\n")
@@ -1008,7 +1008,7 @@ class FullBuildTester(unittest.TestCase):
 
         self.assertTrue(
             pch_optimization_applied_debug,
-            "PCH optimization should be applied in debug mode, but 'PCH OPTIMIZATION APPLIED' message not found in output",
+            "PCH optimization should be applied in debug mode, but 'PCH OPTIMIZATION:' message not found in output",
         )
         self.assertTrue(
             pch_precompiled_header_used_debug,

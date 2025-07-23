@@ -259,7 +259,7 @@ def compile_cpp_to_obj(
     # 4. PCH optimization if applicable
     if can_use_pch:
         final_output.append(
-            f"🚀 PCH OPTIMIZATION APPLIED: Using precompiled header {pch_file.name}"
+            f"🚀 PCH OPTIMIZATION: Using precompiled header {pch_file.name}"
         )
         final_output.append(
             "    🔒 Source files remain unmodified (include guards handle double inclusion)"
