@@ -182,17 +182,34 @@ def main() -> int:
         thin_lib = Path(f"{build_root}/{build_mode_str}/libfastled-thin.a")
         regular_lib = Path(f"{build_root}/{build_mode_str}/libfastled.a")
 
+        # Import to get current archive mode for smarter error reporting
+        from fastled_wasm_compiler.paths import get_archive_build_mode
+
+        archive_mode = get_archive_build_mode()
+
         if thin_lib.exists():
             size = thin_lib.stat().st_size
             print(f"  ✅ Thin archive: {thin_lib} ({size} bytes)")
         else:
-            print(f"  ❌ Missing thin archive: {thin_lib}")
+            # Only show as error if thin archives are expected
+            if archive_mode == "thin":
+                print(f"  ❌ Missing thin archive: {thin_lib}")
+            elif archive_mode == "both":
+                print(f"  ❌ Missing thin archive: {thin_lib}")
+            else:
+                print(f"  ℹ️  Thin archive not built: {thin_lib} (regular mode)")
 
         if regular_lib.exists():
             size = regular_lib.stat().st_size
             print(f"  ✅ Regular archive: {regular_lib} ({size} bytes)")
         else:
-            print(f"  ❌ Missing regular archive: {regular_lib}")
+            # Only show as error if regular archives are expected
+            if archive_mode == "regular":
+                print(f"  ❌ Missing regular archive: {regular_lib}")
+            elif archive_mode == "both":
+                print(f"  ❌ Missing regular archive: {regular_lib}")
+            else:
+                print(f"  ℹ️  Regular archive not built: {regular_lib} (thin mode)")
 
         return rtn
     except FileNotFoundError as e:
