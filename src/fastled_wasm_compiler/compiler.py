@@ -128,14 +128,14 @@ class CompilerImpl:
                     start = time.time()
                     result = self.update_src(src_to_merge_from=self.volume_mapped_src)
 
-                    # Handle error case
-                    if isinstance(result, Exception):
-                        error_msg = f"Error updating source: {result}"
+                    # Handle error case - check the error field in UpdateSrcResult
+                    if result.error is not None:
+                        error_msg = f"Error updating source: {result.error}"
                         print_banner(error_msg)
-                        return Exception(error_msg)
+                        return result.error
 
                     # Handle success case with changed files
-                    if isinstance(result, list) and len(result) > 0:
+                    if len(result.files_changed) > 0:
                         clear_cache = (
                             True  # Always clear cache when the source changes.
                         )
