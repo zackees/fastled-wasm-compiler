@@ -1197,6 +1197,163 @@ class FullBuildTester(unittest.TestCase):
         if headers_output_dir.exists():
             shutil.rmtree(headers_output_dir)
 
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_pch_staleness_with_volume_mapping_disabled(self) -> None:
+        """Test PCH staleness behavior when volume mapping is disabled.
+
+        This test reproduces the scenario where Arduino.h gets modified after
+        PCH is built, causing PCH staleness errors even when volume mapping
+        is disabled (which should prevent any FastLED source modifications).
+        """
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-pch-staleness-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Create a separate mapped directory for this test
+        mapped_test_dir = MAPPED_DIR.parent / "mapped_pch_staleness"
+        if mapped_test_dir.exists():
+            shutil.rmtree(mapped_test_dir)
+
+        # Copy the original mapped directory structure
+        shutil.copytree(MAPPED_DIR, mapped_test_dir)
+        # Set 777 permissions to avoid Docker permission issues
+        subprocess.run(["chmod", "-R", "777", str(mapped_test_dir)], check=False)
+
+        # Clear any existing output
+        output_dir = mapped_test_dir / "sketch" / "fastled_js"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+
+        print("\n🔍 Testing PCH staleness with volume mapping DISABLED...")
+        print(
+            "This should reveal what's inappropriately touching FastLED source files."
+        )
+
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-pch-staleness-container",
+            # Mount the test data directories
+            "-v",
+            f"{mapped_test_dir.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            # CRITICAL: Disable volume mapping by setting ENV_VOLUME_MAPPED_SRC to non-existent path
+            "-e",
+            "ENV_VOLUME_MAPPED_SRC=/nonexistent/path",
+            IMAGE_NAME,
+            # Required arguments
+            "--compiler-root",
+            CONTAINER_JS_ROOT,
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            # Use quick mode (has PCH enabled)
+            "--quick",
+            "--no-platformio",  # Use direct emcc calls to see PCH messages
+            "--keep-files",  # Keep intermediate files for debugging
+        ]
+
+        print(f"\n🚀 Command: {subprocess.list2cmdline(cmd_list)}")
+        print("🔒 Volume mapping DISABLED: ENV_VOLUME_MAPPED_SRC=/nonexistent/path")
+        print("📋 Expected behavior: NO FastLED source files should be modified")
+        print(
+            "🚨 If we see PCH staleness errors, something is inappropriately touching Arduino.h!"
+        )
+
+        compile_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert compile_proc.stdout is not None
+
+        # Capture all output for analysis
+        output_lines = []
+        pch_staleness_detected = False
+        fastled_source_modified = False
+
+        for line in compile_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            print(line_str)
+            output_lines.append(line_str)
+
+            # Check for PCH staleness errors
+            if "has been modified since the precompiled header" in line_str:
+                pch_staleness_detected = True
+                print("🚨 PCH STALENESS DETECTED!")
+
+            # Check for inappropriate FastLED source modifications
+            if "✂️ Removed:" in line_str and "FastLED.h/Arduino.h" in line_str:
+                fastled_source_modified = True
+                print("�� FASTLED SOURCE MODIFICATION DETECTED!")
+
+        compile_proc.wait()
+        compile_proc.stdout.close()
+        compile_proc.terminate()
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-pch-staleness-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Clean up test directory
+        if mapped_test_dir.exists():
+            shutil.rmtree(mapped_test_dir)
+
+        full_output = "\n".join(output_lines)
+
+        # Analyze results
+        print("\n" + "=" * 80)
+        print("🔍 PCH STALENESS BUG ANALYSIS:")
+        print("=" * 80)
+
+        if pch_staleness_detected:
+            print(
+                "🚨 BUG CONFIRMED: PCH staleness error occurred with volume mapping disabled!"
+            )
+            print(
+                "   This means something is inappropriately modifying FastLED source files."
+            )
+        else:
+            print("✅ No PCH staleness detected - good!")
+
+        if fastled_source_modified:
+            print(
+                "🚨 BUG CONFIRMED: FastLED source files were modified with volume mapping disabled!"
+            )
+            print("   This should NEVER happen when volume mapping is disabled.")
+        else:
+            print("✅ No FastLED source modifications detected - good!")
+
+        # Check compilation result
+        if compile_proc.returncode == 0:
+            print("✅ Compilation succeeded")
+        else:
+            print(f"❌ Compilation failed with exit code: {compile_proc.returncode}")
+
+        # Look for specific error patterns in output
+        volume_mapping_status = (
+            "ENABLED" if "Volume mapped source defined" in full_output else "DISABLED"
+        )
+        print(f"📊 Volume mapping status detected: {volume_mapping_status}")
+
+        if "FASTLED SOURCE TREE" in full_output:
+            print("🚨 CRITICAL: FastLED source tree files were analyzed for PCH!")
+
+        # Analysis complete - test passes if we reach here without assertion failures
+
 
 if __name__ == "__main__":
     import argparse

@@ -38,12 +38,22 @@ CONTAINER_JS_ROOT = "/js"
 
 
 def is_volume_mapped_source_defined() -> bool:
-    """Check if volume mapped source is explicitly defined.
+    """Check if volume mapped source is explicitly defined and exists.
+
+    Volume mapping is considered enabled when ENV_VOLUME_MAPPED_SRC is set
+    AND the path actually exists. This matches the behavior in other parts
+    of the codebase that check volume_mapped_src.exists().
 
     Returns:
-        True if ENV_VOLUME_MAPPED_SRC is set, False otherwise
+        True if ENV_VOLUME_MAPPED_SRC is set and the path exists, False otherwise
     """
-    return os.environ.get("ENV_VOLUME_MAPPED_SRC") is not None
+    env_value = os.environ.get("ENV_VOLUME_MAPPED_SRC")
+    if env_value is None:
+        return False
+
+    # Check if the path actually exists
+    volume_mapped_path = Path(env_value)
+    return volume_mapped_path.exists()
 
 
 def get_archive_build_mode() -> str:

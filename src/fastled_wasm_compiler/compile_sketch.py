@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from fastled_wasm_compiler.compilation_flags import get_compilation_flags
-from fastled_wasm_compiler.paths import BUILD_ROOT, get_fastled_source_path
+from fastled_wasm_compiler.paths import (
+    BUILD_ROOT,
+    get_fastled_source_path,
+    is_volume_mapped_source_defined,
+)
 from fastled_wasm_compiler.streaming_timestamper import StreamingTimestamper
 
 
@@ -264,6 +268,74 @@ def analyze_source_for_pch_usage(src_file: Path) -> tuple[bool, bool]:
         return False, False
 
 
+def can_use_pch_readonly(src_file: Path) -> bool:
+    """
+    Check if a source file can use PCH without modifying the source file.
+    For read-only mode when volume mapping is disabled.
+
+    This function performs the same analysis as analyze_source_for_pch_usage
+    but does NOT modify the source file, making it safe for use when
+    volume mapping is disabled and source files should remain read-only.
+
+    Args:
+        src_file: Path to the source file to analyze
+
+    Returns:
+        True if PCH can be used without source file modifications
+    """
+    try:
+        with open(src_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print(f"Warning: Could not read {src_file}: {e}")
+        return False
+
+    lines = content.splitlines()
+
+    # Track what we find
+    fastled_include_line = None
+    has_defines_before_fastled = False
+
+    # Scan through the file line by line
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # Skip empty lines and comments
+        if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
+            continue
+
+        # Check for FastLED.h include
+        if re.match(r'^\s*#\s*include\s*[<"]FastLED\.h[>"]', line):
+            fastled_include_line = i
+            break  # Found FastLED.h, stop scanning
+
+        # Check for Arduino.h include (we don't need to track this in read-only mode)
+        if re.match(r'^\s*#\s*include\s*[<"]Arduino\.h[>"]', line):
+            continue
+
+        # Check for #define statements
+        if re.match(r"^\s*#\s*define\s+", line):
+            has_defines_before_fastled = True
+            continue
+
+        # Check for other preprocessor directives that might affect compilation
+        if re.match(r"^\s*#\s*(ifdef|ifndef|if|pragma)", line):
+            has_defines_before_fastled = True
+            continue
+
+    # If no FastLED.h found, we can't use PCH
+    if fastled_include_line is None:
+        return False
+
+    # If there are defines before FastLED.h, we can't safely use PCH
+    if has_defines_before_fastled:
+        return False
+
+    # We can use PCH! In read-only mode, we assume the source file
+    # is compatible if it has the expected includes and no conflicting defines
+    return True
+
+
 def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
@@ -300,7 +372,16 @@ def compile_cpp_to_obj(
     headers_removed = False
 
     if pch_file.exists():
-        can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
+        # Check volume mapping status to determine PCH mode
+        volume_mapping_enabled = is_volume_mapped_source_defined()
+
+        if volume_mapping_enabled:
+            # Full PCH mode - can modify source files
+            can_use_pch, headers_removed = analyze_source_for_pch_usage(src_file)
+        else:
+            # Read-only PCH mode - check compatibility without modifications
+            can_use_pch = can_use_pch_readonly(src_file)
+            headers_removed = False
 
         if can_use_pch:
             # Use PCH
@@ -349,8 +430,10 @@ def compile_cpp_to_obj(
 
     # 4. PCH optimization if applicable
     if pch_file.exists() and can_use_pch:
+        volume_mapping_enabled = is_volume_mapped_source_defined()
+        pch_mode = "Full" if volume_mapping_enabled else "Read-only"
         final_output.append(
-            f"🚀 PCH OPTIMIZATION APPLIED: Using precompiled header {pch_file.name}"
+            f"🚀 PCH OPTIMIZATION APPLIED ({pch_mode} mode): Using precompiled header {pch_file.name}"
         )
         if removed_files:
             final_output.append(
@@ -358,6 +441,10 @@ def compile_cpp_to_obj(
             )
             for i, filename in enumerate(removed_files, 1):
                 final_output.append(f"         [{i}] {filename}")
+        elif not volume_mapping_enabled:
+            final_output.append(
+                "    🔒 Read-only mode: Source files not modified (volume mapping disabled)"
+            )
 
     # 5. Compiler output only if there are errors or important messages
     has_compiler_output = (cp.stdout and cp.stdout.strip()) or (
