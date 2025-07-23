@@ -14,7 +14,7 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.compile_all_libs import ArchiveType, compile_all_libs
+from fastled_wasm_compiler.compile_all_libs import compile_all_libs
 from fastled_wasm_compiler.env_validation import (
     add_environment_arguments,
     ensure_environment_configured,
@@ -112,7 +112,7 @@ def main() -> int:
         src=str(FASTLED_SRC),
         out=str(BUILD_ROOT),
         build_modes=[build_mode_str],
-        archive_type=ArchiveType.BOTH,
+        # archive_type defaults to None, which uses centralized archive mode detection
     )
 
     if result.return_code != 0:

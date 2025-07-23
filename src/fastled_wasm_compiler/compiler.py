@@ -7,7 +7,6 @@ import fasteners
 
 from fastled_wasm_compiler.args import Args
 from fastled_wasm_compiler.compile_all_libs import (
-    ArchiveType,
     BuildResult,
     compile_all_libs,
 )
@@ -260,13 +259,13 @@ class CompilerImpl:
                 )
 
             # Compile the libraries (either because files changed or libraries are missing)
-            # Use ArchiveType.BOTH to ensure both thin and regular archives are built
+            # Use centralized archive mode detection and validation
             print_banner("Compiling libraries with updated source...")
             result: BuildResult = compile_all_libs(
                 FASTLED_SRC.as_posix(),
                 str(BUILD_ROOT),
                 build_modes=build_modes,
-                archive_type=ArchiveType.BOTH,
+                # archive_type defaults to None, which uses centralized detection and validation
             )
 
             if result.return_code != 0:
@@ -281,23 +280,18 @@ class CompilerImpl:
                     error=RuntimeError(stdout),
                 )
 
-            # Verify the build output - check for both archive types
+            # Verify the build output - check for expected archive type based on configuration
+            from fastled_wasm_compiler.paths import get_expected_archive_path
+
             for mode in build_modes:
-                # Check for regular archive
-                regular_lib = BUILD_ROOT / mode / "libfastled.a"
-                thin_lib = BUILD_ROOT / mode / "libfastled-thin.a"
+                # Use centralized archive selection to get the expected archive path
+                expected_lib = get_expected_archive_path(mode.upper())
+                archive_type = "thin" if "thin" in expected_lib.name else "regular"
 
-                if not regular_lib.exists():
-                    error_msg = f"Expected regular library not found at {regular_lib}"
-                    print_banner(f"Error: {error_msg}")
-                    return UpdateSrcResult(
-                        files_changed=[],
-                        stdout=error_msg,
-                        error=FileNotFoundError(error_msg),
+                if not expected_lib.exists():
+                    error_msg = (
+                        f"Expected {archive_type} library not found at {expected_lib}"
                     )
-
-                if not thin_lib.exists():
-                    error_msg = f"Expected thin library not found at {thin_lib}"
                     print_banner(f"Error: {error_msg}")
                     return UpdateSrcResult(
                         files_changed=[],

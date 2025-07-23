@@ -130,7 +130,7 @@ def compile_all_libs(
     src: str,
     out: str,
     build_modes: list[str] | None = None,
-    archive_type: ArchiveType = ArchiveType.BOTH,
+    archive_type: ArchiveType | None = None,
 ) -> BuildResult:
     """Compile FastLED libraries for specified build modes.
 
@@ -138,10 +138,47 @@ def compile_all_libs(
         src: Source directory path
         out: Output directory path
         build_modes: List of build modes to compile
-        archive_type: Which archive types to build (thin, regular, or both)
+        archive_type: Which archive types to build (thin, regular, or both).
+                     If None, uses centralized archive mode detection.
     """
     start_time = time.time()
     build_modes = build_modes or ["debug", "quick", "release"]
+
+    # Use centralized archive mode detection if not explicitly specified
+    if archive_type is None:
+        from fastled_wasm_compiler.paths import get_archive_build_mode
+
+        archive_mode = get_archive_build_mode()
+
+        if archive_mode == "thin":
+            archive_type = ArchiveType.THIN
+        elif archive_mode == "regular":
+            archive_type = ArchiveType.REGULAR
+        else:  # "both" - legacy mode
+            archive_type = ArchiveType.BOTH
+    else:
+        # Validate that passed archive_type matches environment configuration
+        from fastled_wasm_compiler.paths import get_archive_build_mode
+
+        archive_mode = get_archive_build_mode()
+        expected_archive_type = None
+
+        if archive_mode == "thin":
+            expected_archive_type = ArchiveType.THIN
+        elif archive_mode == "regular":
+            expected_archive_type = ArchiveType.REGULAR
+        else:  # "both" - legacy mode
+            expected_archive_type = ArchiveType.BOTH
+
+        # Check for mismatch and warn if necessary
+        if archive_type != expected_archive_type:
+            print("⚠️  WARNING: Archive type mismatch detected!")
+            print(f"   Requested: {archive_type.value}")
+            print(f"   Environment (ARCHIVE_BUILD_MODE): {archive_mode}")
+            print(
+                f"   Switching to environment configuration: {expected_archive_type.value}"
+            )
+            archive_type = expected_archive_type
     build_times: dict[str, float] = OrderedDict()
     captured_stdout: list[str] = []
 
