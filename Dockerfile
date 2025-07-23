@@ -94,6 +94,10 @@ ENV LINKER=mold
 ARG NO_PLATFORMIO="1"
 ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 
+# Set default archive mode (can be overridden at build-time and runtime)
+ARG ARCHIVE_BUILD_MODE="regular"
+ENV ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}
+
 # Set container-specific environment variables for path resolution
 ENV ENV_FASTLED_ROOT="/git/fastled"
 ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
@@ -119,7 +123,8 @@ RUN echo 'print() { echo "$@"; }' >> /etc/profile && \
 ENV LANG=en_US.UTF-8
 ENV LC_CTYPE=UTF-8
 RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
-    echo 'export LC_CTYPE=UTF-8' >> /etc/profile
+    echo 'export LC_CTYPE=UTF-8' >> /etc/profile && \
+    echo "export ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}" >> /etc/profile
 
 # changing this number forces a code re-update.
 RUN echo "update build 56"

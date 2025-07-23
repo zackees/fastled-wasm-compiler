@@ -247,25 +247,9 @@ class NativeCompilerImpl:
 
         print(f"Found {len(source_files)} sketch source files in {sketch_dir}")
 
-        # Find pre-built FastLED library to link against
-        build_mode_lower = build_mode.lower()
-        use_thin = paths.can_use_thin_lto()
-        archive_type = "thin" if use_thin else "regular"
-
-        # Construct library path
-        if use_thin:
-            fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled-thin.a"
-        else:
-            fastled_lib_path = paths.BUILD_ROOT / build_mode_lower / "libfastled.a"
-
-        # Ensure library exists
-        if not fastled_lib_path.exists():
-            raise RuntimeError(
-                f"❌ Required FastLED library not found: {fastled_lib_path}\n"
-                + f"   Build mode: {build_mode} ({archive_type})\n"
-                + "   Please build FastLED library first:\n"
-                + f"   • uv run fastled-wasm-compiler-build-lib-lazy --{build_mode_lower}"
-            )
+        # Find pre-built FastLED library to link against using centralized logic
+        fastled_lib_path = paths.get_fastled_library_path(build_mode)
+        archive_type = "thin" if "thin" in fastled_lib_path.name else "regular"
 
         print(f"🎯 Total files to compile: {len(source_files)} (sketch files only)")
         print(f"📚 FastLED library: {fastled_lib_path} ({archive_type})")

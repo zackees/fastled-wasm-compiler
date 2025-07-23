@@ -65,19 +65,21 @@ fi
 echo ">>> CMake flags auto-check complete"
 
 # ============================================================================
-# ORIGINAL BUILD LOGIC
+# ARGUMENT PARSING AND BUILD LOGIC
 # ============================================================================
 
-
 MODES=()
+ARCHIVE_BUILD_MODE="regular"  # Default: regular archives only (best performance)
 
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
-    --debug)     MODES+=("DEBUG") ;;
-    --quick)     MODES+=("QUICK") ;;
-    --release)   MODES+=("RELEASE") ;;
-    --all)       MODES=("DEBUG" "QUICK" "RELEASE"); break ;;
+    --thin-only)     ARCHIVE_BUILD_MODE="thin" ;;
+    --regular-only)  ARCHIVE_BUILD_MODE="regular" ;;
+    --debug)         MODES+=("DEBUG") ;;
+    --quick)         MODES+=("QUICK") ;;
+    --release)       MODES+=("RELEASE") ;;
+    --all)           MODES=("DEBUG" "QUICK" "RELEASE"); break ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -93,8 +95,27 @@ for mode in "${MODES[@]}"; do
   [[ " ${UNIQUE_MODES[*]} " == *" $mode "* ]] || UNIQUE_MODES+=("$mode")
 done
 
+# Set environment variable for the chosen archive mode
+export ARCHIVE_BUILD_MODE="$ARCHIVE_BUILD_MODE"
+
+# Validate archive mode configuration
+case "$ARCHIVE_BUILD_MODE" in
+  "thin")
+    echo ">>> EXCLUSIVE MODE: Building ONLY thin archives"
+    export NO_THIN_LTO=0
+    ;;
+  "regular")
+    echo ">>> EXCLUSIVE MODE: Building ONLY regular archives"
+    export NO_THIN_LTO=1
+    ;;
+  "both")
+    echo ">>> DUAL MODE: Building BOTH archive types (current behavior)"
+    # Don't override NO_THIN_LTO - let it be controlled by other means
+    ;;
+esac
+
 for MODE in "${UNIQUE_MODES[@]}"; do
-  echo ">>> Building in mode: $MODE"
+  echo ">>> Building in mode: $MODE (archive_mode: $ARCHIVE_BUILD_MODE)"
 
   # Build directory in $BUILD_ROOT_BASE/<mode> (absolute)
   BUILD_DIR="${BUILD_ROOT_BASE}/${MODE,,}"
@@ -104,20 +125,46 @@ for MODE in "${UNIQUE_MODES[@]}"; do
 
   export BUILD_MODE="$MODE"
   
-  echo ">>> Step 1/3: Compiling object files (NO_LINK=ON)"
-  export NO_THIN_LTO=0  # Use thin LTO for compilation step
-  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_LINK=ON
-  ninja -v
-  
-  echo ">>> Step 2/3: Linking thin archive (NO_BUILD=ON, NO_THIN_LTO=0)"
-  export NO_THIN_LTO=0
-  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
-  ninja -v
-  
-  echo ">>> Step 3/3: Linking regular archive (NO_BUILD=ON, NO_THIN_LTO=1)"
-  export NO_THIN_LTO=1
-  emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
-  ninja -v
+  case "$ARCHIVE_BUILD_MODE" in
+    "thin")
+      echo ">>> Step 1/2: Compiling object files (NO_LINK=ON)"
+      export NO_THIN_LTO=0  # Use thin LTO for compilation step
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_LINK=ON
+      ninja -v
+      
+      echo ">>> Step 2/2: Linking thin archive ONLY (NO_BUILD=ON, NO_THIN_LTO=0)"
+      export NO_THIN_LTO=0
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
+      ninja -v
+      ;;
+    "regular")
+      echo ">>> Step 1/2: Compiling object files (NO_LINK=ON)"
+      export NO_THIN_LTO=1  # Use regular compilation for consistency
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_LINK=ON
+      ninja -v
+      
+      echo ">>> Step 2/2: Linking regular archive ONLY (NO_BUILD=ON, NO_THIN_LTO=1)"
+      export NO_THIN_LTO=1
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
+      ninja -v
+      ;;
+    "both")
+      echo ">>> Step 1/3: Compiling object files (NO_LINK=ON)"
+      export NO_THIN_LTO=0  # Use thin LTO for compilation step
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_LINK=ON
+      ninja -v
+      
+      echo ">>> Step 2/3: Linking thin archive (NO_BUILD=ON, NO_THIN_LTO=0)"
+      export NO_THIN_LTO=0
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
+      ninja -v
+      
+      echo ">>> Step 3/3: Linking regular archive (NO_BUILD=ON, NO_THIN_LTO=1)"
+      export NO_THIN_LTO=1
+      emcmake cmake "${FASTLED_ROOT}-wasm" -G Ninja -DNO_BUILD=ON
+      ninja -v
+      ;;
+  esac
 
   cd -
 done
