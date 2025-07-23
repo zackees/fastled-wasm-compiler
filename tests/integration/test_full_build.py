@@ -1292,10 +1292,10 @@ class FullBuildTester(unittest.TestCase):
                 pch_staleness_detected = True
                 print("🚨 PCH STALENESS DETECTED!")
 
-            # Check for inappropriate FastLED source modifications
+            # Check that no source files are being modified (should never happen with new architecture)
             if "✂️ Removed:" in line_str and "FastLED.h/Arduino.h" in line_str:
                 fastled_source_modified = True
-                print("�� FASTLED SOURCE MODIFICATION DETECTED!")
+                print("UNEXPECTED SOURCE MODIFICATION DETECTED - ARCHITECTURAL BUG!")
 
         compile_proc.wait()
         compile_proc.stdout.close()
