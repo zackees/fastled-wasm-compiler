@@ -160,7 +160,7 @@ class CompilerImpl:
 
     def update_src(
         self, builds: list[str] | None = None, src_to_merge_from: Path | None = None
-    ) -> UpdateSrcResult | Exception:
+    ) -> UpdateSrcResult:
         """
         Update the source directory.
 
@@ -175,7 +175,11 @@ class CompilerImpl:
                     f"src_to_merge_from must be a Path, got {type(src_to_merge_from)}"
                 )
                 print_banner(f"Error: {error_msg}")
-                return ValueError(error_msg)
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout=error_msg,
+                    error=ValueError(error_msg),
+                )
 
             if not src_to_merge_from.exists():
                 msg = f"Skipping fastled src update: no source directory in {src_to_merge_from}"
@@ -190,7 +194,11 @@ class CompilerImpl:
             if not (src_to_merge_from / "FastLED.h").exists():
                 error_msg = f"FastLED.h not found in {src_to_merge_from}"
                 print_banner(f"Error: {error_msg}")
-                return FileNotFoundError(error_msg)
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout=error_msg,
+                    error=FileNotFoundError(error_msg),
+                )
 
             # Determine build modes - use the modes specified during initialization
             build_modes = builds if builds is not None else self.build_libs
@@ -240,7 +248,7 @@ class CompilerImpl:
                     print(msg)
                     return UpdateSrcResult(
                         files_changed=[],
-                        stdout="msg",
+                        stdout=msg,
                         error=None,
                     )
             else:
@@ -267,7 +275,11 @@ class CompilerImpl:
                 )
                 stdout = result.stdout
                 print_banner(f"Error: {stdout}")
-                return RuntimeError(stdout)
+                return UpdateSrcResult(
+                    files_changed=[],
+                    stdout=stdout,
+                    error=RuntimeError(stdout),
+                )
 
             # Verify the build output - check for both archive types
             for mode in build_modes:
@@ -278,12 +290,20 @@ class CompilerImpl:
                 if not regular_lib.exists():
                     error_msg = f"Expected regular library not found at {regular_lib}"
                     print_banner(f"Error: {error_msg}")
-                    return FileNotFoundError(error_msg)
+                    return UpdateSrcResult(
+                        files_changed=[],
+                        stdout=error_msg,
+                        error=FileNotFoundError(error_msg),
+                    )
 
                 if not thin_lib.exists():
                     error_msg = f"Expected thin library not found at {thin_lib}"
                     print_banner(f"Error: {error_msg}")
-                    return FileNotFoundError(error_msg)
+                    return UpdateSrcResult(
+                        files_changed=[],
+                        stdout=error_msg,
+                        error=FileNotFoundError(error_msg),
+                    )
 
             print_banner("Library compilation completed successfully")
             return UpdateSrcResult(
@@ -295,4 +315,8 @@ class CompilerImpl:
         except Exception as e:
             error_msg = f"Unexpected error during source update: {str(e)}"
             print_banner(f"Error: {error_msg}")
-            return RuntimeError(error_msg)
+            return UpdateSrcResult(
+                files_changed=[],
+                stdout=error_msg,
+                error=RuntimeError(error_msg),
+            )

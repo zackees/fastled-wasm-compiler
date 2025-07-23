@@ -20,7 +20,7 @@ class Compiler:
 
     def update_src(
         self, builds: list[str] | None = None, src_to_merge_from: Path | None = None
-    ) -> UpdateSrcResult | Exception:
+    ) -> UpdateSrcResult:
         return self._impl.update_src(builds, src_to_merge_from)
 
 
