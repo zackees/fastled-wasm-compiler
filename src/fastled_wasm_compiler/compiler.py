@@ -51,7 +51,7 @@ class CompilerImpl:
         self.thin_lto = thin_lto
 
     def _check_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
-        """Check for and delete existing libfastled.a files for the specified build modes.
+        """Check for and delete existing libfastled.a files and PCH files for the specified build modes.
 
         Args:
             build_modes: List of build modes to check ("debug", "quick", "release")
@@ -62,6 +62,7 @@ class CompilerImpl:
         use_thin = can_use_thin_lto()
 
         for mode in build_modes:
+            # Delete library files
             if use_thin:
                 lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
                 archive_type = "thin"
@@ -80,6 +81,22 @@ class CompilerImpl:
                 print(
                     f"{archive_type.capitalize()} library {lib_path} does not exist, nothing to delete"
                 )
+
+            # Delete PCH files to prevent staleness issues
+            build_dir = BUILD_ROOT / mode
+            pch_files = [
+                build_dir / "fastled_pch.h",  # PCH source header
+                build_dir / "fastled_pch.h.gch",  # Compiled PCH cache
+            ]
+
+            for pch_file in pch_files:
+                if pch_file.exists():
+                    print(f"Deleting stale PCH file {pch_file} ({reason})")
+                    try:
+                        pch_file.unlink()
+                        print(f"✓ Successfully deleted {pch_file}")
+                    except OSError as e:
+                        print(f"⚠️  Warning: Could not delete {pch_file}: {e}")
 
     def _check_missing_libraries(self, build_modes: list[str]) -> list[str]:
         """Check which libfastled.a files are missing for the specified build modes.
