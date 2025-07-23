@@ -53,6 +53,7 @@ def run_compiler(
         disable_auto_clean=disable_auto_clean,
         no_platformio=no_platformio,
         debug=debug,
+        fast_debug=False,  # Fast debug mode not used in easy compilation
         quick=quick,
         release=release,
         clear_ccache=clear_ccache,

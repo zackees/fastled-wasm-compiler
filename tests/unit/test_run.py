@@ -57,6 +57,7 @@ class MainTester(unittest.TestCase):
             disable_auto_clean=False,
             no_platformio=True,
             debug=False,
+            fast_debug=False,
             quick=False,
             release=False,
             clear_ccache=False,
@@ -106,6 +107,7 @@ class MainTester(unittest.TestCase):
             disable_auto_clean=False,
             no_platformio=False,  # Test deprecation: this should fall back to non-PlatformIO
             debug=False,
+            fast_debug=False,
             quick=False,
             release=False,
             clear_ccache=False,

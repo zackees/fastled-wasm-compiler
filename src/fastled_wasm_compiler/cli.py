@@ -32,6 +32,7 @@ class CliArgs:
     keep_files: bool
     profile: bool
     debug: bool
+    fast_debug: bool
     quick: bool
     release: bool
     no_platformio: bool
@@ -71,6 +72,11 @@ def _parse_args() -> CliArgs:
         "--profile", action="store_true", help="Enable profiling of the build system"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument(
+        "--fast-debug",
+        action="store_true",
+        help="Enable fast debug mode (faster iteration)",
+    )
     parser.add_argument("--quick", action="store_true", help="Enable quick mode")
     parser.add_argument("--release", action="store_true", help="Enable release mode")
     parser.add_argument(
@@ -125,12 +131,14 @@ def _parse_args() -> CliArgs:
     # Handle --all flag by expanding to all three modes
     if args.all:
         args.debug = True
+        args.fast_debug = True
         args.quick = True
         args.release = True
 
     # If no modes specified, default to all
-    if not any([args.debug, args.quick, args.release]):
+    if not any([args.debug, args.fast_debug, args.quick, args.release]):
         args.debug = True
+        args.fast_debug = True
         args.quick = True
         args.release = True
 
@@ -141,6 +149,7 @@ def _parse_args() -> CliArgs:
         keep_files=args.keep_files,
         profile=args.profile,
         debug=args.debug,
+        fast_debug=args.fast_debug,
         quick=args.quick,
         release=args.release,
         no_platformio=args.no_platformio,
@@ -168,6 +177,7 @@ def main() -> int:
         disable_auto_clean=False,
         no_platformio=cli_args.no_platformio,
         debug=cli_args.debug,
+        fast_debug=cli_args.fast_debug,
         quick=cli_args.quick,
         release=cli_args.release,
         clear_ccache=cli_args.clear_ccache,
@@ -177,6 +187,8 @@ def main() -> int:
     build_libs = []
     if cli_args.debug:
         build_libs.append("debug")
+    if cli_args.fast_debug:
+        build_libs.append("fast_debug")
     if cli_args.quick:
         build_libs.append("quick")
     if cli_args.release:

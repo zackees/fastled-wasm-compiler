@@ -713,9 +713,9 @@ def _main() -> int:
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["debug", "quick", "release"],
+        choices=["debug", "fast_debug", "quick", "release"],
         default="debug",
-        help="Build mode: debug, quick, or release (default: debug)",
+        help="Build mode: debug, fast_debug, quick, or release (default: debug)",
     )
 
     args = parser.parse_args()

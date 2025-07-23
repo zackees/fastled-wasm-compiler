@@ -152,11 +152,31 @@ message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 # ——— 8) Precompiled Headers (all modes) ————————————————————————————————————
 # Generate precompiled headers for all build modes for faster compilation
 # Create precompiled header for Arduino.h and FastLED.h
-set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
-set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
 
-# Create the precompiled header source file
-file(WRITE ${PCH_HEADER} 
+# Only build PCH during compilation step, not linking step
+set(SHOULD_BUILD_PCH TRUE)
+
+# Check CMake variables to determine build phase
+if(DEFINED NO_BUILD AND NO_BUILD)
+    # This is the linking-only step, PCH should already exist
+    set(SHOULD_BUILD_PCH FALSE)
+    message(STATUS "🔗 LINKING STEP: Skipping PCH compilation (should exist from compile step)")
+elseif(DEFINED NO_LINK AND NO_LINK)
+    # This is the compile-only step, build PCH
+    set(SHOULD_BUILD_PCH TRUE)
+    message(STATUS "🔨 COMPILE STEP: Building PCH for faster compilation")
+else()
+    # Single-step build, build PCH
+    set(SHOULD_BUILD_PCH TRUE)
+    message(STATUS "🔨 SINGLE STEP BUILD: Building PCH")
+endif()
+
+if(SHOULD_BUILD_PCH)
+    set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+    set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+
+    # Create the precompiled header source file
+    file(WRITE ${PCH_HEADER} 
 "#pragma once
 // Precompiled header for FastLED WASM compilation
 // This includes the most commonly used headers to speed up compilation
@@ -165,99 +185,114 @@ file(WRITE ${PCH_HEADER}
 #include <FastLED.h>
 ")
 
-message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
-message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
+    message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
+    message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
 
-# ========== PCH COMPILATION WITH TOML CENTRALIZED FLAGS ==========
-message(STATUS "🔨 PCH COMPILATION: Building precompiled header with TOML centralized flags")
+    # ========== PCH COMPILATION WITH TOML CENTRALIZED FLAGS ==========
+    message(STATUS "🔨 PCH COMPILATION: Building precompiled header with TOML centralized flags")
 
-# Step 1: Start with base compilation flags from build_flags.toml
-set(PCH_COMPILE_FLAGS ${FASTLED_BASE_COMPILE_FLAGS})
+    # Step 1: Start with base compilation flags from build_flags.toml
+    set(PCH_COMPILE_FLAGS ${FASTLED_BASE_COMPILE_FLAGS})
 
-list(LENGTH PCH_COMPILE_FLAGS INITIAL_PCH_COUNT)
-message(STATUS "📋 PCH Step 1: Starting with ${INITIAL_PCH_COUNT} base flags from TOML:")
-foreach(flag ${PCH_COMPILE_FLAGS})
-    message(STATUS "   📌 ${flag}")
-endforeach()
+    list(LENGTH PCH_COMPILE_FLAGS INITIAL_PCH_COUNT)
+    message(STATUS "📋 PCH Step 1: Starting with ${INITIAL_PCH_COUNT} base flags from TOML:")
+    foreach(flag ${PCH_COMPILE_FLAGS})
+        message(STATUS "   📌 ${flag}")
+    endforeach()
 
-# Step 2: Add build mode specific flags from build_flags.toml
-message(STATUS "🎯 PCH Step 2: Adding ${CMAKE_BUILD_TYPE} mode flags from TOML")
-if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-    list(APPEND PCH_COMPILE_FLAGS ${FASTLED_DEBUG_FLAGS})
-    message(STATUS "   ✅ Added ${DEBUG_COUNT} DEBUG mode flags")
-elseif(CMAKE_BUILD_TYPE STREQUAL "QUICK")
-    list(APPEND PCH_COMPILE_FLAGS ${FASTLED_QUICK_FLAGS})
-    message(STATUS "   ✅ Added ${QUICK_COUNT} QUICK mode flags")
-elseif(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-    list(APPEND PCH_COMPILE_FLAGS ${FASTLED_RELEASE_FLAGS})
-    message(STATUS "   ✅ Added ${RELEASE_COUNT} RELEASE mode flags")
-else()
-    message(WARNING "⚠️  Unknown CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-endif()
-
-list(LENGTH PCH_COMPILE_FLAGS AFTER_BUILD_MODE_COUNT)
-message(STATUS "📊 PCH Step 2 Result: Now have ${AFTER_BUILD_MODE_COUNT} total flags")
-
-# Step 3: Filter out flags that are incompatible with PCH compilation
-message(STATUS "🔍 PCH Step 3: Filtering out PCH-incompatible flags")
-set(PCH_FILTERED_FLAGS "")
-set(FILTERED_OUT_FLAGS "")
-
-foreach(flag ${PCH_COMPILE_FLAGS})
-    # Only remove flags that actually cause PCH compilation issues
-    # Keep ALL build mode flags (-flto=thin, -gsource-map, -ffile-prefix-map) for consistency
-    if(flag STREQUAL "-emit-llvm" OR flag STREQUAL "-Wall")
-        list(APPEND FILTERED_OUT_FLAGS ${flag})
-        message(STATUS "   ❌ Filtered out: ${flag} (PCH incompatible)")
+    # Step 2: Add build mode specific flags from build_flags.toml
+    message(STATUS "🎯 PCH Step 2: Adding ${CMAKE_BUILD_TYPE} mode flags from TOML")
+    if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+        list(APPEND PCH_COMPILE_FLAGS ${FASTLED_DEBUG_FLAGS})
+        message(STATUS "   ✅ Added ${DEBUG_COUNT} DEBUG mode flags")
+    elseif(CMAKE_BUILD_TYPE STREQUAL "QUICK")
+        list(APPEND PCH_COMPILE_FLAGS ${FASTLED_QUICK_FLAGS})
+        message(STATUS "   ✅ Added ${QUICK_COUNT} QUICK mode flags")
+    elseif(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+        list(APPEND PCH_COMPILE_FLAGS ${FASTLED_RELEASE_FLAGS})
+        message(STATUS "   ✅ Added ${RELEASE_COUNT} RELEASE mode flags")
     else()
-        list(APPEND PCH_FILTERED_FLAGS ${flag})
+        message(WARNING "⚠️  Unknown CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
     endif()
-endforeach()
 
-list(LENGTH PCH_FILTERED_FLAGS FINAL_COUNT)
-list(LENGTH FILTERED_OUT_FLAGS FILTERED_COUNT)
-message(STATUS "📊 PCH Step 3 Result: ${FINAL_COUNT} flags kept, ${FILTERED_COUNT} flags filtered out")
+    list(LENGTH PCH_COMPILE_FLAGS AFTER_BUILD_MODE_COUNT)
+    message(STATUS "📊 PCH Step 2 Result: Now have ${AFTER_BUILD_MODE_COUNT} total flags")
 
-# Step 4: Convert list to space-separated string for proper command line expansion
-list(JOIN PCH_FILTERED_FLAGS " " PCH_FLAGS_STRING)
+    # Step 3: Filter out flags that are incompatible with PCH compilation
+    message(STATUS "🔍 PCH Step 3: Filtering out PCH-incompatible flags")
+    set(PCH_FILTERED_FLAGS "")
+    set(FILTERED_OUT_FLAGS "")
 
-message(STATUS "🚀 PCH FINAL FLAGS STRING: ${PCH_FLAGS_STRING}")
-if(PCH_FLAGS_STRING STREQUAL "")
-    message(FATAL_ERROR "❌ CRITICAL: PCH_FLAGS_STRING is EMPTY! All TOML flags were lost during processing")
-endif()
+    foreach(flag ${PCH_COMPILE_FLAGS})
+        # Only remove flags that actually cause PCH compilation issues
+        # Keep ALL build mode flags (-flto=thin, -gsource-map, -ffile-prefix-map) for consistency
+        if(flag STREQUAL "-emit-llvm" OR flag STREQUAL "-Wall")
+            list(APPEND FILTERED_OUT_FLAGS ${flag})
+            message(STATUS "   ❌ Filtered out: ${flag} (PCH incompatible)")
+        else()
+            list(APPEND PCH_FILTERED_FLAGS ${flag})
+        endif()
+    endforeach()
 
-# ========== PCH FINAL VERIFICATION ==========
-message(STATUS "✅ PCH COMPILATION READY: Using TOML centralized flags for ${BUILD_MODE} mode")
-message(STATUS "📝 Final PCH compilation flags (${FINAL_COUNT} total):")
-foreach(flag ${PCH_FILTERED_FLAGS})
-    message(STATUS "   🔧 ${flag}")
-endforeach()
+    list(LENGTH PCH_FILTERED_FLAGS FINAL_COUNT)
+    list(LENGTH FILTERED_OUT_FLAGS FILTERED_COUNT)
+    message(STATUS "📊 PCH Step 3 Result: ${FINAL_COUNT} flags kept, ${FILTERED_COUNT} flags filtered out")
 
-# Use a shell script approach to properly handle flag expansion
-set(PCH_COMPILE_SCRIPT "${ABS_BUILD_OUTPUT_DIR}/compile_pch.sh")
-file(WRITE ${PCH_COMPILE_SCRIPT} 
+    # Step 4: Convert list to space-separated string for proper command line expansion
+    list(JOIN PCH_FILTERED_FLAGS " " PCH_FLAGS_STRING)
+
+    message(STATUS "🚀 PCH FINAL FLAGS STRING: ${PCH_FLAGS_STRING}")
+    if(PCH_FLAGS_STRING STREQUAL "")
+        message(FATAL_ERROR "❌ CRITICAL: PCH_FLAGS_STRING is EMPTY! All TOML flags were lost during processing")
+    endif()
+
+    # ========== PCH FINAL VERIFICATION ==========
+    message(STATUS "✅ PCH COMPILATION READY: Using TOML centralized flags for ${BUILD_MODE} mode")
+    message(STATUS "📝 Final PCH compilation flags (${FINAL_COUNT} total):")
+    foreach(flag ${PCH_FILTERED_FLAGS})
+        message(STATUS "   🔧 ${flag}")
+    endforeach()
+
+    # Use a shell script approach to properly handle flag expansion
+    set(PCH_COMPILE_SCRIPT "${ABS_BUILD_OUTPUT_DIR}/compile_pch.sh")
+    file(WRITE ${PCH_COMPILE_SCRIPT} 
 "#!/bin/bash
 set -e
 echo \"Building PCH with flags: ${PCH_FLAGS_STRING}\"
 ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header ${PCH_HEADER} -o ${PCH_OUTPUT} -v
 ")
 
-# Make script executable
-file(CHMOD ${PCH_COMPILE_SCRIPT} 
-     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
-                 GROUP_READ GROUP_EXECUTE 
-                 WORLD_READ WORLD_EXECUTE)
+    # Make script executable
+    file(CHMOD ${PCH_COMPILE_SCRIPT} 
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+                     GROUP_READ GROUP_EXECUTE 
+                     WORLD_READ WORLD_EXECUTE)
 
-add_custom_command(
-  OUTPUT ${PCH_OUTPUT}
-  COMMAND ${PCH_COMPILE_SCRIPT}
-  DEPENDS ${PCH_HEADER} ${PCH_COMPILE_SCRIPT}
-  COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
-  VERBATIM
-)
+    add_custom_command(
+      OUTPUT ${PCH_OUTPUT}
+      COMMAND ${PCH_COMPILE_SCRIPT}
+      DEPENDS ${PCH_HEADER} ${PCH_COMPILE_SCRIPT}
+      COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
+      VERBATIM
+    )
 
-# Create a target for the precompiled header
-add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
+    # Create a target for the precompiled header
+    add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
+else()
+    # Linking step - PCH should already exist, just set paths for reference
+    set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+    set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+    
+    # Verify PCH exists from previous step
+    if(NOT EXISTS ${PCH_OUTPUT})
+        message(WARNING "⚠️  PCH file not found at ${PCH_OUTPUT} - compilation may be slower")
+    else()
+        message(STATUS "✅ PCH file found at ${PCH_OUTPUT} from previous compilation step")
+    endif()
+    
+    # Create a dummy target for dependency consistency
+    add_custom_target(fastled_pch)
+endif()
 
 # ——— 9) Add FastLED Library ———————————————————————————————————————
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)

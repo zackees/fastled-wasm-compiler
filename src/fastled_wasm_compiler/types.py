@@ -3,6 +3,7 @@ from enum import Enum
 
 class BuildMode(Enum):
     DEBUG = "DEBUG"
+    FAST_DEBUG = "FAST_DEBUG"
     QUICK = "QUICK"
     RELEASE = "RELEASE"
 

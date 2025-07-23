@@ -51,7 +51,7 @@ def _parse_args() -> NativeCliArgs:
 
     parser.add_argument(
         "--mode",
-        choices=["debug", "quick", "release"],
+        choices=["debug", "fast_debug", "quick", "release"],
         default="debug",
         help="Build mode (default: debug)",
     )

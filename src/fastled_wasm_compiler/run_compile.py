@@ -180,6 +180,8 @@ def run_compile(args: Args) -> int:
                 # Determine build mode from args
                 if args.debug:
                     build_mode = BuildMode.DEBUG
+                elif args.fast_debug:
+                    build_mode = BuildMode.FAST_DEBUG
                 elif args.release:
                     build_mode = BuildMode.RELEASE
                 else:

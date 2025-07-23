@@ -16,6 +16,7 @@ class Args:
     disable_auto_clean: bool
     no_platformio: bool
     debug: bool
+    fast_debug: bool
     quick: bool
     release: bool
     clear_ccache: bool
@@ -41,6 +42,7 @@ class Args:
             "--disable-auto-clean" if self.disable_auto_clean else "",
             "--no-platformio" if self.no_platformio else "",
             "--debug" if self.debug else "",
+            "--fast-debug" if self.fast_debug else "",
             "--quick" if self.quick else "",
             "--release" if self.release else "",
             "--clear-ccache" if self.clear_ccache else "",
@@ -64,6 +66,7 @@ class Args:
             and self.disable_auto_clean == other.disable_auto_clean
             and self.no_platformio == other.no_platformio
             and self.debug == other.debug
+            and self.fast_debug == other.fast_debug
             and self.quick == other.quick
             and self.release == other.release
             and self.clear_ccache == other.clear_ccache
@@ -82,6 +85,7 @@ class Args:
         assert isinstance(self.disable_auto_clean, bool)
         assert isinstance(self.no_platformio, bool)
         assert isinstance(self.debug, bool)
+        assert isinstance(self.fast_debug, bool)
         assert isinstance(self.quick, bool)
         assert isinstance(self.release, bool)
         assert isinstance(self.clear_ccache, bool)
@@ -100,6 +104,7 @@ class Args:
             f"disable_auto_clean={self.disable_auto_clean}, "
             f"no_platformio={self.no_platformio}, "
             f"debug={self.debug}, "
+            f"fast_debug={self.fast_debug}, "
             f"quick={self.quick}, "
             f"release={self.release}, "
             f"clear_ccache={self.clear_ccache}, "
@@ -176,6 +181,11 @@ def _parse_args(args: list[str] | None = None) -> Args:
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
     build_mode.add_argument(
+        "--fast-debug",
+        action="store_true",
+        help="Build in fast debug mode (faster iteration)",
+    )
+    build_mode.add_argument(
         "--quick",
         action="store_true",
         default=True,
@@ -198,6 +208,7 @@ def _parse_args(args: list[str] | None = None) -> Args:
         disable_auto_clean=tmp.disable_auto_clean,
         no_platformio=tmp.no_platformio,
         debug=tmp.debug,
+        fast_debug=tmp.fast_debug,
         quick=tmp.quick,
         release=tmp.release,
         clear_ccache=True if tmp.clear_ccache else False,

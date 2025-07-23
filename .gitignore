@@ -166,5 +166,7 @@ tests/**/src/Arduino.h
 
 tests/unit/.sync_data
 
-tests/integration/test_data/mapped/** */
+tests/integration/test_data/mapped/**
+tests/integration/test_data/mapped_pch_quick/**
+tests/integration/test_data/mapped_platformio/**
 tests/integration/test_data/compiler_root/src/data/**

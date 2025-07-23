@@ -49,6 +49,7 @@ class ArgConverstionTester(unittest.TestCase):
             disable_auto_clean=False,
             no_platformio=True,
             debug=False,
+            fast_debug=False,
             quick=True,
             release=False,
             clear_ccache=False,
@@ -78,6 +79,7 @@ class ArgConverstionTester(unittest.TestCase):
             disable_auto_clean=False,
             no_platformio=False,  # Explicitly test with PlatformIO enabled
             debug=False,
+            fast_debug=False,
             quick=True,
             release=False,
             clear_ccache=False,
@@ -104,6 +106,7 @@ class ArgConverstionTester(unittest.TestCase):
             disable_auto_clean=args.disable_auto_clean,
             no_platformio=True,  # This gets overridden to True due to deprecation
             debug=args.debug,
+            fast_debug=args.fast_debug,
             quick=args.quick,
             release=args.release,
             clear_ccache=args.clear_ccache,

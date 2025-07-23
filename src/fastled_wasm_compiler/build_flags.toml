@@ -157,6 +157,40 @@ link_flags = [
     "-sASSERTIONS=1",                        # Enable runtime assertions
 ]
 
+[build_modes.fast_debug]
+# ================================================================================================
+# FAST DEBUG BUILD MODE
+# ================================================================================================
+# Optimized for rapid development iteration with essential debugging features but faster builds.
+# Trades off some runtime safety checks and detailed debug info for significantly faster compilation.
+# Ideal for: frequent rebuilds, development iteration, basic debugging needs.
+
+# Fast debug compilation flags
+flags = [
+    # Debug Information Generation - Reduced for speed
+    "-g2",                                   # Standard debug info (faster than g3, excludes macros)
+    "-gsource-map",                         # Generate source maps for browser debugging
+    # Note: -ffile-prefix-map flag is generated dynamically from [dwarf] config for path mapping
+    
+    # Optimization Control - Minimal optimization for speed
+    "-O1",                                  # Light optimization (much faster than O0, still debuggable)
+    "-fno-inline-functions",                # Disable automatic function inlining (preserve call stack)
+    
+    # Runtime Safety - Essential checks only
+    # Note: Sanitizers removed for faster compilation - add back with environment variable if needed
+    # Set FASTLED_DEBUG_SANITIZERS=1 to enable sanitizers when needed for specific debugging
+]
+
+# Fast debug linking flags - minimal overhead
+link_flags = [
+    # Debug Info - Inline instead of separate for faster linking
+    # Note: No separate DWARF file for faster builds
+    
+    # Error Detection - Essential only
+    "-sSTACK_OVERFLOW_CHECK=1",             # Basic stack overflow detection (faster than level 2)
+    "-sASSERTIONS=1",                       # Keep runtime assertions for error detection
+]
+
 [build_modes.quick]
 # ================================================================================================
 # QUICK BUILD MODE  
