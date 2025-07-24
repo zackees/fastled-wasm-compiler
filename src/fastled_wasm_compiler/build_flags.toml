@@ -67,6 +67,12 @@ compiler_flags = [
     "-Werror=bad-function-cast",               # Error on bad function casts
     "-Werror=cast-function-type",              # Error on function type cast issues
     
+    # Precompiled Header Configuration
+    # On the server, build time and runtime have different clocks
+    # which can mess up the PCH timestamp check
+    # so we disable it
+    "-Xclang", "-fno-pch-timestamp",          # Disable PCH timestamp checking (prevents staleness errors)
+    
     # Thread Safety and Runtime Behavior
     "-fno-threadsafe-statics",                 # Disable thread-safe static initialization (performance)
     "-fno-exceptions",                         # Disable C++ exceptions for all targets (size/performance)

@@ -36,6 +36,41 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
         src_path: Path = Path(src_path_str)
         dst_path: Path = Path(dst_path_str)
 
+        # DEBUGGING: Assert that volume mapping is enabled when this worker runs
+        # This helps detect inappropriate file sync operations when volume mapping is disabled
+        import os
+
+        volume_mapped_src = os.environ.get("ENV_VOLUME_MAPPED_SRC", "")
+        volume_mapping_enabled = volume_mapped_src and Path(volume_mapped_src).exists()
+
+        # Log this operation for debugging PCH staleness
+        try:
+            from fastled_wasm_compiler.timestamp_utils import _log_timestamp_operation
+
+            sync_info = (
+                f"Volume mapping: {'ENABLED' if volume_mapping_enabled else 'DISABLED'}, "
+                f"ENV_VOLUME_MAPPED_SRC={volume_mapped_src}, "
+                f"sync: {src_path_str} -> {dst_path_str}"
+            )
+            _log_timestamp_operation("SYNC_WORKER", sync_info, None)
+        except Exception:
+            pass
+
+        # CRITICAL ASSERTION: Fail if trying to sync files when volume mapping is disabled
+        # This should help identify the root cause of PCH staleness issues
+        if not volume_mapping_enabled:
+            error_msg = (
+                f"*** BUG DETECTED: _line_ending_worker called with volume mapping DISABLED!\n"
+                f"   ENV_VOLUME_MAPPED_SRC='{volume_mapped_src}'\n"
+                f"   Source: {src_path_str}\n"
+                f"   Destination: {dst_path_str}\n"
+                f"   This should NOT happen when volume mapping is disabled and may cause PCH staleness!"
+            )
+            print(error_msg)
+            # For now, just log and continue rather than assert to see if this is the issue
+            # TODO: Change to assertion once we confirm this is the root cause
+            # raise AssertionError(error_msg)
+
         # Check if source file exists
         if not src_path.exists():
             return FileNotFoundError(f"Source file does not exist: {src_path}")

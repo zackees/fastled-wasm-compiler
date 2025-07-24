@@ -7,10 +7,8 @@ and when libfastled libraries are built, enabling lazy rebuilds.
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    pass
+_ENABLED = False
 
 
 def _log_timestamp_operation(
@@ -23,6 +21,9 @@ def _log_timestamp_operation(
         file_path: Path to the file being accessed
         timestamp: The timestamp value (for writes and successful reads)
     """
+    if not _ENABLED:
+        return
+
     try:
         import datetime
 

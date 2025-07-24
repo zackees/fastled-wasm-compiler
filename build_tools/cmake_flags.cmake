@@ -16,6 +16,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-Wnon-c-typedef-for-linkage"
     "-Werror=bad-function-cast"
     "-Werror=cast-function-type"
+    "-fno-pch-timestamp"
     "-fno-threadsafe-statics"
     "-fno-exceptions"
     "-fno-rtti"
