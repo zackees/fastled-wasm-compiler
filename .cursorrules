@@ -32,6 +32,7 @@ This project has a complex multi-build-system architecture. When modifying compi
   ```
 - **Fix:** Always regenerate `cmake_flags.cmake` after changing `build_flags.toml` and commit both files together
 - **Debugging:** CMake now logs PCH compilation flags and sketch compilation warns about stale PCH files
+- **Disabling PCH:** Set the environment variable `NO_PRECOMPILED_HEADERS=1` to disable PCH for both Docker and native builds.
 
 ### 4. Production Build Files
 - `src/fastled_wasm_compiler/compile_sketch_native.py` - Native compilation mode
