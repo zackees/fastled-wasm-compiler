@@ -99,6 +99,12 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
                 dst_exists = True
                 dst_bytes = dst_path.read_bytes()
                 dst_mtime = dst_path.stat().st_mtime
+                # Log destination timestamp read
+                from fastled_wasm_compiler.timestamp_utils import (
+                    _log_timestamp_operation,
+                )
+
+                _log_timestamp_operation("READ", str(dst_path), dst_mtime)
         except (FileNotFoundError, PermissionError):
             # Destination was deleted or not accessible - treat as not existing
             dst_exists = False
@@ -108,6 +114,10 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
         # Get source file modification time for timestamp comparison
         try:
             src_mtime = src_path.stat().st_mtime
+            # Log source timestamp read
+            from fastled_wasm_compiler.timestamp_utils import _log_timestamp_operation
+
+            _log_timestamp_operation("READ", str(src_path), src_mtime)
         except OSError as e:
             return OSError(f"Error getting source file timestamp {src_path}: {e}")
 

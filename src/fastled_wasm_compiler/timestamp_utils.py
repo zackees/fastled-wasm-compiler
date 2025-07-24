@@ -13,6 +13,38 @@ if TYPE_CHECKING:
     pass
 
 
+def _log_timestamp_operation(
+    operation: str, file_path: str, timestamp: float | None = None
+) -> None:
+    """Log timestamp read/write operations for debugging.
+
+    Args:
+        operation: Type of operation (READ, WRITE)
+        file_path: Path to the file being accessed
+        timestamp: The timestamp value (for writes and successful reads)
+    """
+    try:
+        import datetime
+
+        log_file = Path("/log/read_write.log")
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        current_time = datetime.datetime.now().isoformat()
+        if timestamp is not None:
+            readable_time = datetime.datetime.fromtimestamp(timestamp).isoformat()
+            log_entry = f"[{current_time}] {operation}: {file_path} = {timestamp} ({readable_time})\n"
+        else:
+            log_entry = (
+                f"[{current_time}] {operation}: {file_path} = None (not found)\n"
+            )
+
+        with open(log_file, "a") as f:
+            f.write(log_entry)
+    except Exception:
+        # Don't let logging failures break the main functionality
+        pass
+
+
 class TimestampManager:
     """Manages timestamps for source updates and library builds."""
 
@@ -35,6 +67,7 @@ class TimestampManager:
         self._ensure_timestamp_dir()
         current_time = time.time()
         self.source_timestamp_file.write_text(str(current_time))
+        _log_timestamp_operation("WRITE", str(self.source_timestamp_file), current_time)
         print(f"📅 Source timestamp updated: {self.source_timestamp_file}")
 
     def get_source_timestamp(self) -> float | None:
@@ -44,10 +77,14 @@ class TimestampManager:
             Source timestamp as float, or None if not found
         """
         if not self.source_timestamp_file.exists():
+            _log_timestamp_operation("READ", str(self.source_timestamp_file), None)
             return None
         try:
-            return float(self.source_timestamp_file.read_text().strip())
+            timestamp = float(self.source_timestamp_file.read_text().strip())
+            _log_timestamp_operation("READ", str(self.source_timestamp_file), timestamp)
+            return timestamp
         except (ValueError, OSError):
+            _log_timestamp_operation("READ", str(self.source_timestamp_file), None)
             return None
 
     def get_library_timestamp(
@@ -69,11 +106,15 @@ class TimestampManager:
             lib_file = build_root / build_mode.lower() / "libfastled.a"
 
         if not lib_file.exists():
+            _log_timestamp_operation("READ", str(lib_file), None)
             return None
 
         try:
-            return lib_file.stat().st_mtime
+            timestamp = lib_file.stat().st_mtime
+            _log_timestamp_operation("READ", str(lib_file), timestamp)
+            return timestamp
         except OSError:
+            _log_timestamp_operation("READ", str(lib_file), None)
             return None
 
     def should_rebuild_library(

@@ -378,9 +378,17 @@ def sync_fastled(
 
         if should_update:
             try:
-                from fastled_wasm_compiler.timestamp_utils import get_timestamp_manager
+                from fastled_wasm_compiler.timestamp_utils import (
+                    _log_timestamp_operation,
+                    get_timestamp_manager,
+                )
 
                 timestamp_manager = get_timestamp_manager()
+                _log_timestamp_operation(
+                    "SYNC_UPDATE",
+                    f"Updating source timestamp via sync for {len(changed)} changed files",
+                    None,
+                )
                 timestamp_manager.update_source_timestamp()
             except (PermissionError, OSError) as e:
                 logger.warning(f"Could not update source timestamp: {e}")

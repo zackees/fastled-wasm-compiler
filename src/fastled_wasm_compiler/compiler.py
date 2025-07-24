@@ -93,10 +93,30 @@ class CompilerImpl:
                 if pch_file.exists():
                     print(f"Deleting stale PCH file {pch_file} ({reason})")
                     try:
+                        # Log PCH file deletion
+                        from fastled_wasm_compiler.timestamp_utils import (
+                            _log_timestamp_operation,
+                        )
+
+                        old_timestamp = pch_file.stat().st_mtime
+                        _log_timestamp_operation("DELETE", str(pch_file), old_timestamp)
+
                         pch_file.unlink()
                         print(f"✓ Successfully deleted {pch_file}")
                     except OSError as e:
                         print(f"⚠️  Warning: Could not delete {pch_file}: {e}")
+                else:
+                    # Log when PCH file doesn't exist for deletion
+                    try:
+                        from fastled_wasm_compiler.timestamp_utils import (
+                            _log_timestamp_operation,
+                        )
+
+                        _log_timestamp_operation(
+                            "DELETE", f"{pch_file} (not found)", None
+                        )
+                    except Exception:
+                        pass
 
     def _check_missing_libraries(self, build_modes: list[str]) -> list[str]:
         """Check which libfastled.a files are missing for the specified build modes.
