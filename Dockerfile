@@ -127,7 +127,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo "export ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}" >> /etc/profile
 
 # changing this number forces a code re-update.
-RUN echo "update build 56"
+RUN echo "update build 59"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
@@ -135,6 +135,9 @@ COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
 RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
+
+
+
 
 
 # BEGIN BUILDING STATIC libfastled.a
@@ -205,6 +208,10 @@ RUN fastled-wasm-compiler-prewarm \
   --emsdk-path=/emsdk \
   --sketch-path=/js/src \
   --release
+
+
+# CHMOD the /git/* to be read-only for everyone
+RUN chmod -R 555 /git/*
 
 ### Final entry point init.
 COPY ./entrypoint.sh /entrypoint.sh
