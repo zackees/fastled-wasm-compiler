@@ -137,10 +137,6 @@ flags = [
     "-gsource-map",                           # Generate source maps for browser debugging
     # Note: -ffile-prefix-map flag is generated dynamically from [dwarf] config for path mapping
     
-    # Runtime Safety and Sanitization
-    "-fsanitize=address",                     # Address sanitizer (detects memory errors)
-    "-fsanitize=undefined",                   # Undefined behavior sanitizer (detects UB)
-    
     # Optimization Control
     "-fno-inline",                           # Disable function inlining for clearer debugging
     "-O0",                                   # No optimization (fastest compilation, clearest debugging)
@@ -148,10 +144,6 @@ flags = [
 
 # Debug-specific linking flags (applied only during final linking in debug mode)
 link_flags = [
-    # Runtime Sanitizers (must match compilation flags)
-    "-fsanitize=address",                     # Address sanitizer linking support
-    "-fsanitize=undefined",                   # Undefined behavior sanitizer linking support
-    
     # Debug Info and Error Detection
     "-sSEPARATE_DWARF_URL=fastled.wasm.dwarf", # Separate DWARF debug info file
     "-sSTACK_OVERFLOW_CHECK=2",              # Maximum stack overflow detection

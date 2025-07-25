@@ -206,42 +206,53 @@ def compile_cpp_to_obj(
 
     # Get just the build mode flags for display
     mode_flags = flags_loader.get_build_mode_flags(build_mode)
+    pch_file: Path | None = None
 
-    # Use PCH if available (no source file modification needed)
-    # PCH works transparently with include guards - no need to modify source files
-    pch_file = build_dir / "fastled_pch.h"
-
-    if pch_file.exists():
-        # Log PCH file access for debugging
-        try:
-            from fastled_wasm_compiler.timestamp_utils import _log_timestamp_operation
-
-            pch_gch_file = pch_file.with_suffix(".h.gch")
-            if pch_gch_file.exists():
-                pch_timestamp = pch_gch_file.stat().st_mtime
-                _log_timestamp_operation("READ", str(pch_gch_file), pch_timestamp)
-            else:
-                _log_timestamp_operation("READ", str(pch_gch_file), None)
-            _log_timestamp_operation(
-                "PCH_CHECK", f"Using PCH {pch_file} for compilation", None
-            )
-        except Exception:
-            pass  # Don't let logging failures break compilation
-
-        # Always use PCH if available - include guards handle double inclusion
-        flags.extend(["-include", str(pch_file)])
-        can_use_pch = True
-    else:
-        # Log when PCH is not available
-        try:
-            from fastled_wasm_compiler.timestamp_utils import _log_timestamp_operation
-
-            _log_timestamp_operation(
-                "PCH_CHECK", f"PCH {pch_file} not found, compiling without PCH", None
-            )
-        except Exception:
-            pass  # Don't let logging failures break compilation
+    # Check if PCH is disabled via environment variable
+    if os.environ.get("NO_PRECOMPILED_HEADERS") == "1":
         can_use_pch = False
+    else:
+        # Use PCH if available (no source file modification needed)
+        # PCH works transparently with include guards - no need to modify source files
+        pch_file = build_dir / "fastled_pch.h"
+
+        if pch_file.exists():
+            # Log PCH file access for debugging
+            try:
+                from fastled_wasm_compiler.timestamp_utils import (
+                    _log_timestamp_operation,
+                )
+
+                pch_gch_file = pch_file.with_suffix(".h.gch")
+                if pch_gch_file.exists():
+                    pch_timestamp = pch_gch_file.stat().st_mtime
+                    _log_timestamp_operation("READ", str(pch_gch_file), pch_timestamp)
+                else:
+                    _log_timestamp_operation("READ", str(pch_gch_file), None)
+                _log_timestamp_operation(
+                    "PCH_CHECK", f"Using PCH {pch_file} for compilation", None
+                )
+            except Exception:
+                pass  # Don't let logging failures break compilation
+
+            # Always use PCH if available - include guards handle double inclusion
+            flags.extend(["-include", str(pch_file)])
+            can_use_pch = True
+        else:
+            # Log when PCH is not available
+            try:
+                from fastled_wasm_compiler.timestamp_utils import (
+                    _log_timestamp_operation,
+                )
+
+                _log_timestamp_operation(
+                    "PCH_CHECK",
+                    f"PCH {pch_file} not found, compiling without PCH",
+                    None,
+                )
+            except Exception:
+                pass  # Don't let logging failures break compilation
+            can_use_pch = False
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
     cmd: list[str] = []
@@ -283,6 +294,7 @@ def compile_cpp_to_obj(
 
     # 4. PCH optimization if applicable
     if can_use_pch:
+        assert pch_file is not None
         final_output.append(
             f"🚀 PCH OPTIMIZATION: Using precompiled header {pch_file.name}"
         )

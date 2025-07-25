@@ -16,7 +16,6 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-Wnon-c-typedef-for-linkage"
     "-Werror=bad-function-cast"
     "-Werror=cast-function-type"
-    "-fno-pch-timestamp"
     "-fno-threadsafe-statics"
     "-fno-exceptions"
     "-fno-rtti"
@@ -28,8 +27,6 @@ set(FASTLED_BASE_COMPILE_FLAGS
 set(FASTLED_DEBUG_FLAGS
     "-g3"
     "-gsource-map"
-    "-fsanitize=address"
-    "-fsanitize=undefined"
     "-fno-inline"
     "-O0"
     "-ffile-prefix-map=/=sketchsource/"

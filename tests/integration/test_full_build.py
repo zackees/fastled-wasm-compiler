@@ -6,6 +6,7 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -73,7 +74,35 @@ class FullBuildTester(unittest.TestCase):
             # Check Docker availability first before attempting any Docker operations
             print("Checking Docker availability...")
             check_docker_availability()
-            print("✅ Docker is available and running")
+            print("[SUCCESS] Docker is available and running")
+
+            # First run docker compose build and terminate immediately if it fails
+            print("Building Docker image with docker compose...")
+            print(
+                "This may take 15-30 minutes to compile 112+ FastLED source files in 3 modes (debug, quick, release)..."
+            )
+
+            # Run docker compose build with streaming output
+            compose_build_proc = subprocess.Popen(
+                ["docker", "compose", "build"],
+                cwd=PROJECT_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            assert compose_build_proc.stdout is not None
+
+            for line in compose_build_proc.stdout:
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
+
+            compose_build_proc.wait()
+            compose_build_proc.stdout.close()
+            compose_build_proc.terminate()
+
+            # If docker compose build fails, terminate immediately
+            if compose_build_proc.returncode != 0:
+                raise RuntimeError("Docker compose build failed. Terminating tests.")
 
             # Remove any existing containers with the same name
             subprocess.run(
@@ -92,7 +121,7 @@ class FullBuildTester(unittest.TestCase):
             # Build the Docker image with the test tag
             print("Building Docker image...")
             print(
-                "⚠️  This may take 15-30 minutes to compile 112+ FastLED source files in 3 modes (debug, quick, release)..."
+                "This may take 15-30 minutes to compile 112+ FastLED source files in 3 modes (debug, quick, release)..."
             )
 
             # Build the Docker image with streaming output
@@ -106,8 +135,8 @@ class FullBuildTester(unittest.TestCase):
             assert build_proc.stdout is not None
 
             for line in build_proc.stdout:
-                line_str = line.decode("utf-8", errors="replace")
-                print(line_str.strip())
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
 
             build_proc.wait()
             build_proc.stdout.close()
@@ -182,8 +211,8 @@ class FullBuildTester(unittest.TestCase):
         assert run_proc.stdout is not None
 
         for line in run_proc.stdout:
-            line_str = line.decode("utf-8", errors="replace")
-            print(line_str.strip())
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
 
         run_proc.wait()
         run_proc.stdout.close()
@@ -222,7 +251,7 @@ class FullBuildTester(unittest.TestCase):
         output_lines = []
         for line in run_proc.stdout:
             line_str = line.decode("utf-8", errors="replace").strip()
-            print(line_str)
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
             output_lines.append(line_str)
 
         run_proc.wait()
@@ -295,7 +324,7 @@ class FullBuildTester(unittest.TestCase):
         output_lines = []
         for line in run_proc.stdout:
             line_str = line.decode("utf-8", errors="replace").strip()
-            print(line_str)
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
             output_lines.append(line_str)
 
         run_proc.wait()
@@ -325,7 +354,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Verify that the test passed
         self.assertIn(
-            "✅ Symbol resolution test PASSED",
+            "\u2705 Symbol resolution test PASSED",
             full_output,
             "Symbol resolution test did not pass",
         )
@@ -391,8 +420,8 @@ class FullBuildTester(unittest.TestCase):
 
         # Print output in real-time
         for line in compile_proc.stdout:
-            line_str = line.decode("utf-8", errors="replace")
-            print(line_str.strip())
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
 
         compile_proc.wait()
         compile_proc.stdout.close()
@@ -500,8 +529,8 @@ class FullBuildTester(unittest.TestCase):
         # Capture output for validation while printing in real-time
         output_lines = []
         for line in compile_proc.stdout:
-            line_str = line.decode("utf-8", errors="replace")
-            print(line_str.strip())
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
             output_lines.append(line_str.strip())
 
         compile_proc.wait()
@@ -532,11 +561,11 @@ class FullBuildTester(unittest.TestCase):
                 "Expected fallback message not found when primary config is missing",
             )
             print(
-                "✅ Expected fallback behavior detected - using package build_flags.toml"
+                "[SUCCESS] Expected fallback behavior detected - using package build_flags.toml"
             )
         else:
             print(
-                "✅ Primary config found - using FastLED source tree build_flags.toml"
+                "[SUCCESS] Primary config found - using FastLED source tree build_flags.toml"
             )
 
         # Check if output files were generated
@@ -614,8 +643,8 @@ class FullBuildTester(unittest.TestCase):
 
         # Print output in real-time
         for line in compile_proc.stdout:
-            line_str = line.decode("utf-8", errors="replace")
-            print(line_str.strip())
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
 
         compile_proc.wait()
         compile_proc.stdout.close()
@@ -739,8 +768,8 @@ class FullBuildTester(unittest.TestCase):
 
             # Print output in real-time
             for line in compile_proc.stdout:
-                line_str = line.decode("utf-8", errors="replace")
-                print(line_str.strip())
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
 
             compile_proc.wait()
             compile_proc.stdout.close()
@@ -869,7 +898,9 @@ class FullBuildTester(unittest.TestCase):
                     "Manifest file types differ",
                 )
 
-        print("\n✅ PlatformIO and No-PlatformIO builds produce equivalent artifacts!")
+        print(
+            "[SUCCESS] PlatformIO and No-PlatformIO builds produce equivalent artifacts!"
+        )
 
         # Clean up temporary mapped directories with proper permissions
         platformio_mapped = MAPPED_DIR.parent / "mapped_platformio"
@@ -947,8 +978,8 @@ class FullBuildTester(unittest.TestCase):
             # Capture all output for analysis
             output_lines = []
             for line in compile_proc.stdout:
-                line_str = line.decode("utf-8", errors="replace").strip()
-                print(line_str)
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
                 output_lines.append(line_str)
 
             compile_proc.wait()
@@ -1015,7 +1046,7 @@ class FullBuildTester(unittest.TestCase):
             "Precompiled header should be used in debug mode, but 'Using precompiled header' message not found in output",
         )
 
-        print("\n✅ Precompiled headers test PASSED!")
+        print("\n[SUCCESS] Precompiled headers test PASSED!")
         print("   - PCH optimization works correctly in QUICK mode")
         print("   - PCH optimization also works correctly in DEBUG mode")
         print("   - Appropriate user feedback messages are displayed")
@@ -1050,11 +1081,11 @@ class FullBuildTester(unittest.TestCase):
             header_dumper = HeaderDumper(headers_output_dir, include_source=False)
             _ = header_dumper.dump_all_headers()
 
-            print("✅ Headers dumped successfully")
+            print("[SUCCESS] Headers dumped successfully")
             return_code = 0
 
-        except Exception as e:
-            print(f"❌ Headers dump failed: {e}")
+        except Exception:
+            print("[ERROR] Headers dump failed: {e}")
             return_code = 1
 
         # Check if headers dump was successful
@@ -1101,7 +1132,7 @@ class FullBuildTester(unittest.TestCase):
         total_files = manifest_data["metadata"]["total_files"]
         self.assertGreater(total_files, 0, "No files were collected in headers dump")
 
-        print("✅ Headers dump test completed successfully!")
+        print("[SUCCESS] Headers dump test completed successfully!")
         print(f"   - Total files collected: {total_files}")
         print(f"   - FastLED headers: {len(manifest_data['fastled'])}")
         print(f"   - WASM headers: {len(manifest_data['wasm'])}")
@@ -1139,7 +1170,7 @@ class FullBuildTester(unittest.TestCase):
         for header in key_emscripten_headers:
             emscripten_header_files = list(emscripten_headers_dir.rglob(header))
             if len(emscripten_header_files) > 0:
-                print(f"   ✅ Found emscripten header: {header}")
+                print(f"   [SUCCESS] Found emscripten header: {header}")
             # Note: Not all headers may be present in all EMSDK versions, so we warn but don't fail
 
         # Verify at least some emscripten headers exist
@@ -1180,7 +1211,7 @@ class FullBuildTester(unittest.TestCase):
         fastled_h_in_manifest = any("FastLED.h" in f for f in fastled_files)
         self.assertTrue(fastled_h_in_manifest, "FastLED.h not found in manifest")
 
-        print("\n✅ Headers dump test PASSED!")
+        print("\n[SUCCESS] Headers dump test PASSED!")
         print(f"   - Headers successfully dumped to: {headers_output_dir}")
         print(
             f"   - FastLED headers found: {len(list(fastled_headers_dir.rglob('*.h')))}"
@@ -1228,7 +1259,8 @@ class FullBuildTester(unittest.TestCase):
         if output_dir.exists():
             shutil.rmtree(output_dir)
 
-        print("\n🔍 Testing PCH staleness with volume mapping DISABLED...")
+        print("")
+        print("> Testing PCH staleness with volume mapping DISABLED...")
         print(
             "This should reveal what's inappropriately touching FastLED source files."
         )
@@ -1284,16 +1316,16 @@ class FullBuildTester(unittest.TestCase):
 
         for line in compile_proc.stdout:
             line_str = line.decode("utf-8", errors="replace").strip()
-            print(line_str)
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
             output_lines.append(line_str)
 
             # Check for PCH staleness errors
             if "has been modified since the precompiled header" in line_str:
                 pch_staleness_detected = True
-                print("🚨 PCH STALENESS DETECTED!")
+                print("[ERROR] PCH STALENESS DETECTED!")
 
             # Check that no source files are being modified (should never happen with new architecture)
-            if "✂️ Removed:" in line_str and "FastLED.h/Arduino.h" in line_str:
+            if "[REMOVED]:" in line_str and "FastLED.h/Arduino.h" in line_str:
                 fastled_source_modified = True
                 print("UNEXPECTED SOURCE MODIFICATION DETECTED - ARCHITECTURAL BUG!")
 
@@ -1316,7 +1348,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Analyze results
         print("\n" + "=" * 80)
-        print("🔍 PCH STALENESS BUG ANALYSIS:")
+        print("PCH STALENESS BUG ANALYSIS:")
         print("=" * 80)
 
         if pch_staleness_detected:
@@ -1381,6 +1413,14 @@ if __name__ == "__main__":
     try:
         # Pass remaining args to unittest
         sys.argv = [sys.argv[0]] + remaining_args
+        if not args.log:
+            # Set stdout and stderr encoding to UTF-8 for console output
+            sys.stdout = open(
+                sys.stdout.fileno(), mode="w", encoding="utf-8", buffering=1
+            )
+            sys.stderr = open(
+                sys.stderr.fileno(), mode="w", encoding="utf-8", buffering=1
+            )
         unittest.main()
     finally:
         # Clean up logging

@@ -41,6 +41,7 @@ class CliArgs:
     strict: bool
     headers: Path | None
     add_src: bool
+    no_pch_headers: bool
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -115,6 +116,11 @@ def _parse_args() -> CliArgs:
         action="store_true",
         help="Include source files (.c, .cpp, .ino) in addition to headers when using --headers",
     )
+    parser.add_argument(
+        "--no-pch-headers",
+        action="store_true",
+        help="Disable precompiled headers",
+    )
 
     # Add environment variable arguments
     add_environment_arguments(parser)
@@ -123,6 +129,10 @@ def _parse_args() -> CliArgs:
 
     # Validate and configure environment variables
     ensure_environment_configured(args)
+
+    # Set NO_PRECOMPILED_HEADERS environment variable if --no-pch-headers flag is used
+    if args.no_pch_headers:
+        os.environ["NO_PRECOMPILED_HEADERS"] = "1"
 
     # Set STRICT environment variable if --strict flag is used
     if args.strict:
@@ -158,6 +168,7 @@ def _parse_args() -> CliArgs:
         strict=args.strict,
         headers=args.headers,
         add_src=args.add_src,
+        no_pch_headers=args.no_pch_headers,
     )
     return out
 

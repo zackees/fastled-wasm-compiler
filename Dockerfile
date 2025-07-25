@@ -127,7 +127,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo "export ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}" >> /etc/profile
 
 # changing this number forces a code re-update.
-RUN echo "update build 59"
+RUN echo "update build 62"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
@@ -135,6 +135,8 @@ COPY ./build_tools/download_fastled.sh /build/download_fastled.sh
 RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
+
+
 
 
 

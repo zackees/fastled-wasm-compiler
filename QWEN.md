@@ -1,0 +1,98 @@
+# Cursor Rules for FastLED WASM Compiler
+
+This project is designed to run with `uv run` instead of `python`.
+- Don't use `python` to run, you will get errors related to missing modules, this is normal.
+- ALWAYS USE `uv run`
+- If you need to do inlined scripts use `uv run python -c` instead of `python -c`
+
+## Running Commands
+- Use `uv run` instead of `python` for executing Python scripts
+- Use `uv run -m` instead of `python -m` for running modules
+- Example: `uv run fastled-wasm-compiler` instead of `python -m fastled_wasm_compiler`
+
+## Build Files and Compilation Flags
+This project has a complex multi-build-system architecture. When modifying compilation flags, you MUST update ALL of these locations:
+
+### 1. Central Source of Truth
+- `src/fastled_wasm_compiler/build_flags.toml` - **START HERE FIRST**
+  - This is the centralized configuration that feeds other build systems
+  - Contains base flags, build mode flags, and linking flags
+
+### 2. Auto-Generated Files (MUST REGENERATE AFTER TOML CHANGES)
+- `build_tools/cmake_flags.cmake` - Auto-generated from TOML
+  - **CRITICAL:** Run `uv run python build_tools/generate_cmake_flags.py > build_tools/cmake_flags.cmake` after TOML changes
+  - Used by CMake builds (Docker's `/build/build_lib.sh --all`)
+  - Missing this step causes Docker build failures
+
+### 3. CRITICAL: Precompiled Header (PCH) Flag Synchronization
+- **DOCKER BUILD ORDER ISSUE:** The Docker build copies `cmake_flags.cmake` BEFORE building libraries/PCH, then copies updated source code AFTER
+- **PCH Flag Mismatch:** If PCH is built with different flags than sketch compilation, you get errors like:
+  ```
+  [emcc] fatal error: file 'src/fl/bitset.h' has been modified since the precompiled header '/build/quick/fastled_pch.h.gch' was built: size changed (was 21220, now 21286)
+  ```
+- **Fix:** Always regenerate `cmake_flags.cmake` after changing `build_flags.toml` and commit both files together
+- **Debugging:** CMake now logs PCH compilation flags and sketch compilation warns about stale PCH files
+- **Disabling PCH:** Set the environment variable `NO_PRECOMPILED_HEADERS=1` to disable PCH for both Docker and native builds.
+
+### 4. Production Build Files
+- `src/fastled_wasm_compiler/compile_sketch_native.py` - Native compilation mode
+- `cmake/shared_build_settings.cmake` - Shared CMake settings
+
+### 5. Build System Coordination
+This project supports 2 build systems that must stay synchronized:
+- **CMake** (used by Docker/`build_lib.sh`) - Uses `build_tools/cmake_flags.cmake`
+- **Native** (direct emcc calls) - Uses `compile_sketch_native.py`
+
+Note: PlatformIO support has been completely removed from this project.
+
+### 7. Systematic Search Strategy for Build Files
+When adding compilation flags (like `-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0`):
+
+1. **Update central config first:** `build_flags.toml`
+2. **Regenerate auto-generated files:** Run the cmake flags generator script
+3. **Search comprehensively:** `grep -r "fno-rtti" --include="*.py" --include="*.ini" --include="*.cmake" .`
+4. **Check test configs:** Always check `tests/integration/test_data/` directories
+5. **Verify coverage:** `grep -r "YOUR_NEW_FLAG" . | wc -l` to count occurrences
+
+### 8. Common Pitfalls
+- **Missing cmake_flags.cmake regeneration** - Causes Docker build failures
+- **Forgetting test configurations** - Causes integration test failures  
+- **Only updating one build system** - Causes inconsistent behavior
+- **Not understanding the TOML→CMake pipeline** - Root cause of many issues
+
+## Style
+- Always define return types for the functions you write.
+- Always add types to the variables that you use.
+- Instead of tuples, prefer @dataclass with slots for efficiency
+- Globals at the top
+- Don't use forward declared types unless absolutely necessary, for examples a @staticmethod on a class to return that class type
+  - For example in the Args class.
+- No bare excepptions
+- Always handle keyboard interrupts in threads and processes
+  - When getting a KeyboardInterrupt in a thread, import _thread and call interrupt_main() in addition to other work.
+- Don't use legacy types
+  - BAD: Optional[T]
+  - GOOD: T | None
+  - BAD: Union[T,U]
+  - GOOD: T | U
+- Avoid the use of type `Any` unless ABSOLUTELY necessary.
+- Avoid MagicMock whenever possible, try to use real objects, unless this is very slow.
+- If a test requires a huge download, put the payload in .cache
+- When using emoticons, check that they are compatible with the encoding style of cmd.exe
+  
+
+## Testing
+- Use `bash lint && bash test --unit-only` often, this is cheap to run and will catch type errors and common mistakes.
+- Run unit tests with `bash test` (as specified in user rules)
+- Always prefer `bash test --unit-only` to `bash test` because it goes very fast.
+  - Only use `bash test` to test things in the docker file that can't be put into a unit test
+  - Or only use `bash test` at the end of the testing session since that gives live updates.
+
+## Dependencies
+- This project uses `uv` for dependency management
+- The `uv.lock` file contains the locked dependencies
+- Use `uv add` to add new dependencies instead of `pip install` 
+
+## Bugs
+- On windows git-bash will often swallow the first character, giving errors
+- Prepend all commands with an extra space at the beginning so that swollowed character doesn't affect the command you are trying to run.

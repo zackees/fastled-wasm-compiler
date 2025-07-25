@@ -16,6 +16,9 @@ wget -O "${FASTLED_ROOT}.zip" ${URL} && \
     mv "$(dirname "${FASTLED_ROOT}")/FastLED-master" "${FASTLED_ROOT}" && \
     rm "${FASTLED_ROOT}.zip"
 
+# Temporarily disable FL_ALIGN_AS for Emscripten builds
+sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alignof(T))/#define FL_ALIGN_AS(T)/}' "${FASTLED_ROOT}/src/fl/align.h"
+
 
 # Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub or shared
 cd "${FASTLED_ROOT}/src/platforms"

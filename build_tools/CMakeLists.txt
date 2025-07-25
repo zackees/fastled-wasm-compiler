@@ -153,28 +153,13 @@ message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 # Generate precompiled headers for all build modes for faster compilation
 # Create precompiled header for Arduino.h and FastLED.h
 
-# Only build PCH during compilation step, not linking step
-set(SHOULD_BUILD_PCH TRUE)
-
-# Check CMake variables to determine build phase
-if(DEFINED NO_BUILD AND NO_BUILD)
-    # This is the linking-only step, PCH should already exist
-    set(SHOULD_BUILD_PCH FALSE)
-    message(STATUS "🔗 LINKING STEP: Skipping PCH compilation (should exist from compile step)")
-elseif(DEFINED NO_LINK AND NO_LINK)
-    # This is the compile-only step, build PCH
-    set(SHOULD_BUILD_PCH TRUE)
-    message(STATUS "🔨 COMPILE STEP: Building PCH for faster compilation")
-else()
-    # Single-step build, build PCH
-    set(SHOULD_BUILD_PCH TRUE)
-    message(STATUS "🔨 SINGLE STEP BUILD: Building PCH")
-endif()
-
-if(SHOULD_BUILD_PCH)
+# By default, PCH is enabled. It can be disabled by setting NO_PRECOMPILED_HEADERS=1
+if(NOT (DEFINED ENV{NO_PRECOMPILED_HEADERS} AND "$ENV{NO_PRECOMPILED_HEADERS}" STREQUAL "1"))
+    # Always build PCH regardless of the build step
+    message(STATUS "🔨 BUILDING PCH: Creating precompiled header for faster compilation")
     set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
     set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
-
+    
     # Create the precompiled header source file
     file(WRITE ${PCH_HEADER} 
 "#pragma once
@@ -184,6 +169,9 @@ if(SHOULD_BUILD_PCH)
 #include <Arduino.h>
 #include <FastLED.h>
 ")
+else()
+    message(STATUS "NO_PRECOMPILED_HEADERS=1: Precompiled headers disabled")
+endif()
 
     message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
     message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
@@ -259,8 +247,7 @@ if(SHOULD_BUILD_PCH)
 "#!/bin/bash
 set -e
 echo \"Building PCH with flags: ${PCH_FLAGS_STRING}\"
-${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header ${PCH_HEADER} -o ${PCH_OUTPUT} -v
-")
+${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header ${PCH_HEADER} -o ${PCH_OUTPUT}")
 
     # Make script executable
     file(CHMOD ${PCH_COMPILE_SCRIPT} 
@@ -268,37 +255,25 @@ ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FAS
                      GROUP_READ GROUP_EXECUTE 
                      WORLD_READ WORLD_EXECUTE)
 
-    add_custom_command(
-      OUTPUT ${PCH_OUTPUT}
+    # Create a target for the precompiled header
+    add_custom_target(fastled_pch ALL
       COMMAND ${PCH_COMPILE_SCRIPT}
-      DEPENDS ${PCH_HEADER} ${PCH_COMPILE_SCRIPT}
+      DEPENDS ${PCH_HEADER}
       COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
       VERBATIM
+      BYPRODUCTS ${PCH_OUTPUT}
     )
-
-    # Create a target for the precompiled header
-    add_custom_target(fastled_pch ALL DEPENDS ${PCH_OUTPUT})
-else()
-    # Linking step - PCH should already exist, just set paths for reference
-    set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
-    set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
-    
-    # Verify PCH exists from previous step
-    if(NOT EXISTS ${PCH_OUTPUT})
-        message(WARNING "⚠️  PCH file not found at ${PCH_OUTPUT} - compilation may be slower")
-    else()
-        message(STATUS "✅ PCH file found at ${PCH_OUTPUT} from previous compilation step")
-    endif()
     
     # Create a dummy target for dependency consistency
-    add_custom_target(fastled_pch)
-endif()
+    add_custom_target(fastled_pch_dummy)
 
 # ——— 9) Add FastLED Library ———————————————————————————————————————
 add_subdirectory(${FASTLED_SOURCE_DIR} ${CMAKE_BINARY_DIR}/fastled)
 
 # Make FastLED library depend on precompiled header (all modes)
-add_dependencies(fastled fastled_pch)
+if(NOT (DEFINED ENV{NO_PRECOMPILED_HEADERS} AND "$ENV{NO_PRECOMPILED_HEADERS}" STREQUAL "1"))
+    add_dependencies(fastled fastled_pch)
+endif()
 
 # ——— 10) Control Library Name Based on Archive Mode ——————————————————————
 # Check for archive build mode
