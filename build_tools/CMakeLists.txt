@@ -255,10 +255,13 @@ ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FAS
                      GROUP_READ GROUP_EXECUTE 
                      WORLD_READ WORLD_EXECUTE)
 
-    # Create a target for the precompiled header
+    # Automatically find all FastLED header files for proper dependency tracking
+    file(GLOB_RECURSE FASTLED_HEADERS "${FASTLED_SOURCE_DIR}/*.h*")
+    
+    # Create a target for the precompiled header with proper dependency tracking
     add_custom_target(fastled_pch ALL
       COMMAND ${PCH_COMPILE_SCRIPT}
-      DEPENDS ${PCH_HEADER}
+      DEPENDS ${PCH_HEADER} ${FASTLED_HEADERS}
       COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
       VERBATIM
       BYPRODUCTS ${PCH_OUTPUT}
