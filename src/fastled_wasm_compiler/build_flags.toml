@@ -76,6 +76,9 @@ compiler_flags = [
     
     # Threading Support
     "-pthread",                               # Enable POSIX threads support
+    
+    # Thin PCH Support (Emscripten/Clang feature)
+    "-fpch-instantiate-templates",            # Required for proper Thin PCH template handling
 ]
 
 # Include directory flags (paths added dynamically by build system)

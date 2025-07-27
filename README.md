@@ -30,4 +30,21 @@ Run `./lint` to run the linter.
 
 Run `./test` to run the tests.
 
+## Thin Precompiled Headers (Thin PCH)
+
+The FastLED WASM compiler now supports Thin Precompiled Headers (Thin PCH), which provide faster rebuild times and better cacheability compared to traditional PCH.
+
+To enable Thin PCH:
+- Set the `THIN_PCH=1` environment variable
+- Or use the `--thin-pch` flag with the build scripts
+
+Example:
+```bash
+# Using environment variable
+THIN_PCH=1 ./build_tools/build_lib.sh --all
+
+# Using command line flag
+./build_tools/build_lib.sh --thin-pch --all
+```
+
 # Notes:

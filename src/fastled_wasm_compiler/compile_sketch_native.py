@@ -55,6 +55,14 @@ class NativeCompilerImpl:
             "-DFASTLED_ALL_SRC=1",  # Enable unified FastLED compilation for native builds
         ]
 
+        # Add Thin PCH support if enabled
+        if os.environ.get("THIN_PCH") == "1":
+            # For Thin PCH, we need to include the PCH header
+            build_dir = os.environ.get("BUILD_DIR", "/tmp/fastled-build")
+            pch_header_path = f"{build_dir}/fastled_pch.h"
+            if os.path.exists(pch_header_path):
+                native_specific_flags.extend(["-include", pch_header_path])
+
         return native_specific_flags + flags
 
     def get_linking_flags(self, build_mode: str) -> list[str]:

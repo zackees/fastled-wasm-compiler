@@ -154,11 +154,20 @@ message(STATUS "FastLED source directory: ${FASTLED_SOURCE_DIR}")
 # Create precompiled header for Arduino.h and FastLED.h
 
 # By default, PCH is enabled. It can be disabled by setting NO_PRECOMPILED_HEADERS=1
+# Thin PCH mode can be enabled with THIN_PCH=1
 if(NOT (DEFINED ENV{NO_PRECOMPILED_HEADERS} AND "$ENV{NO_PRECOMPILED_HEADERS}" STREQUAL "1"))
     # Always build PCH regardless of the build step
-    message(STATUS "🔨 BUILDING PCH: Creating precompiled header for faster compilation")
-    set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
-    set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+    if(DEFINED ENV{THIN_PCH} AND "$ENV{THIN_PCH}" STREQUAL "1")
+        message(STATUS "🔨 BUILDING THIN PCH: Creating thin precompiled header for faster compilation")
+        set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+        set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.pch")  # Different extension for thin PCH
+        set(PCH_TYPE "thin")
+    else()
+        message(STATUS "🔨 BUILDING TRADITIONAL PCH: Creating traditional precompiled header for faster compilation")
+        set(PCH_HEADER "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h")
+        set(PCH_OUTPUT "${ABS_BUILD_OUTPUT_DIR}/fastled_pch.h.gch")
+        set(PCH_TYPE "traditional")
+    endif()
     
     # Create the precompiled header source file
     file(WRITE ${PCH_HEADER} 
@@ -173,11 +182,11 @@ else()
     message(STATUS "NO_PRECOMPILED_HEADERS=1: Precompiled headers disabled")
 endif()
 
-    message(STATUS "Creating precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
+    message(STATUS "Creating ${PCH_TYPE} precompiled header for ${BUILD_MODE} mode: ${PCH_HEADER}")
     message(STATUS "Precompiled header output: ${PCH_OUTPUT}")
 
     # ========== PCH COMPILATION WITH TOML CENTRALIZED FLAGS ==========
-    message(STATUS "🔨 PCH COMPILATION: Building precompiled header with TOML centralized flags")
+    message(STATUS "🔨 PCH COMPILATION: Building ${PCH_TYPE} precompiled header with TOML centralized flags")
 
     # Step 1: Start with base compilation flags from build_flags.toml
     set(PCH_COMPILE_FLAGS ${FASTLED_BASE_COMPILE_FLAGS})
@@ -222,6 +231,12 @@ endif()
         endif()
     endforeach()
 
+    # Add Thin PCH specific flags if enabled
+    if(DEFINED ENV{THIN_PCH} AND "$ENV{THIN_PCH}" STREQUAL "1")
+        list(APPEND PCH_FILTERED_FLAGS "-emit-pch")  # Explicitly emit PCH for clarity
+        message(STATUS "   ✅ Added Thin PCH flag: -emit-pch")
+    endif()
+
     list(LENGTH PCH_FILTERED_FLAGS FINAL_COUNT)
     list(LENGTH FILTERED_OUT_FLAGS FILTERED_COUNT)
     message(STATUS "📊 PCH Step 3 Result: ${FINAL_COUNT} flags kept, ${FILTERED_COUNT} flags filtered out")
@@ -243,11 +258,19 @@ endif()
 
     # Use a shell script approach to properly handle flag expansion
     set(PCH_COMPILE_SCRIPT "${ABS_BUILD_OUTPUT_DIR}/compile_pch.sh")
-    file(WRITE ${PCH_COMPILE_SCRIPT} 
+    if(DEFINED ENV{THIN_PCH} AND "$ENV{THIN_PCH}" STREQUAL "1")
+        file(WRITE ${PCH_COMPILE_SCRIPT} 
 "#!/bin/bash
 set -e
-echo \"Building PCH with flags: ${PCH_FLAGS_STRING}\"
+echo "Building Thin PCH with flags: ${PCH_FLAGS_STRING}"
+${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header -emit-pch ${PCH_HEADER} -o ${PCH_OUTPUT}")
+    else()
+        file(WRITE ${PCH_COMPILE_SCRIPT} 
+"#!/bin/bash
+set -e
+echo "Building Traditional PCH with flags: ${PCH_FLAGS_STRING}"
 ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FASTLED_SOURCE_DIR} -I${FASTLED_SOURCE_DIR}/platforms/wasm/compiler -I. -Isrc -x c++-header ${PCH_HEADER} -o ${PCH_OUTPUT}")
+    endif()
 
     # Make script executable
     file(CHMOD ${PCH_COMPILE_SCRIPT} 
@@ -262,7 +285,7 @@ ${CMAKE_CXX_COMPILER_LAUNCHER} ${CMAKE_CXX_COMPILER} ${PCH_FLAGS_STRING} -I${FAS
     add_custom_target(fastled_pch ALL
       COMMAND ${PCH_COMPILE_SCRIPT}
       DEPENDS ${PCH_HEADER} ${FASTLED_HEADERS}
-      COMMENT "Building precompiled header fastled_pch.h.gch for ${BUILD_MODE} mode with centralized flags"
+      COMMENT "Building ${PCH_TYPE} precompiled header fastled_pch.h for ${BUILD_MODE} mode with centralized flags"
       VERBATIM
       BYPRODUCTS ${PCH_OUTPUT}
     )

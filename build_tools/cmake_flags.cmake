@@ -20,6 +20,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
     "-fno-exceptions"
     "-fno-rtti"
     "-pthread"
+    "-fpch-instantiate-templates"
     "-emit-llvm"
     "-Wall"
 )

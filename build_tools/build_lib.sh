@@ -70,6 +70,7 @@ echo ">>> CMake flags auto-check complete"
 
 MODES=()
 ARCHIVE_BUILD_MODE="regular"  # Default: regular archives only (best performance)
+PCH_MODE="traditional"        # Default: traditional PCH
 
 # Parse arguments
 for arg in "$@"; do
@@ -80,6 +81,7 @@ for arg in "$@"; do
     --quick)         MODES+=("QUICK") ;;
     --release)       MODES+=("RELEASE") ;;
     --all)           MODES=("DEBUG" "QUICK" "RELEASE"); break ;;
+    --thin-pch)      PCH_MODE="thin" ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -97,6 +99,12 @@ done
 
 # Set environment variable for the chosen archive mode
 export ARCHIVE_BUILD_MODE="$ARCHIVE_BUILD_MODE"
+# Set PCH mode from environment variable if not specified via command line
+if [ "$PCH_MODE" = "traditional" ] && [ "$THIN_PCH" = "1" ]; then
+    PCH_MODE="thin"
+fi
+
+export THIN_PCH_MODE="$PCH_MODE"
 
 # Validate archive mode configuration
 case "$ARCHIVE_BUILD_MODE" in
@@ -111,6 +119,18 @@ case "$ARCHIVE_BUILD_MODE" in
   "both")
     echo ">>> DUAL MODE: Building BOTH archive types (current behavior)"
     # Don't override NO_THIN_LTO - let it be controlled by other means
+    ;;
+esac
+
+# Validate PCH mode configuration
+case "$PCH_MODE" in
+  "thin")
+    echo ">>> THIN PCH MODE: Building with Thin Precompiled Headers"
+    export THIN_PCH=1
+    ;;
+  "traditional")
+    echo ">>> TRADITIONAL PCH MODE: Building with Traditional Precompiled Headers"
+    export THIN_PCH=0
     ;;
 esac
 

@@ -224,6 +224,16 @@ function(apply_shared_compilation_flags target_name compilation_type)
     elseif(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
         target_compile_options(${target_name} PRIVATE ${FASTLED_RELEASE_FLAGS})
     endif()
+    
+    # Add Thin PCH support if enabled
+    if(DEFINED ENV{THIN_PCH} AND "$ENV{THIN_PCH}" STREQUAL "1")
+        # For Thin PCH, we need to include the PCH header
+        get_filename_component(BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR} DIRECTORY)
+        set(PCH_HEADER_PATH "${BUILD_DIR}/fastled_pch.h")
+        if(EXISTS ${PCH_HEADER_PATH})
+            target_compile_options(${target_name} PRIVATE "-include" ${PCH_HEADER_PATH})
+        endif()
+    endif()
 endfunction()
 
 # Function to apply shared linking flags to a target

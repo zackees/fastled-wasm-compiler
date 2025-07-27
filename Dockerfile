@@ -98,6 +98,10 @@ ENV NO_PLATFORMIO=${NO_PLATFORMIO}
 ARG ARCHIVE_BUILD_MODE="regular"
 ENV ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}
 
+# Set default PCH mode (can be overridden at build-time and runtime)
+ARG THIN_PCH="0"
+ENV THIN_PCH=${THIN_PCH}
+
 # Set container-specific environment variables for path resolution
 ENV ENV_FASTLED_ROOT="/git/fastled"
 ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
@@ -116,6 +120,8 @@ RUN echo 'print() { echo "$@"; }' >> /etc/profile && \
     echo 'export PATH="/container/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:$PATH"' >> /etc/profile && \
     echo 'export LINKER=mold' >> /etc/profile && \
     echo 'export NO_PLATFORMIO=1' >> /etc/profile && \
+    echo "export ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}" >> /etc/profile && \
+    echo "export THIN_PCH=${THIN_PCH}" >> /etc/profile && \
     echo 'source /emsdk/emsdk_env.sh' >> /etc/profile
 
 # This was added to try and fix formatting issues. It didn't fix it but it's better to force everything to use
