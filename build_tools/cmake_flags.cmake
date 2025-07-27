@@ -28,6 +28,7 @@ set(FASTLED_BASE_COMPILE_FLAGS
 set(FASTLED_DEBUG_FLAGS
     "-g3"
     "-gsource-map"
+    "--profiling-funcs"
     "-fno-inline"
     "-O0"
     "-ffile-prefix-map=/=sketchsource/"
@@ -36,6 +37,7 @@ set(FASTLED_DEBUG_FLAGS
 set(FASTLED_QUICK_FLAGS
     "-O1"
     "-g0"
+    "--profiling-funcs"
     "-fno-inline-functions"
     "-fno-vectorize"
     "-fno-unroll-loops"
