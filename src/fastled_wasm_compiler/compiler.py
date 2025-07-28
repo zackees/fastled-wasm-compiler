@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +34,16 @@ class UpdateSrcResult:
     error: Exception | None
 
 
+@dataclass
+class LibraryBackup:
+    """Backup information for a library file."""
+
+    original_path: Path
+    backup_path: Path
+    archive_type: str
+    build_mode: str
+
+
 class CompilerImpl:
 
     def __init__(
@@ -49,38 +61,78 @@ class CompilerImpl:
         # Default to all modes if none specified
         self.build_libs = build_libs if build_libs else ["debug", "quick", "release"]
         self.thin_lto = thin_lto
+        self._library_backups: list[LibraryBackup] = []
+        self._backup_temp_dir: Path | None = None
 
-    def _check_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
-        """Check for and delete existing libfastled.a files and PCH files for the specified build modes.
+    def _create_backup_directory(self) -> Path:
+        """Create a temporary directory for library backups.
+
+        Returns:
+            Path to the backup directory
+        """
+        if self._backup_temp_dir is None:
+            self._backup_temp_dir = Path(tempfile.mkdtemp(prefix="libfastled_backup_"))
+            print(f"📁 Created backup directory: {self._backup_temp_dir}")
+        return self._backup_temp_dir
+
+    def _backup_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
+        """Backup existing libfastled.a files to temp directory, then delete originals.
 
         Args:
             build_modes: List of build modes to check ("debug", "quick", "release")
             reason: Reason for deletion (for logging)
         """
-
-        # Use volume mapped source aware archive selection
-        use_thin = can_use_thin_lto()
+        # Clear any existing backups
+        self._clear_library_backups()
 
         for mode in build_modes:
-            # Delete library files
-            if use_thin:
-                lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
-                archive_type = "thin"
-            else:
-                lib_path = BUILD_ROOT / mode / "libfastled.a"
-                archive_type = "regular"
+            # Check for both thin and regular archives - backup whichever exists
+            thin_lib_path = BUILD_ROOT / mode / "libfastled-thin.a"
+            regular_lib_path = BUILD_ROOT / mode / "libfastled.a"
 
-            if lib_path.exists():
-                print(f"Deleting existing {archive_type} library {lib_path} ({reason})")
-                try:
-                    lib_path.unlink()
-                    print(f"✓ Successfully deleted {lib_path}")
-                except OSError as e:
-                    print(f"⚠️  Warning: Could not delete {lib_path}: {e}")
-            else:
+            # Determine which library files actually exist and backup them
+            libs_to_backup = []
+            if thin_lib_path.exists():
+                libs_to_backup.append((thin_lib_path, "thin"))
+            if regular_lib_path.exists():
+                libs_to_backup.append((regular_lib_path, "regular"))
+
+            for lib_path, archive_type in libs_to_backup:
+                # Create backup directory if needed
+                backup_dir = self._create_backup_directory()
+
+                # Create backup file path with mode and archive type
+                backup_filename = f"{mode}_{archive_type}_libfastled.a"
+                backup_path = backup_dir / backup_filename
+
                 print(
-                    f"{archive_type.capitalize()} library {lib_path} does not exist, nothing to delete"
+                    f"💾 Backing up {archive_type} library {lib_path} to {backup_path} ({reason})"
                 )
+                try:
+                    # Copy the file to backup location
+                    shutil.copy2(lib_path, backup_path)
+
+                    # Store backup info
+                    backup_info = LibraryBackup(
+                        original_path=lib_path,
+                        backup_path=backup_path,
+                        archive_type=archive_type,
+                        build_mode=mode,
+                    )
+                    self._library_backups.append(backup_info)
+
+                    # Now delete the original
+                    lib_path.unlink()
+                    print(f"✓ Successfully backed up and deleted {lib_path}")
+
+                except (OSError, shutil.Error) as e:
+                    print(f"⚠️  Warning: Could not backup {lib_path}: {e}")
+                    # If backup failed, don't delete the original
+                    continue
+
+            # Log if no libraries were found to backup for this mode
+            if not libs_to_backup:
+                print(f"No library files found for mode {mode}, nothing to backup")
 
             # Delete PCH files to prevent staleness issues
             build_dir = BUILD_ROOT / mode
@@ -117,6 +169,59 @@ class CompilerImpl:
                         )
                     except Exception:
                         pass
+
+    def _restore_library_backups(self) -> None:
+        """Restore library files from backup if compilation failed."""
+        if not self._library_backups:
+            print("📂 No library backups to restore")
+            return
+
+        print(
+            f"🔄 Restoring {len(self._library_backups)} library backups due to compilation failure..."
+        )
+
+        for backup_info in self._library_backups:
+            try:
+                # Ensure the target directory exists
+                backup_info.original_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Restore the file
+                shutil.copy2(backup_info.backup_path, backup_info.original_path)
+                print(
+                    f"✓ Restored {backup_info.archive_type} library: {backup_info.original_path}"
+                )
+
+            except (OSError, shutil.Error) as e:
+                print(
+                    f"⚠️  Warning: Could not restore backup {backup_info.backup_path}: {e}"
+                )
+
+        print("🔄 Library backup restoration complete")
+
+    def _clear_library_backups(self) -> None:
+        """Clear library backups and remove temporary backup directory."""
+        if self._backup_temp_dir and self._backup_temp_dir.exists():
+            try:
+                shutil.rmtree(self._backup_temp_dir)
+                print(f"🗑️  Cleaned up backup directory: {self._backup_temp_dir}")
+            except OSError as e:
+                print(
+                    f"⚠️  Warning: Could not clean up backup directory {self._backup_temp_dir}: {e}"
+                )
+
+        self._backup_temp_dir = None
+        self._library_backups.clear()
+
+    def _check_and_delete_libraries(self, build_modes: list[str], reason: str) -> None:
+        """Legacy method that now uses the backup mechanism.
+
+        This method is kept for backward compatibility and redirects to the new backup method.
+
+        Args:
+            build_modes: List of build modes to check ("debug", "quick", "release")
+            reason: Reason for deletion (for logging)
+        """
+        self._backup_and_delete_libraries(build_modes, reason)
 
     def _check_missing_libraries(self, build_modes: list[str]) -> list[str]:
         """Check which libfastled.a files are missing for the specified build modes.
@@ -306,6 +411,10 @@ class CompilerImpl:
             )
 
             if result.return_code != 0:
+                # Compilation failed - restore backups before reporting error
+                print_banner("Compilation failed - restoring library backups...")
+                self._restore_library_backups()
+
                 error_msg = (
                     f"Failed to compile libraries with exit code: {result.return_code}"
                 )
@@ -326,6 +435,12 @@ class CompilerImpl:
                 archive_type = "thin" if "thin" in expected_lib.name else "regular"
 
                 if not expected_lib.exists():
+                    # Library verification failed - restore backups before reporting error
+                    print_banner(
+                        "Library verification failed - restoring library backups..."
+                    )
+                    self._restore_library_backups()
+
                     error_msg = (
                         f"Expected {archive_type} library not found at {expected_lib}"
                     )
@@ -337,6 +452,10 @@ class CompilerImpl:
                     )
 
             print_banner("Library compilation completed successfully")
+
+            # Clean up backups on successful compilation
+            self._clear_library_backups()
+
             return UpdateSrcResult(
                 files_changed=files_changed,
                 stdout="Library compilation completed successfully",
@@ -344,6 +463,10 @@ class CompilerImpl:
             )
 
         except Exception as e:
+            # Unexpected error - restore backups before reporting error
+            print_banner("Unexpected error occurred - restoring library backups...")
+            self._restore_library_backups()
+
             error_msg = f"Unexpected error during source update: {str(e)}"
             print_banner(f"Error: {error_msg}")
             return UpdateSrcResult(
