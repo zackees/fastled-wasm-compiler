@@ -132,8 +132,10 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
     echo 'export LC_CTYPE=UTF-8' >> /etc/profile && \
     echo "export ARCHIVE_BUILD_MODE=${ARCHIVE_BUILD_MODE}" >> /etc/profile
 
+ENV NO_CCACHE=1
+
 # changing this number forces a code re-update.
-RUN echo "update build 62"
+RUN echo "update build 65"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.
