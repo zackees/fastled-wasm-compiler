@@ -42,6 +42,7 @@ class CliArgs:
     headers: Path | None
     add_src: bool
     no_pch_headers: bool
+    headers_emsdk: Path | None
 
     @staticmethod
     def parse_args() -> "CliArgs":
@@ -121,6 +122,11 @@ def _parse_args() -> CliArgs:
         action="store_true",
         help="Disable precompiled headers",
     )
+    parser.add_argument(
+        "--headers-emsdk",
+        type=Path,
+        help="Dump EMSDK headers to specified zip file or directory and exit",
+    )
 
     # Add environment variable arguments
     add_environment_arguments(parser)
@@ -169,6 +175,7 @@ def _parse_args() -> CliArgs:
         headers=args.headers,
         add_src=args.add_src,
         no_pch_headers=args.no_pch_headers,
+        headers_emsdk=args.headers_emsdk,
     )
     return out
 
@@ -176,6 +183,13 @@ def _parse_args() -> CliArgs:
 def main() -> int:
     """Main entry point for the template_python_cmd package."""
     cli_args = CliArgs.parse_args()
+
+    # Handle headers-emsdk flag early - this should exit without compilation
+    if cli_args.headers_emsdk:
+        from fastled_wasm_compiler.list_headers import get_emsdk_headers
+
+        return get_emsdk_headers(cli_args.headers_emsdk)
+
     compile_args: Args = Args(
         compiler_root=cli_args.compiler_root,
         assets_dirs=cli_args.assets_dirs,

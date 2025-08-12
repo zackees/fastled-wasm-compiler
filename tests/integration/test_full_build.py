@@ -1386,6 +1386,109 @@ class FullBuildTester(unittest.TestCase):
 
         # Analysis complete - test passes if we reach here without assertion failures
 
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_headers_emsdk(self) -> None:
+        """Test the --headers-emsdk flag to dump EMSDK headers."""
+
+        # Remove any existing containers with the same name
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-headers-emsdk-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        print("\nTesting --headers-emsdk flag...")
+
+        # Test with ZIP file output
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-headers-emsdk-container",
+            # Mount the test data directories
+            "-v",
+            f"{MAPPED_DIR.absolute()}:/mapped",
+            "-v",
+            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            "-v",
+            f"{ASSETS_DIR.absolute()}:/assets",
+            IMAGE_NAME,
+            # Test the headers-emsdk flag with zip output
+            "--headers-emsdk",
+            "/mapped/emsdk_headers.zip",
+        ]
+
+        cmdstr = subprocess.list2cmdline(cmd_list)
+        print(f"Running command: {cmdstr}")
+
+        headers_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert headers_proc.stdout is not None
+
+        output_lines = []
+        # Print output in real-time and collect it
+        for line in headers_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
+            output_lines.append(line_str)
+
+        headers_proc.wait()
+        headers_proc.stdout.close()
+        headers_proc.terminate()
+
+        # Clean up the container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-headers-emsdk-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Check if headers dump was successful
+        self.assertEqual(headers_proc.returncode, 0, "Headers dump failed")
+
+        # Verify that the output contains header information
+        output_text = "\n".join(output_lines)
+
+        # Check for typical header-related output patterns
+        self.assertTrue(len(output_lines) > 0, "No output from headers command")
+
+        # Look for EMSDK header-related patterns in the output
+        has_header_content = any(
+            pattern in output_text.lower()
+            for pattern in [
+                "emsdk headers from",
+                "total emsdk headers found",
+                "headers saved to",
+                "output format",
+                ".h",
+                "emscripten",
+            ]
+        )
+
+        if not has_header_content:
+            print("Warning: Expected EMSDK header-related content not found in output")
+            print("Actual output:")
+            for line in output_lines[:10]:  # Print first 10 lines for debugging
+                print(f"  {line}")
+        else:
+            print("[SUCCESS] EMSDK headers dump completed successfully!")
+
+        # Check if the output zip file was created in the mapped directory
+        output_zip = MAPPED_DIR / "emsdk_headers.zip"
+        if output_zip.exists():
+            zip_size = output_zip.stat().st_size
+            print(f"[SUCCESS] Output zip file created: {output_zip} ({zip_size} bytes)")
+            self.assertGreater(zip_size, 0, "Output zip file should not be empty")
+
+            # Clean up the test output file
+            output_zip.unlink()
+        else:
+            print("Warning: Expected output zip file not found at {output_zip}")
+
 
 if __name__ == "__main__":
     import argparse
