@@ -7,7 +7,10 @@ from fastled_wasm_compiler.dwarf_path_to_file_path import EMSDK_PATH
 
 
 def get_emsdk_headers(output_path: Path) -> int:
-    """Get all EMSDK header files and save them to a zip file or directory.
+    """Get EMSDK header files that are actually used during compilation and save them to a zip file or directory.
+
+    Only includes headers from the sysroot include directory that are bound to during compilation,
+    rather than dumping the entire EMSDK tree.
 
     Args:
         output_path: Path to the output zip file or directory where headers will be saved.
@@ -26,7 +29,18 @@ def get_emsdk_headers(output_path: Path) -> int:
         print(f"Error: EMSDK path {EMSDK_PATH} does not exist")
         return 1
 
-    print(f"EMSDK Headers from {EMSDK_PATH}:")
+    # Use only the sysroot include directory that is actually used during compilation
+    sysroot_include = (
+        emsdk_path / "upstream" / "emscripten" / "cache" / "sysroot" / "include"
+    )
+
+    if not sysroot_include.exists():
+        print(f"Error: EMSDK sysroot include path does not exist: {sysroot_include}")
+        return 1
+
+    print(
+        f"EMSDK Headers from sysroot (actually used during compilation): {sysroot_include}"
+    )
     print(f"Output path: {output_path}")
 
     # Determine if we're creating a zip file or directory
@@ -43,11 +57,11 @@ def get_emsdk_headers(output_path: Path) -> int:
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                for root, dirs, files in os.walk(emsdk_path):
+                for root, dirs, files in os.walk(sysroot_include):
                     for file in files:
                         if any(file.endswith(ext) for ext in header_extensions):
                             header_path = Path(root) / file
-                            relative_path = header_path.relative_to(emsdk_path)
+                            relative_path = header_path.relative_to(sysroot_include)
 
                             # Add file to zip archive
                             zipf.write(header_path, f"emsdk_headers/{relative_path}")
@@ -59,11 +73,11 @@ def get_emsdk_headers(output_path: Path) -> int:
             emsdk_headers_dir = output_path / "emsdk_headers"
             emsdk_headers_dir.mkdir(exist_ok=True)
 
-            for root, dirs, files in os.walk(emsdk_path):
+            for root, dirs, files in os.walk(sysroot_include):
                 for file in files:
                     if any(file.endswith(ext) for ext in header_extensions):
                         header_path = Path(root) / file
-                        relative_path = header_path.relative_to(emsdk_path)
+                        relative_path = header_path.relative_to(sysroot_include)
 
                         # Create target directory and copy file
                         target_path = emsdk_headers_dir / relative_path
@@ -83,7 +97,10 @@ def get_emsdk_headers(output_path: Path) -> int:
 
 
 def list_emsdk_headers() -> int:
-    """List all EMSDK header files and return exit code.
+    """List EMSDK header files that are actually used during compilation and return exit code.
+
+    Only lists headers from the sysroot include directory that are bound to during compilation,
+    rather than listing the entire EMSDK tree.
 
     This is a legacy function that prints headers to stdout.
     Use get_emsdk_headers() to save headers to a zip file.
@@ -94,18 +111,29 @@ def list_emsdk_headers() -> int:
         print(f"Error: EMSDK path {EMSDK_PATH} does not exist")
         return 1
 
-    print(f"EMSDK Headers from {EMSDK_PATH}:")
+    # Use only the sysroot include directory that is actually used during compilation
+    sysroot_include = (
+        emsdk_path / "upstream" / "emscripten" / "cache" / "sysroot" / "include"
+    )
+
+    if not sysroot_include.exists():
+        print(f"Error: EMSDK sysroot include path does not exist: {sysroot_include}")
+        return 1
+
+    print(
+        f"EMSDK Headers from sysroot (actually used during compilation): {sysroot_include}"
+    )
     print("=" * 50)
 
     header_extensions = {".h", ".hpp", ".hh", ".h++", ".hxx"}
     header_count = 0
 
     try:
-        for root, dirs, files in os.walk(emsdk_path):
+        for root, dirs, files in os.walk(sysroot_include):
             for file in files:
                 if any(file.endswith(ext) for ext in header_extensions):
                     header_path = Path(root) / file
-                    relative_path = header_path.relative_to(emsdk_path)
+                    relative_path = header_path.relative_to(sysroot_include)
                     print(f"  {relative_path}")
                     header_count += 1
 
