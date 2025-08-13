@@ -348,8 +348,8 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
             f"🐛 Debug mode: DWARF debug info will be generated at {dwarf_file}"
         )
 
-    # Gather all .cpp and .ino files in sketch dir
-    sources = list(sketch_dir.glob("*.cpp")) + list(sketch_dir.glob("*.ino"))
+    # Gather all .cpp and .ino files in sketch dir and subdirectories
+    sources = list(sketch_dir.rglob("*.cpp")) + list(sketch_dir.rglob("*.ino"))
     if not sources:
         raise RuntimeError(f"No .cpp or .ino files found in {sketch_dir}")
 
