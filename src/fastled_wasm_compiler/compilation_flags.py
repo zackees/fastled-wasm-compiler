@@ -268,6 +268,7 @@ class CompilationFlags:
         build_mode: str,
         fastled_src_path: str,
         strict_mode: bool = False,
+        sketch_dir: Path | None = None,
     ) -> list[str]:
         """Get complete compilation flags for a specific use case."""
         if compilation_type not in ["sketch", "library"]:
@@ -278,6 +279,10 @@ class CompilationFlags:
         # Base flags (common to all)
         flags.extend(self.get_base_flags())
         flags.extend(self.get_include_flags(fastled_src_path))
+
+        # Add sketch directory as include path for sketch compilation
+        if compilation_type == "sketch" and sketch_dir is not None:
+            flags.append(f"-I{sketch_dir.as_posix()}")
 
         # Type-specific flags
         if compilation_type == "sketch":

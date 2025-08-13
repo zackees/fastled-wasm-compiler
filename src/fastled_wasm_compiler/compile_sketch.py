@@ -185,6 +185,7 @@ CXX = "/build_tools/ccache-emcxx.sh"
 def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
+    sketch_dir: Path,
 ) -> tuple[subprocess.CompletedProcess, Path, str]:
     import time
 
@@ -202,6 +203,7 @@ def compile_cpp_to_obj(
         build_mode=build_mode,
         fastled_src_path=fastled_src_path,
         strict_mode=False,  # Could be made configurable later
+        sketch_dir=sketch_dir,  # Add the sketch root directory
     )
 
     # Get just the build mode flags for display
@@ -368,6 +370,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
         build_mode=build_mode,
         fastled_src_path=fastled_src_path,
         strict_mode=False,
+        sketch_dir=sketch_dir,
     )
 
     linker = os.environ.get("LINKER", "lld")
@@ -445,7 +448,9 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all compilation tasks
         future_to_src = {
-            executor.submit(compile_cpp_to_obj, src_file, build_mode): src_file
+            executor.submit(
+                compile_cpp_to_obj, src_file, build_mode, sketch_dir
+            ): src_file
             for src_file in sources
         }
 
