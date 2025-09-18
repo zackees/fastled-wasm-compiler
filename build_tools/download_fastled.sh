@@ -24,7 +24,7 @@ sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alig
 cd "${FASTLED_ROOT}/src/platforms"
 shopt -s extglob  # enable extended globing
 for d in */; do
-  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* ]]; then
+  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* && ! "$d" == *arm* ]]; then
     rm -rf "$d"
   fi
 done

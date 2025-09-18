@@ -86,6 +86,9 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
             "-o",
             "-path",
             "*/platforms/posix/*",
+            "-o",
+            "-path",
+            "*/platforms/arm/*",
             ")",
         ]
     )
@@ -130,7 +133,7 @@ def _should_include_platforms_path(file_path: Path, src_dir: Path) -> bool:
             return True
 
         # If in allowed subdirectories, include it
-        if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix"]:
+        if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
             return True
 
         # Otherwise exclude (platforms/arduino/, platforms/esp32/, etc.)
