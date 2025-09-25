@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import fasteners
@@ -20,7 +20,7 @@ from fastled_wasm_compiler.paths import (
 )
 from fastled_wasm_compiler.print_banner import print_banner
 from fastled_wasm_compiler.run_compile import run_compile as run_compiler_with_args
-from fastled_wasm_compiler.sync import sync_fastled
+from fastled_wasm_compiler.sync import SyncResult, sync_fastled
 
 _RW_LOCK = fasteners.ReaderWriterLock()
 
@@ -32,6 +32,12 @@ class UpdateSrcResult:
     files_changed: list[Path]
     stdout: str
     error: Exception | None
+    library_affecting_files: list[Path] = field(default_factory=list)
+    asset_only_files: list[Path] = field(default_factory=list)
+
+    def requires_library_rebuild(self) -> bool:
+        """Return True if library rebuild is required based on changed files."""
+        return len(self.library_affecting_files) > 0
 
 
 @dataclass
@@ -320,6 +326,8 @@ class CompilerImpl:
                     files_changed=[],
                     stdout=error_msg,
                     error=ValueError(error_msg),
+                    library_affecting_files=[],
+                    asset_only_files=[],
                 )
 
             if not src_to_merge_from.exists():
@@ -330,6 +338,8 @@ class CompilerImpl:
                     files_changed=[],
                     stdout=msg,
                     error=None,
+                    library_affecting_files=[],
+                    asset_only_files=[],
                 )
 
             if not (src_to_merge_from / "FastLED.h").exists():
@@ -339,6 +349,8 @@ class CompilerImpl:
                     files_changed=[],
                     stdout=error_msg,
                     error=FileNotFoundError(error_msg),
+                    library_affecting_files=[],
+                    asset_only_files=[],
                 )
 
             # Determine build modes - use the modes specified during initialization
@@ -352,9 +364,10 @@ class CompilerImpl:
                 print("Forcing recompilation of all libraries")
 
             # First check what files will change
-            files_will_change: list[Path] = sync_fastled(
+            dryrun_result: SyncResult = sync_fastled(
                 src=src_to_merge_from, dst=FASTLED_SRC, dryrun=True
             )
+            files_will_change = dryrun_result.all_changed_files
 
             # If no files will change and no libraries are missing, skip everything
             if not files_will_change and not force_recompile:
@@ -366,7 +379,13 @@ class CompilerImpl:
                     files_changed=[],
                     stdout="No files changed and all libraries present, skipping sync and rebuild",
                     error=None,
+                    library_affecting_files=[],
+                    asset_only_files=[],
                 )
+
+            # Initialize variables that may be used later
+            sync_result: SyncResult | None = None
+            files_changed: list[Path] = []
 
             # If files will change, show what changed
             if files_will_change:
@@ -380,17 +399,19 @@ class CompilerImpl:
                 # Perform the actual sync, this time behind the write lock
                 with self.rwlock.write_lock():
                     print("Performing code sync and rebuild")
-                    files_changed = sync_fastled(
+                    sync_result = sync_fastled(
                         src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
                     )
 
-                if not files_changed:
+                if not sync_result.all_changed_files:
                     msg = "No files changed after sync and rebuild, but files were expected to change"
                     print(msg)
                     return UpdateSrcResult(
                         files_changed=[],
                         stdout=msg,
                         error=None,
+                        library_affecting_files=[],
+                        asset_only_files=[],
                     )
             else:
                 # If we reach here, force_recompile is True but no files changed
@@ -400,15 +421,32 @@ class CompilerImpl:
                     "No source files changed, but recompiling due to missing libraries"
                 )
 
-            # Compile the libraries (either because files changed or libraries are missing)
-            # Use centralized archive mode detection and validation
-            print_banner("Compiling libraries with updated source...")
-            result: BuildResult = compile_all_libs(
-                FASTLED_SRC.as_posix(),
-                str(BUILD_ROOT),
-                build_modes=build_modes,
-                # archive_type defaults to None, which uses centralized detection and validation
-            )
+            # Determine if we need to rebuild libraries
+            if sync_result is not None:
+                # We performed a sync - check if library-affecting files changed
+                needs_library_rebuild = sync_result.requires_library_rebuild()
+            else:
+                # force_recompile case with missing libraries - always rebuild
+                needs_library_rebuild = True
+
+            if needs_library_rebuild:
+                print_banner("Compiling libraries with updated source...")
+                result: BuildResult = compile_all_libs(
+                    FASTLED_SRC.as_posix(),
+                    str(BUILD_ROOT),
+                    build_modes=build_modes,
+                    # archive_type defaults to None, which uses centralized detection and validation
+                )
+            else:
+                print_banner(
+                    "Skipping library recompilation - only asset files changed"
+                )
+                # Create a successful build result to continue processing
+                result = BuildResult(
+                    return_code=0,
+                    duration=0.0,
+                    stdout="Skipped library rebuild - asset-only changes",
+                )
 
             if result.return_code != 0:
                 # Compilation failed - restore backups before reporting error
@@ -424,6 +462,8 @@ class CompilerImpl:
                     files_changed=[],
                     stdout=stdout,
                     error=RuntimeError(stdout),
+                    library_affecting_files=[],
+                    asset_only_files=[],
                 )
 
             # Verify the build output - check for expected archive type based on configuration
@@ -449,6 +489,8 @@ class CompilerImpl:
                         files_changed=[],
                         stdout=error_msg,
                         error=FileNotFoundError(error_msg),
+                        library_affecting_files=[],
+                        asset_only_files=[],
                     )
 
             print_banner("Library compilation completed successfully")
@@ -456,11 +498,23 @@ class CompilerImpl:
             # Clean up backups on successful compilation
             self._clear_library_backups()
 
-            return UpdateSrcResult(
-                files_changed=files_changed,
-                stdout="Library compilation completed successfully",
-                error=None,
-            )
+            # Return the sync result with proper file classification
+            if sync_result is not None:
+                return UpdateSrcResult(
+                    files_changed=sync_result.all_changed_files,
+                    stdout="Library compilation completed successfully",
+                    error=None,
+                    library_affecting_files=sync_result.library_affecting_files,
+                    asset_only_files=sync_result.asset_only_files,
+                )
+            else:
+                return UpdateSrcResult(
+                    files_changed=files_changed,
+                    stdout="Library compilation completed successfully",
+                    error=None,
+                    library_affecting_files=[],
+                    asset_only_files=[],
+                )
 
         except Exception as e:
             # Unexpected error - restore backups before reporting error
@@ -473,4 +527,6 @@ class CompilerImpl:
                 files_changed=[],
                 stdout=error_msg,
                 error=RuntimeError(error_msg),
+                library_affecting_files=[],
+                asset_only_files=[],
             )

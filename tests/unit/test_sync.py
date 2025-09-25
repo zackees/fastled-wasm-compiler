@@ -142,13 +142,15 @@ class ExtensionFilteringTester(unittest.TestCase):
             )
 
             # Perform sync
-            changed_files = sync_fastled(
+            sync_result = sync_fastled(
                 src_dir, dst_dir, dryrun=False, sync_examples=False
             )
 
             # Verify sync completed successfully
-            self.assertIsInstance(changed_files, list)
-            self.assertEqual(len(changed_files), len(allowed_files))
+            from fastled_wasm_compiler.sync import SyncResult
+
+            self.assertIsInstance(sync_result, SyncResult)
+            self.assertEqual(len(sync_result.all_changed_files), len(allowed_files))
 
             # Check that all allowed files were copied
             dst_files = {

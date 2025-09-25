@@ -2,6 +2,7 @@ import logging
 import subprocess
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 
 from .line_ending_pool import get_line_ending_pool
@@ -47,6 +48,60 @@ ALLOWED_EXTENSIONS = [
     "*.ini",  # Configuration files
     "*.toml",  # TOML configuration files
 ]
+
+# Extensions that require library rebuild when changed
+LIBRARY_AFFECTING_EXTENSIONS = [
+    "*.c",
+    "*.cc",
+    "*.cpp",
+    "*.cxx",
+    "*.c++",  # C/C++ source files
+    "*.h",
+    "*.hh",
+    "*.hpp",
+    "*.hxx",
+    "*.h++",  # C/C++ header files
+    "*.txt",  # Text files (may contain build configs)
+    "*.ini",  # Configuration files
+    "*.toml",  # TOML configuration files
+]
+
+# Extensions that are assets only (don't require library rebuild)
+ASSET_ONLY_EXTENSIONS = [
+    "*.js",
+    "*.mjs",  # JavaScript files
+    "*.html",  # HTML files
+    "*.css",  # CSS files
+]
+
+
+@dataclass
+class SyncResult:
+    """Result from sync operation with file classification."""
+
+    all_changed_files: list[Path]
+    library_affecting_files: list[Path]
+    asset_only_files: list[Path]
+
+    def requires_library_rebuild(self) -> bool:
+        """Return True if library rebuild is required."""
+        return len(self.library_affecting_files) > 0
+
+
+def _is_library_affecting_file(file_path: Path) -> bool:
+    """Check if a file change should trigger library rebuild."""
+    for pattern in LIBRARY_AFFECTING_EXTENSIONS:
+        if file_path.match(pattern):
+            return True
+    return False
+
+
+def _is_asset_only_file(file_path: Path) -> bool:
+    """Check if a file is an asset that doesn't affect library compilation."""
+    for pattern in ASSET_ONLY_EXTENSIONS:
+        if file_path.match(pattern):
+            return True
+    return False
 
 
 def _find_files_with_extensions(src_dir: Path) -> list[Path]:
@@ -160,7 +215,7 @@ def _find_files_python_fallback(src_dir: Path) -> list[Path]:
     return files
 
 
-def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
+def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
     """Sync a directory using fast Unix find command for file discovery."""
     assert src.is_dir(), f"Source {src} is not a directory"
 
@@ -219,6 +274,9 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
     files_processed = 0
     files_updated = 0
     files_unchanged = 0
+    library_affecting_files = []
+    asset_only_files = []
+
     try:
         for rel_file, future in line_ending_futures.items():
             try:
@@ -234,7 +292,16 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
                         dst_file = dst / rel_file
                         changed_files.append(dst_file)
                         files_updated += 1
-                        print(f"  Updated: {rel_file}")
+
+                        # Classify the changed file
+                        if _is_library_affecting_file(rel_file):
+                            library_affecting_files.append(dst_file)
+                            print(f"  Updated (lib): {rel_file}")
+                        elif _is_asset_only_file(rel_file):
+                            asset_only_files.append(dst_file)
+                            print(f"  Updated (asset): {rel_file}")
+                        else:
+                            print(f"  Updated: {rel_file}")
                     else:
                         # Files were same, no action needed
                         files_unchanged += 1
@@ -250,7 +317,15 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
         print(
             f"  Summary: {files_processed} files processed, {files_updated} updated, {files_unchanged} unchanged"
         )
-        if files_updated == 0:
+        if len(library_affecting_files) > 0:
+            print(
+                f"  {len(library_affecting_files)} library-affecting files changed - libfastled will be rebuilt"
+            )
+        elif len(asset_only_files) > 0:
+            print(
+                f"  {len(asset_only_files)} asset-only files changed - libfastled recompilation will be skipped"
+            )
+        elif files_updated == 0:
             print(
                 "  No files were updated - libfastled recompilation will be suppressed if libraries exist"
             )
@@ -266,7 +341,14 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
         # Shutdown the process pool
         # The line_ending_pool is now a global singleton, no explicit shutdown needed here
         # _line_ending_pool.shutdown()
-        # Re-raise the KeyboardInterrupt for the caller to handle
+
+        # Properly interrupt the main thread
+        import _thread
+
+        _thread.interrupt_main()
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during sync: {e}")
         raise
 
     # The old file processing logic is no longer needed since workers handle everything
@@ -301,34 +383,49 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> list[Path]:
             "Received KeyboardInterrupt during file deletion, shutting down gracefully..."
         )
         # The ThreadPoolExecutor context manager will handle cleanup
+        # Properly interrupt the main thread
+        import _thread
+
+        _thread.interrupt_main()
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during file deletion: {e}")
         raise
 
-    # Add deleted files to changed list
+    # Add deleted files to changed list (deleted files don't affect library rebuild)
     changed_files.extend([dst / f for f in files_to_delete])
 
-    return changed_files
+    return SyncResult(
+        all_changed_files=changed_files,
+        library_affecting_files=library_affecting_files,
+        asset_only_files=asset_only_files,
+    )
 
 
-def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
+def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
     """Sync FastLED examples directory."""
     if src.exists():
         return _sync_directory(src, dst, dryrun)
-    return []
+    return SyncResult(
+        all_changed_files=[], library_affecting_files=[], asset_only_files=[]
+    )
 
 
-def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> list[Path]:
+def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
     """Sync FastLED source directory - now simplified to sync entire src with extension filtering."""
     print(f"Syncing FastLED source from {src} to {dst}")
-    changed_files = _sync_directory(src, dst, dryrun)
+    sync_result = _sync_directory(src, dst, dryrun)
 
-    if changed_files:
-        print(f"Changed files: {len(changed_files)}")
-        for changed_file in changed_files[:10]:  # Show first 10 for brevity
+    if sync_result.all_changed_files:
+        print(f"Changed files: {len(sync_result.all_changed_files)}")
+        for changed_file in sync_result.all_changed_files[
+            :10
+        ]:  # Show first 10 for brevity
             print(f"  {changed_file}")
-        if len(changed_files) > 10:
-            print(f"  ... and {len(changed_files) - 10} more files")
+        if len(sync_result.all_changed_files) > 10:
+            print(f"  ... and {len(sync_result.all_changed_files) - 10} more files")
 
-    return changed_files
+    return sync_result
 
 
 def sync_fastled(
@@ -337,41 +434,64 @@ def sync_fastled(
     dryrun: bool = False,
     sync_examples: bool = True,
     update_timestamps: bool | None = None,
-) -> list[Path]:
-    """Sync the source directory to the destination directory using fast Unix tools."""
+) -> SyncResult:
+    """Sync the source directory to the destination directory with detailed file classification."""
     start = time.time()
 
     if not dst.exists():
         dst.mkdir(parents=True, exist_ok=True)
 
     # Sync the main source directory
-    changed = _sync_fastled_src(src, dst, dryrun=dryrun)
+    sync_result = _sync_fastled_src(src, dst, dryrun=dryrun)
 
-    # Sync examples if requested
+    # Sync examples if requested (examples don't typically affect library rebuild)
     if sync_examples:
         src_examples = src.parent / "examples"
         dst_examples = dst.parent / "examples"
         if src_examples.exists():
-            _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
+            examples_result = _sync_fastled_examples(
+                src_examples, dst_examples, dryrun=dryrun
+            )
+            sync_result.all_changed_files.extend(examples_result.all_changed_files)
+            sync_result.library_affecting_files.extend(
+                examples_result.library_affecting_files
+            )
+            sync_result.asset_only_files.extend(examples_result.asset_only_files)
         else:
             src_examples = src / "examples"
             dst_examples = dst / "examples"
             if src_examples.exists():
-                _sync_fastled_examples(src_examples, dst_examples, dryrun=dryrun)
+                examples_result = _sync_fastled_examples(
+                    src_examples, dst_examples, dryrun=dryrun
+                )
+                sync_result.all_changed_files.extend(examples_result.all_changed_files)
+                sync_result.library_affecting_files.extend(
+                    examples_result.library_affecting_files
+                )
+                sync_result.asset_only_files.extend(examples_result.asset_only_files)
             else:
                 # Check for Blink example
                 src_examples_blink = src / "Blink"
                 dst_examples_blink = dst / "Blink"
                 if src_examples_blink.exists():
-                    _sync_fastled_examples(
+                    examples_result = _sync_fastled_examples(
                         src_examples_blink, dst_examples_blink, dryrun=dryrun
+                    )
+                    sync_result.all_changed_files.extend(
+                        examples_result.all_changed_files
+                    )
+                    sync_result.library_affecting_files.extend(
+                        examples_result.library_affecting_files
+                    )
+                    sync_result.asset_only_files.extend(
+                        examples_result.asset_only_files
                     )
 
     elapsed = time.time() - start
     print(f"Fast sync from {src} to {dst} complete in {elapsed:.2f} seconds")
 
-    # Update source timestamp after successful sync (only if changes were made and timestamps are enabled)
-    if changed:
+    # Update source timestamp after successful sync (only if library-affecting changes were made)
+    if sync_result.requires_library_rebuild():
         # Determine if we should update timestamps
         should_update = update_timestamps
         if should_update is None:
@@ -389,11 +509,11 @@ def sync_fastled(
                 timestamp_manager = get_timestamp_manager()
                 _log_timestamp_operation(
                     "SYNC_UPDATE",
-                    f"Updating source timestamp via sync for {len(changed)} changed files",
+                    f"Updating source timestamp via sync for {len(sync_result.library_affecting_files)} library-affecting changed files",
                     None,
                 )
                 timestamp_manager.update_source_timestamp()
             except (PermissionError, OSError) as e:
                 logger.warning(f"Could not update source timestamp: {e}")
 
-    return changed
+    return sync_result
