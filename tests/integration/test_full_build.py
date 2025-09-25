@@ -715,7 +715,7 @@ class FullBuildTester(unittest.TestCase):
             # Create separate mapped directories for comparison
             mapped_test_dir = MAPPED_DIR.parent / f"mapped_{output_subdir}"
             if mapped_test_dir.exists():
-                shutil.rmtree(mapped_test_dir)
+                shutil.rmtree(mapped_test_dir, ignore_errors=True)
 
             # Copy the original mapped directory structure
             shutil.copytree(MAPPED_DIR, mapped_test_dir)
@@ -725,7 +725,7 @@ class FullBuildTester(unittest.TestCase):
             # The output will be in the fastled_js subdirectory of the sketch
             output_dir = mapped_test_dir / "sketch" / "fastled_js"
             if output_dir.exists():
-                shutil.rmtree(output_dir)
+                shutil.rmtree(output_dir, ignore_errors=True)
 
             cmd_list: list[str] = [
                 "docker",
@@ -907,9 +907,9 @@ class FullBuildTester(unittest.TestCase):
         no_platformio_mapped = MAPPED_DIR.parent / "mapped_no_platformio"
 
         if platformio_mapped.exists():
-            shutil.rmtree(platformio_mapped)
+            shutil.rmtree(platformio_mapped, ignore_errors=True)
         if no_platformio_mapped.exists():
-            shutil.rmtree(no_platformio_mapped)
+            shutil.rmtree(no_platformio_mapped, ignore_errors=True)
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_precompiled_headers_in_quick_mode(self) -> None:
@@ -927,7 +927,7 @@ class FullBuildTester(unittest.TestCase):
             # Create a separate mapped directory for this test
             mapped_test_dir = MAPPED_DIR.parent / f"mapped_pch_{mode}"
             if mapped_test_dir.exists():
-                shutil.rmtree(mapped_test_dir)
+                shutil.rmtree(mapped_test_dir, ignore_errors=True)
 
             # Copy the original mapped directory structure
             shutil.copytree(MAPPED_DIR, mapped_test_dir)
@@ -937,7 +937,7 @@ class FullBuildTester(unittest.TestCase):
             # Clear any existing output
             output_dir = mapped_test_dir / "sketch" / "fastled_js"
             if output_dir.exists():
-                shutil.rmtree(output_dir)
+                shutil.rmtree(output_dir, ignore_errors=True)
 
             cmd_list: list[str] = [
                 "docker",
@@ -1000,7 +1000,7 @@ class FullBuildTester(unittest.TestCase):
 
             # Clean up test directory
             if mapped_test_dir.exists():
-                shutil.rmtree(mapped_test_dir)
+                shutil.rmtree(mapped_test_dir, ignore_errors=True)
 
             return "\n".join(output_lines)
 
@@ -1058,7 +1058,7 @@ class FullBuildTester(unittest.TestCase):
         # Create a temporary directory for headers output
         headers_output_dir = MAPPED_DIR / "headers_output"
         if headers_output_dir.exists():
-            shutil.rmtree(headers_output_dir)
+            shutil.rmtree(headers_output_dir, ignore_errors=True)
         headers_output_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nTesting headers dump functionality (standalone, no compilation)...")
@@ -1084,8 +1084,8 @@ class FullBuildTester(unittest.TestCase):
             print("[SUCCESS] Headers dumped successfully")
             return_code = 0
 
-        except Exception:
-            print("[ERROR] Headers dump failed: {e}")
+        except Exception as e:
+            print(f"[ERROR] Headers dump failed: {e}")
             return_code = 1
 
         # Check if headers dump was successful
@@ -1226,7 +1226,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the headers output directory
         if headers_output_dir.exists():
-            shutil.rmtree(headers_output_dir)
+            shutil.rmtree(headers_output_dir, ignore_errors=True)
 
     @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_pch_staleness_with_volume_mapping_disabled(self) -> None:
@@ -1247,7 +1247,7 @@ class FullBuildTester(unittest.TestCase):
         # Create a separate mapped directory for this test
         mapped_test_dir = MAPPED_DIR.parent / "mapped_pch_staleness"
         if mapped_test_dir.exists():
-            shutil.rmtree(mapped_test_dir)
+            shutil.rmtree(mapped_test_dir, ignore_errors=True)
 
         # Copy the original mapped directory structure
         shutil.copytree(MAPPED_DIR, mapped_test_dir)
@@ -1257,7 +1257,7 @@ class FullBuildTester(unittest.TestCase):
         # Clear any existing output
         output_dir = mapped_test_dir / "sketch" / "fastled_js"
         if output_dir.exists():
-            shutil.rmtree(output_dir)
+            shutil.rmtree(output_dir, ignore_errors=True)
 
         print("")
         print("> Testing PCH staleness with volume mapping DISABLED...")
@@ -1342,7 +1342,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up test directory
         if mapped_test_dir.exists():
-            shutil.rmtree(mapped_test_dir)
+            shutil.rmtree(mapped_test_dir, ignore_errors=True)
 
         full_output = "\n".join(output_lines)
 
