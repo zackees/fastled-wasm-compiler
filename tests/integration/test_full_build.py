@@ -1062,6 +1062,18 @@ class FullBuildTester(unittest.TestCase):
         headers_output_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nTesting headers dump functionality (standalone, no compilation)...")
+        print(f"Output directory: {headers_output_dir}")
+        print(f"Output directory exists: {headers_output_dir.exists()}")
+        print(
+            f"Output directory is writable: {os.access(headers_output_dir.parent, os.W_OK)}"
+        )
+
+        # Debug environment info
+        import platform
+
+        print(f"Platform: {platform.system()}")
+        print(f"Python version: {platform.python_version()}")
+        print(f"CI environment: {os.environ.get('CI', 'Not set')}")
 
         # Use the native CompilerNative API to dump headers directly
         # This avoids the slow Docker compilation and tests just the headers functionality
@@ -1070,25 +1082,68 @@ class FullBuildTester(unittest.TestCase):
 
             print("🔧 Creating native compiler instance...")
             compiler = CompilerNative()
+            print("✅ CompilerNative created successfully")
 
             print("📦 Ensuring EMSDK is available...")
             compiler.ensure_emsdk()
+            print("✅ EMSDK ensure completed")
 
             print(f"🔄 Dumping headers to: {headers_output_dir}")
+            print(f"Directory writable check: {os.access(headers_output_dir, os.W_OK)}")
+
             # Use directory output instead of zip for easier testing
             from fastled_wasm_compiler.dump_headers import HeaderDumper
 
+            print("🔨 Creating HeaderDumper instance...")
             header_dumper = HeaderDumper(headers_output_dir, include_source=False)
-            _ = header_dumper.dump_all_headers()
+            print("✅ HeaderDumper created successfully")
+
+            print("🏗️ Starting headers dump...")
+            manifest = header_dumper.dump_all_headers()
+            print(
+                f"✅ Headers dump returned manifest with keys: {list(manifest.keys())}"
+            )
 
             print("[SUCCESS] Headers dumped successfully")
             return_code = 0
 
         except Exception as e:
-            print(f"[ERROR] Headers dump failed: {e}")
+            import sys
+            import traceback
+
+            error_msg = f"Headers dump failed: {e}"
+            traceback_msg = traceback.format_exc()
+
+            print(f"[ERROR] {error_msg}")
+            print(f"[ERROR TYPE] {type(e).__name__}")
+            print(f"[ERROR ARGS] {e.args}")
+            print(f"[TRACEBACK]\n{traceback_msg}")
+
+            # Also write to stderr to ensure it's captured in CI logs
+            sys.stderr.write(f"HEADERS_DUMP_ERROR: {error_msg}\n")
+            sys.stderr.write(f"HEADERS_DUMP_TRACEBACK:\n{traceback_msg}\n")
+            sys.stderr.flush()
+
             return_code = 1
 
         # Check if headers dump was successful
+        if return_code != 0:
+            # Provide more context in the failure message
+            error_context = f"""
+Headers dump failed with return_code={return_code}
+Output directory: {headers_output_dir}
+Directory exists: {headers_output_dir.exists() if headers_output_dir else 'N/A'}
+Platform: {platform.system()}
+CI: {os.environ.get('CI', 'Not set')}
+Python version: {platform.python_version()}
+
+This test creates a CompilerNative instance, ensures EMSDK, and then uses HeaderDumper
+to dump FastLED and WASM headers. The failure occurred during this process.
+
+Check the detailed error output above for the exact exception and traceback.
+            """
+            self.fail(f"Headers dump failed: {error_context.strip()}")
+
         self.assertEqual(return_code, 0, "Headers dump failed")
 
         # Verify the headers directory structure exists
