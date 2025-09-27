@@ -198,6 +198,134 @@ def _should_include_platforms_path(file_path: Path, src_dir: Path) -> bool:
         return True
 
 
+def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResult:
+    """
+    Sync web assets (*.js, *.css, *.html) using rsync for simplicity.
+    This bypasses change detection and always syncs, allowing deletions.
+    """
+    if not src.exists():
+        return SyncResult(
+            all_changed_files=[], library_affecting_files=[], asset_only_files=[]
+        )
+
+    if not dst.exists():
+        if not dryrun:
+            dst.mkdir(parents=True, exist_ok=True)
+
+    # Build rsync command for web assets only
+    # Include only the extensions we want to sync unconditionally
+    rsync_cmd = [
+        "rsync",
+        "-av",
+        "--delete",
+        "--include=*.js",
+        "--include=*.css",
+        "--include=*.html",
+        "--include=*/",  # Include directories
+        "--exclude=*",  # Exclude everything else
+        f"{src}/",
+        f"{dst}/",
+    ]
+
+    try:
+        if not dryrun:
+            result = subprocess.run(
+                rsync_cmd, capture_output=True, text=True, check=True
+            )
+            print(f"Rsync web assets from {src} to {dst}")
+            if result.stdout.strip():
+                print(f"Rsync output: {result.stdout.strip()}")
+        else:
+            print(f"[DRY RUN] Would rsync web assets from {src} to {dst}")
+
+        # For simplicity, assume all web assets are "changed" since we're not doing change detection
+        # This ensures proper classification but doesn't affect library rebuild decisions
+        web_asset_files = []
+        for pattern in ["*.js", "*.css", "*.html"]:
+            web_asset_files.extend(dst.glob(f"**/{pattern}"))
+
+        return SyncResult(
+            all_changed_files=web_asset_files,
+            library_affecting_files=[],  # Web assets never affect library
+            asset_only_files=web_asset_files,
+        )
+
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        logger.warning(f"Rsync command failed ({e}), falling back to regular sync")
+        # Fall back to regular sync if rsync fails, but filter to only web assets
+        return _sync_web_assets_manual(src, dst, dryrun)
+
+
+def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
+    """
+    Manual sync for web assets when rsync is not available.
+    Only syncs *.js, *.css, *.html files and handles deletions.
+    """
+    if not src.exists():
+        return SyncResult(
+            all_changed_files=[], library_affecting_files=[], asset_only_files=[]
+        )
+
+    if not dst.exists():
+        if not dryrun:
+            dst.mkdir(parents=True, exist_ok=True)
+
+    web_extensions = ["*.js", "*.css", "*.html"]
+    changed_files = []
+
+    # Find all web asset files in source
+    src_web_files = []
+    for pattern in web_extensions:
+        src_web_files.extend(src.rglob(pattern))
+
+    # Convert to relative paths for tracking
+    src_relative = {f.relative_to(src) for f in src_web_files}
+
+    # Find existing web asset files in destination
+    dst_web_files = []
+    if dst.exists():
+        for pattern in web_extensions:
+            dst_web_files.extend(dst.rglob(pattern))
+
+    dst_relative = {f.relative_to(dst) for f in dst_web_files}
+
+    # Copy new/changed files
+    for rel_file in src_relative:
+        src_file = src / rel_file
+        dst_file = dst / rel_file
+
+        # Create parent directory if needed
+        if not dryrun and not dst_file.parent.exists():
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Always copy (unconditional sync)
+        if not dryrun:
+            import shutil
+
+            shutil.copy2(src_file, dst_file)
+
+        changed_files.append(dst_file)
+        print(f"  Updated (asset): {rel_file}")
+
+    # Delete files that no longer exist in source
+    files_to_delete = dst_relative - src_relative
+    for rel_file in files_to_delete:
+        dst_file = dst / rel_file
+        if dst_file.exists() and not dryrun:
+            dst_file.unlink()
+        print(f"  Deleted (asset): {rel_file}")
+
+    print(
+        f"Manual web assets sync: {len(changed_files)} files synced, {len(files_to_delete)} files deleted"
+    )
+
+    return SyncResult(
+        all_changed_files=changed_files,
+        library_affecting_files=[],  # Web assets never affect library
+        asset_only_files=changed_files,
+    )
+
+
 def _find_files_python_fallback(src_dir: Path) -> list[Path]:
     """Fallback Python implementation with platforms filtering when find command is not available."""
     files = []
@@ -412,20 +540,77 @@ def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> SyncRe
 
 
 def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
-    """Sync FastLED source directory - now simplified to sync entire src with extension filtering."""
+    """Sync FastLED source directory with special handling for web assets."""
     print(f"Syncing FastLED source from {src} to {dst}")
-    sync_result = _sync_directory(src, dst, dryrun)
 
-    if sync_result.all_changed_files:
-        print(f"Changed files: {len(sync_result.all_changed_files)}")
-        for changed_file in sync_result.all_changed_files[
+    # Check if there's a platforms/wasm/compiler directory for web assets
+    web_assets_src = src / "platforms" / "wasm" / "compiler"
+    web_assets_dst = dst / "platforms" / "wasm" / "compiler"
+
+    if web_assets_src.exists():
+        print("Found platforms/wasm/compiler - using rsync for web assets")
+        # Sync web assets with rsync first
+        web_assets_result = _sync_web_assets_with_rsync(
+            web_assets_src, web_assets_dst, dryrun
+        )
+
+        # Sync everything else using regular sync
+        sync_result = _sync_directory(src, dst, dryrun)
+
+        # Merge results, but avoid double-counting web asset files
+        # Remove web asset files from the regular sync result to avoid duplicates
+        filtered_all_files = []
+        filtered_asset_files = []
+
+        for file_path in sync_result.all_changed_files:
+            try:
+                rel_path = file_path.relative_to(dst)
+                if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
+                    file_path.match(pattern) for pattern in ["*.js", "*.css", "*.html"]
+                ):
+                    # Skip - this was handled by rsync
+                    continue
+                else:
+                    filtered_all_files.append(file_path)
+            except ValueError:
+                # File not relative to dst, keep it
+                filtered_all_files.append(file_path)
+
+        for file_path in sync_result.asset_only_files:
+            try:
+                rel_path = file_path.relative_to(dst)
+                if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
+                    file_path.match(pattern) for pattern in ["*.js", "*.css", "*.html"]
+                ):
+                    # Skip - this was handled by rsync
+                    continue
+                else:
+                    filtered_asset_files.append(file_path)
+            except ValueError:
+                # File not relative to dst, keep it
+                filtered_asset_files.append(file_path)
+
+        # Combine results
+        combined_result = SyncResult(
+            all_changed_files=filtered_all_files + web_assets_result.all_changed_files,
+            library_affecting_files=sync_result.library_affecting_files
+            + web_assets_result.library_affecting_files,
+            asset_only_files=filtered_asset_files + web_assets_result.asset_only_files,
+        )
+    else:
+        # No web assets directory, use regular sync
+        combined_result = _sync_directory(src, dst, dryrun)
+
+    if combined_result.all_changed_files:
+        print(f"Changed files: {len(combined_result.all_changed_files)}")
+        for changed_file in combined_result.all_changed_files[
             :10
         ]:  # Show first 10 for brevity
             print(f"  {changed_file}")
-        if len(sync_result.all_changed_files) > 10:
-            print(f"  ... and {len(sync_result.all_changed_files) - 10} more files")
+        if len(combined_result.all_changed_files) > 10:
+            print(f"  ... and {len(combined_result.all_changed_files) - 10} more files")
 
-    return sync_result
+    return combined_result
 
 
 def sync_fastled(

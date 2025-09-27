@@ -473,3 +473,61 @@ class TestCompilerAssetSync:
 
                 # Verify no library rebuild
                 mock_compile.assert_not_called()
+
+    def test_rsync_web_assets_direct(self, temp_dirs: Dict[str, Path]) -> None:
+        """Test the direct rsync functionality for web assets."""
+        from fastled_wasm_compiler.sync import _sync_web_assets_with_rsync
+
+        # Create web asset files in source
+        assets_src = temp_dirs["assets"]
+        (assets_src / "index.html").write_text("<html><body>Test</body></html>")
+        (assets_src / "index.js").write_text("console.log('test');")
+        (assets_src / "index.css").write_text("body { margin: 0; }")
+        (assets_src / "README.txt").write_text("This should be ignored")
+
+        # Create destination directory
+        assets_dst = temp_dirs["temp"] / "dst_assets"
+
+        # Test rsync sync
+        result = _sync_web_assets_with_rsync(assets_src, assets_dst, dryrun=False)
+
+        # Verify files were synced
+        assert (assets_dst / "index.html").exists()
+        assert (assets_dst / "index.js").exists()
+        assert (assets_dst / "index.css").exists()
+        # README.txt should be excluded by rsync filters
+        assert not (assets_dst / "README.txt").exists()
+
+        # Verify result classification
+        assert len(result.asset_only_files) == 3  # html, js, css
+        assert len(result.library_affecting_files) == 0
+        assert len(result.all_changed_files) == 3
+
+    def test_rsync_web_assets_with_deletion(self, temp_dirs: Dict[str, Path]) -> None:
+        """Test that rsync properly deletes removed files."""
+        from fastled_wasm_compiler.sync import _sync_web_assets_with_rsync
+
+        # Create initial files
+        assets_src = temp_dirs["assets"]
+        assets_dst = temp_dirs["temp"] / "dst_assets"
+        assets_dst.mkdir(parents=True)
+
+        # Create files in both src and dst
+        (assets_src / "keep.html").write_text("<html>Keep</html>")
+        (assets_src / "keep.js").write_text("console.log('keep');")
+        (assets_dst / "keep.html").write_text("<html>Keep</html>")
+        (assets_dst / "keep.js").write_text("console.log('keep');")
+        (assets_dst / "remove.html").write_text("<html>Remove</html>")
+        (assets_dst / "remove.css").write_text("body { color: red; }")
+
+        # First sync - should remove files not in source
+        result = _sync_web_assets_with_rsync(assets_src, assets_dst, dryrun=False)
+
+        # Verify files were properly managed
+        assert (assets_dst / "keep.html").exists()
+        assert (assets_dst / "keep.js").exists()
+        assert not (assets_dst / "remove.html").exists()  # Should be deleted
+        assert not (assets_dst / "remove.css").exists()  # Should be deleted
+
+        # Verify result
+        assert len(result.asset_only_files) == 2  # Only the files that exist
