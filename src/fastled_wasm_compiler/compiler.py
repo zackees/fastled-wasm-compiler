@@ -393,26 +393,46 @@ class CompilerImpl:
                 for file in files_will_change:
                     print(f"File changed: {file.as_posix()}")
 
-                # Delete existing libraries when files have changed
-                self._check_and_delete_libraries(build_modes, "source files changed")
+                # Check if only asset files are changing
+                if not dryrun_result.requires_library_rebuild() and not force_recompile:
+                    # Only asset files changed and no forced recompile - perform sync but skip library rebuild
+                    print(
+                        "Only asset files changed - performing sync without library rebuild"
+                    )
+                    with self.rwlock.write_lock():
+                        print("Performing code sync for asset files")
+                        sync_result = sync_fastled(
+                            src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                        )
 
-                # Perform the actual sync, this time behind the write lock
-                with self.rwlock.write_lock():
-                    print("Performing code sync and rebuild")
-                    sync_result = sync_fastled(
-                        src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                    # Even if the second sync returns no changes (due to dry run side effects),
+                    # we know from the first dry run that asset files changed
+                    if not sync_result.all_changed_files:
+                        # Use the dry run result since it has the correct classification
+                        sync_result = dryrun_result
+                else:
+                    # Library-affecting files changed or forced recompile - delete libraries and rebuild
+                    self._check_and_delete_libraries(
+                        build_modes, "source files changed"
                     )
 
-                if not sync_result.all_changed_files:
-                    msg = "No files changed after sync and rebuild, but files were expected to change"
-                    print(msg)
-                    return UpdateSrcResult(
-                        files_changed=[],
-                        stdout=msg,
-                        error=None,
-                        library_affecting_files=[],
-                        asset_only_files=[],
-                    )
+                    # Perform the actual sync, this time behind the write lock
+                    with self.rwlock.write_lock():
+                        print("Performing code sync and rebuild")
+                        sync_result = sync_fastled(
+                            src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
+                        )
+
+                    if not sync_result.all_changed_files:
+                        msg = "No files changed after sync and rebuild, but files were expected to change"
+                        print(msg)
+                        return UpdateSrcResult(
+                            files_changed=[],
+                            stdout=msg,
+                            error=None,
+                            library_affecting_files=[],
+                            asset_only_files=[],
+                        )
             else:
                 # If we reach here, force_recompile is True but no files changed
                 # We still need to compile because libraries are missing
@@ -423,8 +443,10 @@ class CompilerImpl:
 
             # Determine if we need to rebuild libraries
             if sync_result is not None:
-                # We performed a sync - check if library-affecting files changed
-                needs_library_rebuild = sync_result.requires_library_rebuild()
+                # We performed a sync - check if library-affecting files changed OR if force_recompile is set
+                needs_library_rebuild = (
+                    sync_result.requires_library_rebuild() or force_recompile
+                )
             else:
                 # force_recompile case with missing libraries - always rebuild
                 needs_library_rebuild = True
