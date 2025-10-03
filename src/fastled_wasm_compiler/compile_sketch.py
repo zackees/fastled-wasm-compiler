@@ -429,7 +429,12 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     printer.tprint(f"\n📚 FastLED library: {lib_path}")
 
     if not lib_path.exists():
-        printer.tprint(f"⚠️  Warning: FastLED library not found at {lib_path}")
+        printer.tprint(f"❌ ERROR: FastLED library not found at {lib_path}")
+        printer.tprint("💡 This typically means the library compilation failed.")
+        printer.tprint("💡 Check the library build logs above for compilation errors.")
+        return RuntimeError(
+            f"FastLED library not found at {lib_path}. Library compilation may have failed - check build logs for errors."
+        )
     else:
         lib_size = lib_path.stat().st_size
         archive_type = "thin" if "thin" in lib_path.name else "regular"
