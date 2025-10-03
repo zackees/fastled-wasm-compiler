@@ -219,6 +219,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         "-av",
         "--delete",
         "--include=*.js",
+        "--include=*.mjs",
         "--include=*.css",
         "--include=*.html",
         "--include=*/",  # Include directories
@@ -228,26 +229,50 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
     ]
 
     try:
+        changed_files = []
+
         if not dryrun:
             result = subprocess.run(
                 rsync_cmd, capture_output=True, text=True, check=True
             )
             print(f"Rsync web assets from {src} to {dst}")
+
+            # Parse rsync output to identify actually changed files
+            # Rsync with -v outputs changed files one per line
+            # Skip directory entries (ending with /) and metadata lines
             if result.stdout.strip():
-                print(f"Rsync output: {result.stdout.strip()}")
+                for line in result.stdout.strip().split("\n"):
+                    line = line.strip()
+                    # Skip empty lines, directory markers, and rsync metadata
+                    if (
+                        not line
+                        or line.endswith("/")
+                        or line.startswith("sending")
+                        or line.startswith("sent")
+                        or line.startswith("total")
+                    ):
+                        continue
+                    # Check if this is a file with one of our extensions
+                    if any(
+                        line.endswith(ext.replace("*", ""))
+                        for ext in ["*.js", "*.mjs", "*.css", "*.html"]
+                    ):
+                        changed_file = dst / line
+                        if changed_file.exists():
+                            changed_files.append(changed_file)
+
+                if changed_files:
+                    print(f"Rsync updated {len(changed_files)} web asset file(s)")
         else:
             print(f"[DRY RUN] Would rsync web assets from {src} to {dst}")
-
-        # For simplicity, assume all web assets are "changed" since we're not doing change detection
-        # This ensures proper classification but doesn't affect library rebuild decisions
-        web_asset_files = []
-        for pattern in ["*.js", "*.css", "*.html"]:
-            web_asset_files.extend(dst.glob(f"**/{pattern}"))
+            # In dry run mode, scan for all web assets as potential changes
+            for pattern in ["*.js", "*.mjs", "*.css", "*.html"]:
+                changed_files.extend(dst.rglob(pattern))
 
         return SyncResult(
-            all_changed_files=web_asset_files,
+            all_changed_files=changed_files,
             library_affecting_files=[],  # Web assets never affect library
-            asset_only_files=web_asset_files,
+            asset_only_files=changed_files,
         )
 
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
@@ -259,7 +284,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
 def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
     """
     Manual sync for web assets when rsync is not available.
-    Only syncs *.js, *.css, *.html files and handles deletions.
+    Only syncs *.js, *.mjs, *.css, *.html files and handles deletions.
     """
     if not src.exists():
         return SyncResult(
@@ -270,7 +295,7 @@ def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
         if not dryrun:
             dst.mkdir(parents=True, exist_ok=True)
 
-    web_extensions = ["*.js", "*.css", "*.html"]
+    web_extensions = ["*.js", "*.mjs", "*.css", "*.html"]
     changed_files = []
 
     # Find all web asset files in source
@@ -566,7 +591,8 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
             try:
                 rel_path = file_path.relative_to(dst)
                 if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
-                    file_path.match(pattern) for pattern in ["*.js", "*.css", "*.html"]
+                    file_path.match(pattern)
+                    for pattern in ["*.js", "*.mjs", "*.css", "*.html"]
                 ):
                     # Skip - this was handled by rsync
                     continue
@@ -580,7 +606,8 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
             try:
                 rel_path = file_path.relative_to(dst)
                 if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
-                    file_path.match(pattern) for pattern in ["*.js", "*.css", "*.html"]
+                    file_path.match(pattern)
+                    for pattern in ["*.js", "*.mjs", "*.css", "*.html"]
                 ):
                     # Skip - this was handled by rsync
                     continue
