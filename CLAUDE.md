@@ -82,3 +82,7 @@ The project includes Docker support:
 3. Run `./lint` before committing to ensure code quality
 4. Run `./test` to verify functionality
 5. The system uses ccache for build acceleration and supports clearing cache with `--clear-ccache`
+
+### Code Quality Command
+
+- `codeup` - Run complete code quality check (linting + all tests). **Note**: This command can take up to 15 minutes due to Docker-based integration tests. When using automated tools, ensure timeouts are set to at least 15 minutes (900000ms).
