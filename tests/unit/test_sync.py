@@ -36,6 +36,28 @@ def _get_first_directory(src: Path) -> Path:
 class ExtensionFilteringTester(unittest.TestCase):
     """Test class for extension-based file filtering functionality."""
 
+    def setUp(self) -> None:
+        """Check if Unix find command is available (not on Windows).
+
+        Note: The sync code automatically uses Python fallback on Windows because
+        Git Bash's find command has issues with Windows paths and complex expressions.
+        On Unix-like systems, we check if find is available and skip if it's not,
+        though the Python fallback would be used automatically in that case.
+        """
+        import shutil
+        import sys
+
+        # On Windows, we always use Python fallback, so find command isn't needed
+        if sys.platform == "win32":
+            return
+
+        # On Unix-like systems, check if find is available
+        find_cmd = shutil.which("find")
+        if not find_cmd:
+            self.skipTest(
+                "Unix find command not available - file sync will use Python fallback"
+            )
+
     def test_extension_filtering(self) -> None:
         """Test that only files with allowed extensions are synced and unsuffixed files are excluded."""
         with tempfile.TemporaryDirectory() as tmpdir:
