@@ -423,7 +423,7 @@ class CompilerImpl:
                             src=src_to_merge_from, dst=FASTLED_SRC, dryrun=False
                         )
 
-                    if not sync_result.all_changed_files:
+                    if not sync_result.all_changed_files and not force_recompile:
                         msg = "No files changed after sync and rebuild, but files were expected to change"
                         print(msg)
                         return UpdateSrcResult(
@@ -432,6 +432,11 @@ class CompilerImpl:
                             error=None,
                             library_affecting_files=[],
                             asset_only_files=[],
+                        )
+                    elif not sync_result.all_changed_files and force_recompile:
+                        # No files changed but libraries are missing - continue to rebuild
+                        print(
+                            "No files changed after sync, but continuing to rebuild missing libraries"
                         )
             else:
                 # If we reach here, force_recompile is True but no files changed

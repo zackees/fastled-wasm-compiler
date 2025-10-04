@@ -531,3 +531,53 @@ class TestCompilerAssetSync:
 
         # Verify result
         assert len(result.asset_only_files) == 2  # Only the files that exist
+
+    def test_missing_libraries_with_empty_sync_result(
+        self, mock_compiler: Any, temp_dirs: Dict[str, Path]
+    ) -> None:
+        """Test exact bug scenario: missing libraries + dry run shows assets + actual sync empty.
+
+        This is the specific bug from the error report where:
+        1. Libraries are missing (force_recompile=True)
+        2. Dry run shows asset changes (26 web files)
+        3. Actual sync returns empty (because assets were already synced)
+        4. Bug: code returned early without rebuilding libraries
+        5. Fix: check force_recompile before early return
+        """
+        # Mock missing libraries
+        mock_compiler._check_missing_libraries = Mock(return_value=["quick"])
+
+        # Dry run shows asset changes
+        changed_file = temp_dirs["dst"] / "platforms" / "wasm" / "compiler" / "index.js"
+        dry_run_result = self.create_sync_result(
+            all_files=[changed_file], library_files=[], asset_files=[changed_file]
+        )
+
+        # Actual sync returns EMPTY (key part of the bug)
+        actual_sync_result = self.create_sync_result(
+            all_files=[], library_files=[], asset_files=[]
+        )
+
+        with patch("fastled_wasm_compiler.compiler.sync_fastled") as mock_sync:
+            mock_sync.side_effect = [dry_run_result, actual_sync_result]
+
+            with patch(
+                "fastled_wasm_compiler.compiler.compile_all_libs"
+            ) as mock_compile:
+                # Create libraries after compilation to pass verification
+                def create_libraries_side_effect(*args: Any, **kwargs: Any) -> Mock:
+                    lib_file = temp_dirs["temp"] / "build" / "quick" / "libfastled.a"
+                    lib_file.parent.mkdir(parents=True, exist_ok=True)
+                    lib_file.write_text("compiled library")
+                    return Mock(return_code=0, duration=1.0, stdout="Success")
+
+                mock_compile.side_effect = create_libraries_side_effect
+
+                result = mock_compiler.update_src(src_to_merge_from=temp_dirs["src"])
+
+                # THE FIX: Even though actual sync returned empty,
+                # libraries were missing, so compilation MUST be triggered
+                mock_compile.assert_called_once()
+
+                # Should not have an error
+                assert result.error is None
