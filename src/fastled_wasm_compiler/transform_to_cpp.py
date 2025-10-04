@@ -14,6 +14,10 @@ def transform_to_cpp(src_dir: Path) -> None:
             main_cpp.rename(src_dir / "main2.hpp")
 
         new_cpp_file = ino_file.with_suffix(".ino.cpp")
+        # Remove existing .ino.cpp file if it exists (prevents stale cache issues)
+        if new_cpp_file.exists():
+            print(f"Removing existing {new_cpp_file.name} to prevent stale cache")
+            new_cpp_file.unlink()
         print(f"Renaming {ino_file} to {new_cpp_file.name}")
         ino_file.rename(new_cpp_file)
 

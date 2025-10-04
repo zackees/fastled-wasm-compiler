@@ -109,8 +109,26 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
     if not src_dir.exists():
         return []
 
+    # On Windows, the find command from Git bash has issues with complex path expressions
+    # and Windows-style paths, so we use the Python fallback instead
+    import sys
+
+    if sys.platform == "win32":
+        return _find_files_python_fallback(src_dir)
+
+    # Get the correct find command path to avoid Windows FIND.EXE on Unix-like systems
+    import shutil
+
+    find_executable = shutil.which("find")
+    if not find_executable:
+        # Fallback to Python if find command not available
+        logger.warning(
+            "Find command not found in PATH, falling back to Python scanning"
+        )
+        return _find_files_python_fallback(src_dir)
+
     # Build find command with extension filters
-    find_cmd = ["find", str(src_dir), "-type", "f"]
+    find_cmd = [find_executable, str(src_dir), "-type", "f"]
 
     # Add platforms directory filtering:
     # Include: files NOT in platforms/, OR files in platforms/shared/, platforms/wasm/, platforms/stub/, OR files directly in platforms/
@@ -168,7 +186,7 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
 
         return files
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        # Fallback to Python if find command fails or not available (Windows)
+        # Fallback to Python if find command fails or not available
         logger.warning(f"Find command failed ({e}), falling back to Python scanning")
         return _find_files_python_fallback(src_dir)
 
@@ -212,10 +230,18 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         if not dryrun:
             dst.mkdir(parents=True, exist_ok=True)
 
+    # Get the correct rsync command path
+    import shutil
+
+    rsync_executable = shutil.which("rsync")
+    if not rsync_executable:
+        logger.warning("Rsync command not found, falling back to manual sync")
+        return _sync_web_assets_manual(src, dst, dryrun)
+
     # Build rsync command for web assets only
     # Include only the extensions we want to sync unconditionally
     rsync_cmd = [
-        "rsync",
+        rsync_executable,
         "-av",
         "--delete",
         "--include=*.js",

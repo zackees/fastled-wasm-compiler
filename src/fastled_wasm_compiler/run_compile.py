@@ -156,19 +156,24 @@ def run_compile(args: Args) -> int:
         do_insert_header = not any_only_flags or args.only_insert_header
         do_compile = not any_only_flags or args.only_compile
 
-        if not any_only_flags:
-            if sketch_tmp.exists():
-                print(f"Normal build, so removing {sketch_tmp}")
-                shutil.rmtree(sketch_tmp)
+        # Always clean sketch_tmp before copying to ensure fresh files
+        # This prevents stale cached files from being compiled
+        if sketch_tmp.exists() and (do_copy or not any_only_flags):
+            print(f"Cleaning sketch directory to ensure fresh files: {sketch_tmp}")
+            shutil.rmtree(sketch_tmp)
 
         sketch_tmp.mkdir(parents=True, exist_ok=True)
 
-        if do_copy:
+        # Always copy fresh files when compiling (unless --only-insert-header without copy)
+        # This ensures the compiler never uses stale cached source files
+        if do_copy or do_compile:
             copy_files(src_dir, sketch_tmp)
             if args.only_copy:
                 return 0
 
-        if do_insert_header:
+        # Always run header insertion when compiling to ensure .ino files are transformed
+        # This prevents stale .ino.cpp files from being used
+        if do_insert_header or do_compile:
             process_ino_files(sketch_tmp)
             if args.only_insert_header:
                 print("Transform to cpp and insert header operations completed.")
