@@ -159,6 +159,64 @@ def _run_cmd_and_stream(
     )
 
 
+def _ensure_libfastled_exists(
+    lib_path: Path, build_mode: str, printer: TimestampedPrinter
+) -> Exception | None:
+    """Check if libfastled.a exists, and build it if missing.
+
+    Args:
+        lib_path: Path to the expected library file
+        build_mode: Build mode (debug/quick/release)
+        printer: Timestamped printer for output
+
+    Returns:
+        None if successful, Exception if build failed
+    """
+    if lib_path.exists():
+        return None
+
+    # Library is missing - emit warning and build it
+    printer.tprint(f"⚠️  WARNING: libfastled.a was unexpectedly missing at {lib_path}")
+    printer.tprint("🔨 Building missing FastLED library...")
+
+    try:
+        from fastled_wasm_compiler.compile_all_libs import compile_all_libs
+        from fastled_wasm_compiler.paths import BUILD_ROOT
+
+        fastled_src_path = get_fastled_source_path()
+
+        # Build only the required mode
+        result = compile_all_libs(
+            src=fastled_src_path,
+            out=str(BUILD_ROOT),
+            build_modes=[build_mode.lower()],
+        )
+
+        if result.return_code != 0:
+            error_msg = (
+                f"Failed to build missing library with exit code: {result.return_code}"
+            )
+            printer.tprint(f"❌ {error_msg}")
+            return RuntimeError(error_msg)
+
+        # Verify the library was created
+        if not lib_path.exists():
+            error_msg = f"Library build succeeded but file not found at {lib_path}"
+            printer.tprint(f"❌ {error_msg}")
+            return RuntimeError(error_msg)
+
+        lib_size = lib_path.stat().st_size
+        printer.tprint(
+            f"✅ Successfully built missing library: {lib_path} ({lib_size} bytes)"
+        )
+        return None
+
+    except Exception as e:
+        error_msg = f"Exception while building missing library: {e}"
+        printer.tprint(f"❌ {error_msg}")
+        return RuntimeError(error_msg)
+
+
 # Use environment-variable driven FastLED source path
 # In Docker container, this should be set to "/git/fastled/src"
 # On host system, this will use the default from paths.py
@@ -428,19 +486,17 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
 
     printer.tprint(f"\n📚 FastLED library: {lib_path}")
 
-    if not lib_path.exists():
-        printer.tprint(f"❌ ERROR: FastLED library not found at {lib_path}")
-        printer.tprint("💡 This typically means the library compilation failed.")
-        printer.tprint("💡 Check the library build logs above for compilation errors.")
-        return RuntimeError(
-            f"FastLED library not found at {lib_path}. Library compilation may have failed - check build logs for errors."
-        )
-    else:
-        lib_size = lib_path.stat().st_size
-        archive_type = "thin" if "thin" in lib_path.name else "regular"
-        printer.tprint(
-            f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)"
-        )
+    # Check if library exists, and build it if missing
+    build_error = _ensure_libfastled_exists(lib_path, build_mode, printer)
+    if build_error is not None:
+        return build_error
+
+    # Verify library exists after check
+    lib_size = lib_path.stat().st_size
+    archive_type = "thin" if "thin" in lib_path.name else "regular"
+    printer.tprint(
+        f"✓ FastLED library found ({lib_size} bytes, {archive_type} archive)"
+    )
 
     obj_files: list[Path] = []
     printer.tprint(f"\n🔨 Compiling {len(sources)} source files in parallel:")
