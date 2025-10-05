@@ -442,7 +442,7 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
         dst_file = dst / rel_file
         # Submit file for line ending conversion and copying (worker handles everything)
         future = get_line_ending_pool().convert_file_line_endings_async(
-            src_file, dst_file
+            src_file, dst_file, dryrun
         )
         line_ending_futures[rel_file] = future
 

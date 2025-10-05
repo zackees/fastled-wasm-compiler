@@ -19,7 +19,9 @@ from pathlib import Path
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exception:
+def _line_ending_worker(
+    src_path_str: str, dst_path_str: str, dryrun: bool = False
+) -> bool | Exception:
     """Worker function for converting line endings and copying files.
 
     Reads source file, converts line endings, compares with destination, and writes if different.
@@ -27,6 +29,7 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
     Args:
         src_path_str: String path to the source file
         dst_path_str: String path to the destination file
+        dryrun: If True, only check if files would change without writing
 
     Returns:
         bool: True if files were different and update was applied, False if files were same
@@ -167,7 +170,12 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
                 # Content is same and destination is not older - no update needed
                 return False  # Files are the same, no update needed
 
-        # Files are different or destination doesn't exist - write the file
+        # Files are different or destination doesn't exist
+        # In dryrun mode, just report that files would change without writing
+        if dryrun:
+            return True  # Files would be updated in real run
+
+        # Write the file
         try:
             # Ensure parent directory exists
             dst_path.parent.mkdir(parents=True, exist_ok=True)
@@ -204,21 +212,24 @@ def _line_ending_worker(src_path_str: str, dst_path_str: str) -> bool | Exceptio
 
 
 def _queue_worker(
-    input_queue: "mp.Queue[tuple[str, str, str] | None]",
+    input_queue: "mp.Queue[tuple[str, str, str, bool] | None]",
     output_queue: "mp.Queue[tuple[str, bool | Exception]]",
 ) -> None:
     """Queue-based worker process for line ending conversion."""
     while True:
         task_id: str = "unknown"  # Initialize to prevent unbound variable error
         try:
-            item: tuple[str, str, str] | None = input_queue.get()
+            item: tuple[str, str, str, bool] | None = input_queue.get()
             if item is None:  # Shutdown signal
                 break
 
             src_path_str: str
             dst_path_str: str
-            task_id, src_path_str, dst_path_str = item
-            result: bool | Exception = _line_ending_worker(src_path_str, dst_path_str)
+            dryrun: bool
+            task_id, src_path_str, dst_path_str, dryrun = item
+            result: bool | Exception = _line_ending_worker(
+                src_path_str, dst_path_str, dryrun
+            )
             output_queue.put((task_id, result))
 
         except KeyboardInterrupt:
@@ -247,7 +258,7 @@ class LineEndingProcessPool:
         logger.debug(
             f"Initializing line ending queue workers with {self.max_workers} workers"
         )
-        self.input_queue: "mp.Queue[tuple[str, str, str] | None]" = mp.Queue()
+        self.input_queue: "mp.Queue[tuple[str, str, str, bool] | None]" = mp.Queue()
         self.output_queue: "mp.Queue[tuple[str, bool | Exception]]" = mp.Queue()
 
         # Start daemon worker processes
@@ -297,7 +308,7 @@ class LineEndingProcessPool:
         collector_thread.start()
 
     def convert_file_line_endings_async(
-        self, src_path: Path, dst_path: Path
+        self, src_path: Path, dst_path: Path, dryrun: bool = False
     ) -> Future[bool | Exception]:
         """Submit file line ending conversion to the queue (non-blocking)."""
         if self._shutdown_event.is_set():
@@ -311,16 +322,16 @@ class LineEndingProcessPool:
         self.pending_tasks[task_id] = future
 
         # Submit task to input queue
-        self.input_queue.put((task_id, str(src_path), str(dst_path)))
+        self.input_queue.put((task_id, str(src_path), str(dst_path), dryrun))
 
         return future
 
     def convert_file_line_endings(
-        self, src_path: Path, dst_path: Path
+        self, src_path: Path, dst_path: Path, dryrun: bool = False
     ) -> bool | Exception:
         """Submit file line ending conversion to the queue (blocking)."""
         async_result: Future[bool | Exception] = self.convert_file_line_endings_async(
-            src_path, dst_path
+            src_path, dst_path, dryrun
         )
         return async_result.result()
 
