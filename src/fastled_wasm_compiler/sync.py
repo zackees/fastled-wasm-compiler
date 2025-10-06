@@ -10,7 +10,7 @@ from .line_ending_pool import get_line_ending_pool
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
-_LOGGING_ENABLED = True
+_LOGGING_ENABLED = True  # Enable logging for debugging sync issues
 
 # Create formatter with filename and line number
 formatter = logging.Formatter(
@@ -130,59 +130,76 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
     # Build find command with extension filters
     find_cmd = [find_executable, str(src_dir), "-type", "f"]
 
-    # Add platforms directory filtering:
-    # Include: files NOT in platforms/, OR files in platforms/shared/, platforms/wasm/, platforms/stub/, OR files directly in platforms/
-    find_cmd.extend(
-        [
-            "(",
-            # Files not under platforms/ at all
-            "-not",
-            "-path",
-            "*/platforms/*",
-            "-o",
-            # Files directly in platforms/ (not in subdirectories)
-            "-path",
-            "*/platforms/*",
-            "-not",
-            "-path",
-            "*/platforms/*/*",
-            "-o",
-            # Files in allowed platform subdirectories
-            "-path",
-            "*/platforms/shared/*",
-            "-o",
-            "-path",
-            "*/platforms/wasm/*",
-            "-o",
-            "-path",
-            "*/platforms/stub/*",
-            "-o",
-            "-path",
-            "*/platforms/posix/*",
-            "-o",
-            "-path",
-            "*/platforms/arm/*",
-            ")",
-        ]
-    )
-
-    # Add extension filters using -name patterns
+    # Add extension filters using -name patterns FIRST (simpler, more reliable)
     if ALLOWED_EXTENSIONS:
-        find_cmd.extend(["-a", "("])
+        find_cmd.extend(["("])
         for i, ext in enumerate(ALLOWED_EXTENSIONS):
             if i > 0:
                 find_cmd.append("-o")
             find_cmd.extend(["-name", ext])
         find_cmd.append(")")
 
+    # Add platforms directory filtering AFTER extension matching
+    # Exclude unwanted platform directories but keep everything else
+    # This is simpler and more reliable than the previous complex logic
+    find_cmd.extend(["-a", "("])
+    find_cmd.extend(["-not", "-path", "*/platforms/esp32/*"])
+    find_cmd.extend(["-a", "-not", "-path", "*/platforms/esp8266/*"])
+    find_cmd.extend(["-a", "-not", "-path", "*/platforms/avr/*"])
+    find_cmd.extend(["-a", "-not", "-path", "*/platforms/teensy/*"])
+    find_cmd.extend(["-a", "-not", "-path", "*/platforms/rp2040/*"])
+    # Include these platforms
+    # (everything not explicitly excluded above is included)
+    find_cmd.append(")")
+
     try:
         result = subprocess.run(find_cmd, capture_output=True, text=True, check=True)
+
+        # Log the actual find command for debugging
+        logger.info(f"Find command: {' '.join(find_cmd)}")
+
+        # Check for any stderr output that might indicate issues
+        if result.stderr:
+            logger.warning(f"Find command stderr: {result.stderr}")
 
         # Convert output lines to Path objects
         files = []
         for line in result.stdout.strip().split("\n"):
             if line:  # Skip empty lines
                 files.append(Path(line))
+
+        logger.info(f"Find command returned {len(files)} files from {src_dir}")
+
+        # Log fx/ files for debugging
+        fx_files_found = [f for f in files if "/fx/" in str(f) or "\\fx\\" in str(f)]
+        logger.info(
+            f"Find command found {len(fx_files_found)} files in fx/ subdirectory"
+        )
+        if fx_files_found:
+            # Log first few for debugging
+            for fx_file in fx_files_found[:10]:
+                logger.info(f"  fx file: {fx_file}")
+        else:
+            # No fx files found - this is likely the bug!
+            # Check if fx directory even exists
+            fx_check_paths = [
+                src_dir / "fx",
+                src_dir / "fx" / "2d",
+                src_dir / "fx" / "video",
+            ]
+            for check_path in fx_check_paths:
+                if check_path.exists():
+                    logger.warning(
+                        f"WARNING: {check_path} EXISTS but find found NO files in fx/!"
+                    )
+                    # List what's actually in there
+                    try:
+                        contents = list(check_path.glob("*"))
+                        logger.warning(
+                            f"  Contents of {check_path}: {[c.name for c in contents[:10]]}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"  Could not list contents: {e}")
 
         return files
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
@@ -403,9 +420,18 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
 
     # Use fast Unix find command to get source files
     src_files = _find_files_with_extensions(src)
+    logger.info(f"Found {len(src_files)} files in source directory {src}")
+
+    # Log files in fx/ directory for debugging
+    fx_files = [f for f in src_files if "/fx/" in str(f) or "\\fx\\" in str(f)]
+    if fx_files:
+        logger.info(f"Found {len(fx_files)} files in fx/ subdirectory:")
+        for f in fx_files[:10]:  # Log first 10 for brevity
+            logger.info(f"  fx file: {f}")
 
     # Get destination files using the same method
     dst_files = _find_files_with_extensions(dst)
+    logger.info(f"Found {len(dst_files)} files in destination directory {dst}")
 
     # Convert to relative paths for comparison
     src_relative = {f.relative_to(src) for f in src_files}
@@ -593,6 +619,9 @@ def _sync_fastled_examples(src: Path, dst: Path, dryrun: bool = False) -> SyncRe
 def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
     """Sync FastLED source directory with special handling for web assets."""
     print(f"Syncing FastLED source from {src} to {dst}")
+    logger.info(
+        f"_sync_fastled_src called: src={src} (exists={src.exists()}), dst={dst} (exists={dst.exists()}), dryrun={dryrun}"
+    )
 
     # Check if there's a platforms/wasm/compiler directory for web assets
     web_assets_src = src / "platforms" / "wasm" / "compiler"
