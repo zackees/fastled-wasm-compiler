@@ -90,7 +90,7 @@ def load_wasm_compiler_flags(
     # Combine flags from different sections
     all_section = config.get("all", {})
     library_section = config.get("library", {})
-    mode_section = config.get(f"build_modes.{build_mode}", {})
+    mode_section = config.get("build_modes", {}).get(build_mode, {})
 
     # Defines (remove -D prefix if present)
     defines = []

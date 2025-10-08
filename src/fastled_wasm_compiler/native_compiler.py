@@ -765,7 +765,7 @@ class Compiler:
 
     def _should_rebuild_pch(self) -> bool:
         """
-        Check if PCH needs to be rebuilt based on dependency changes.
+        Check if PCH needs to be rebuilt based on dependency changes or compiler flag changes.
 
         Returns:
             True if PCH should be rebuilt, False if cache is valid
@@ -780,6 +780,31 @@ class Compiler:
         # If PCH file doesn't exist, need to build
         if not self._pch_file_path or not self._pch_file_path.exists():
             print("[PCH CACHE] PCH file doesn't exist, rebuilding required")
+            return True
+
+        # Check if compiler flags have changed
+        # This is CRITICAL to avoid "__OPTIMIZE__ predefined macro" mismatches
+        flags_file = self._pch_file_path.with_suffix(".flags")
+        current_flags = sorted(self.settings.compiler_args)
+
+        if flags_file.exists():
+            try:
+                with open(flags_file, "r") as f:
+                    cached_flags = sorted(f.read().strip().split("\n"))
+                if cached_flags != current_flags:
+                    print("[PCH CACHE] Compiler flags changed - PCH rebuild required")
+                    print(f"[PCH CACHE] Cached flags: {' '.join(cached_flags[:5])}...")
+                    print(
+                        f"[PCH CACHE] Current flags: {' '.join(current_flags[:5])}..."
+                    )
+                    return True
+            except Exception as e:
+                print(
+                    f"[PCH CACHE] Error reading flags file: {e} - PCH rebuild required"
+                )
+                return True
+        else:
+            print("[PCH CACHE] Flags file doesn't exist - PCH rebuild required")
             return True
 
         # Get PCH file modification time as baseline
@@ -802,7 +827,9 @@ class Compiler:
                 )
                 return True
 
-        print("[PCH CACHE] All dependencies unchanged - using cached PCH")
+        print(
+            "[PCH CACHE] All dependencies unchanged and flags match - using cached PCH"
+        )
         return False
 
     def create_pch_file(self) -> bool:
@@ -846,7 +873,8 @@ class Compiler:
                 pch_output_path = pch_header_path.with_suffix(".hpp.pch")
 
             # Build PCH compilation command using TOML configuration
-            # compiler_args already contains the full command (e.g., ["emcc", ...flags])
+            # compiler_args already contains the full command including build mode flags
+            # from BuildFlags (compiler_flags + include_flags)
             # No need to add compiler_parts since it would duplicate the compiler
             cmd: list[str] = optimize_python_command(self.settings.compiler_args.copy())
 
@@ -936,6 +964,28 @@ class Compiler:
                     pch_header_path  # Keep track of header file for cleanup
                 )
                 self._pch_ready = True
+
+                # Copy header file to build directory for sketch compilation
+                # The .gch file is used by the compiler, but sketch compilation
+                # needs the .h file to detect PCH availability
+                if self.settings.pch_output_path:
+                    # Extract directory from .gch output path
+                    pch_dir = Path(self.settings.pch_output_path).parent
+                    # Create .h file path (strip .gch extension to get .h)
+                    dest_header = pch_dir / "fastled_pch.h"
+
+                    # Copy temp .hpp to permanent .h location
+                    shutil.copy2(pch_header_path, dest_header)
+                    print(
+                        f"[PCH] Header file copied to {dest_header} for sketch compilation"
+                    )
+
+                # Save compiler flags to detect flag changes in future builds
+                # This prevents "__OPTIMIZE__ predefined macro" mismatches
+                flags_file = pch_output_path.with_suffix(".flags")
+                with open(flags_file, "w") as f:
+                    f.write("\n".join(sorted(self.settings.compiler_args)))
+                print(f"[PCH CACHE] Saved compiler flags to {flags_file.name}")
 
                 # Update fingerprint cache for all PCH dependencies
                 print(
