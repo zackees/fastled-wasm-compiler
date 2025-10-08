@@ -66,7 +66,6 @@ class StaleCacheTest(unittest.TestCase):
             only_compile=False,
             profile=False,
             disable_auto_clean=True,
-            no_platformio=True,
             debug=False,
             fast_debug=False,
             quick=True,
@@ -135,7 +134,6 @@ class StaleCacheTest(unittest.TestCase):
             only_compile=True,  # This flag was causing stale cache issue
             profile=False,
             disable_auto_clean=True,
-            no_platformio=True,
             debug=False,
             fast_debug=False,
             quick=True,
@@ -187,7 +185,6 @@ class StaleCacheTest(unittest.TestCase):
             only_compile=False,
             profile=False,
             disable_auto_clean=True,
-            no_platformio=True,
             debug=False,
             fast_debug=False,
             quick=True,

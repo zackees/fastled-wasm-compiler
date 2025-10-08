@@ -1,5 +1,4 @@
 # Compile the FastLED library in all three modes using native Python compiler
-# No CMake or Ninja dependencies required
 
 import argparse
 import sys

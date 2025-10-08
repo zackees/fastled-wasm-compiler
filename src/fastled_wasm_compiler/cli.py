@@ -35,7 +35,6 @@ class CliArgs:
     fast_debug: bool
     quick: bool
     release: bool
-    no_platformio: bool
     clear_ccache: bool
     update_fastled_src: Path | None
     strict: bool
@@ -83,13 +82,6 @@ def _parse_args() -> CliArgs:
     parser.add_argument("--release", action="store_true", help="Enable release mode")
     parser.add_argument(
         "--all", action="store_true", help="Build all modes (debug, quick, release)"
-    )
-
-    parser.add_argument(
-        "--no-platformio",
-        action="store_true",
-        help="Disable PlatformIO and use direct emcc calls instead (default: True since PlatformIO is deprecated)",
-        default=True,  # Default to True since PlatformIO is deprecated
     )
     parser.add_argument(
         "--clear-ccache",
@@ -168,7 +160,6 @@ def _parse_args() -> CliArgs:
         fast_debug=args.fast_debug,
         quick=args.quick,
         release=args.release,
-        no_platformio=args.no_platformio,
         clear_ccache=args.clear_ccache,
         update_fastled_src=args.update_fastled_src,
         strict=args.strict,
@@ -200,7 +191,6 @@ def main() -> int:
         only_compile=False,
         profile=cli_args.profile,
         disable_auto_clean=False,
-        no_platformio=cli_args.no_platformio,
         debug=cli_args.debug,
         fast_debug=cli_args.fast_debug,
         quick=cli_args.quick,

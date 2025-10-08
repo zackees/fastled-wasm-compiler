@@ -1,8 +1,7 @@
 """
-Direct emscripten toolchain compilation bypassing platformio.
+Direct emscripten toolchain compilation.
 
-This module provides functions to compile sketches directly using emscripten tools,
-which is faster and more reliable than using platformio for WASM compilation.
+This module provides functions to compile sketches directly using emscripten tools.
 """
 
 import argparse
@@ -387,7 +386,7 @@ def compile_sketch(sketch_dir: Path, build_mode: str) -> Exception | None:
     # Determine output directory first
     output_dir = BUILD_ROOT / build_mode.lower()
 
-    printer.tprint("\n🚀 Starting FastLED sketch compilation (no-platformio mode)")
+    printer.tprint("\n🚀 Starting FastLED sketch compilation")
     printer.tprint("🔊 VERBOSE MODE: Showing detailed emcc/linker output")
     printer.tprint(f"📁 Sketch directory: {sketch_dir}")
     printer.tprint(f"🔧 Build mode: {build_mode}")

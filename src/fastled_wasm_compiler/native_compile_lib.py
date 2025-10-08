@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
 Native library compiler for FastLED WASM.
-Replaces CMake-based build_lib.sh with pure Python implementation.
 
-This module provides a drop-in replacement for the CMake+Ninja build system,
-using FastLED's proven native compiler infrastructure.
+This module provides a pure Python build system using FastLED's
+proven native compiler infrastructure.
 """
 
 import multiprocessing
@@ -81,10 +80,9 @@ def find_emscripten_tool(tool_name: str) -> str:
 
 class NativeLibraryBuilder:
     """
-    Builds libfastled.a using native Python compiler (no CMake).
+    Builds libfastled.a using native Python compiler.
 
-    This class replicates the functionality of build_lib.sh + CMakeLists.txt
-    using direct compiler invocations via FastLED's native_compiler module.
+    This class uses direct compiler invocations via FastLED's native_compiler module.
     """
 
     def __init__(
@@ -411,7 +409,7 @@ def main() -> int:
     import sys
 
     parser = argparse.ArgumentParser(
-        description="Build FastLED WASM library (Python-native, no CMake)"
+        description="Build FastLED WASM library using Python native compiler"
     )
     mode_group = parser.add_mutually_exclusive_group(required=True)
     mode_group.add_argument("--debug", action="store_true", help="Debug mode")

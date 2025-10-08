@@ -11,7 +11,6 @@ def run_compiler(
     keep_files: bool,
     profile: bool,
     disable_auto_clean: bool,
-    no_platformio: bool,
     debug: bool,
     quick: bool,
     release: bool,
@@ -31,7 +30,6 @@ def run_compiler(
         only_compile (bool): Flag to only compile without copying.
         profile (bool): Flag to enable profiling of the build system.
         disable_auto_clean (bool): Flag to disable automatic cleaning.
-        no_platformio (bool): Flag to disable PlatformIO.
         debug (bool): Flag to enable debug mode.
         quick (bool): Flag to enable quick mode.
         release (bool): Flag to enable release mode.
@@ -51,7 +49,6 @@ def run_compiler(
         only_compile=False,
         profile=profile,
         disable_auto_clean=disable_auto_clean,
-        no_platformio=no_platformio,
         debug=debug,
         fast_debug=False,  # Fast debug mode not used in easy compilation
         quick=quick,

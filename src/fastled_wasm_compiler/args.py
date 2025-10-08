@@ -14,7 +14,6 @@ class Args:
     only_compile: bool
     profile: bool
     disable_auto_clean: bool
-    no_platformio: bool
     debug: bool
     fast_debug: bool
     quick: bool
@@ -40,7 +39,6 @@ class Args:
             "--only-compile" if self.only_compile else "",
             "--profile" if self.profile else "",
             "--disable-auto-clean" if self.disable_auto_clean else "",
-            "--no-platformio" if self.no_platformio else "",
             "--debug" if self.debug else "",
             "--fast-debug" if self.fast_debug else "",
             "--quick" if self.quick else "",
@@ -64,7 +62,6 @@ class Args:
             and self.only_compile == other.only_compile
             and self.profile == other.profile
             and self.disable_auto_clean == other.disable_auto_clean
-            and self.no_platformio == other.no_platformio
             and self.debug == other.debug
             and self.fast_debug == other.fast_debug
             and self.quick == other.quick
@@ -83,7 +80,6 @@ class Args:
         assert isinstance(self.only_compile, bool)
         assert isinstance(self.profile, bool)
         assert isinstance(self.disable_auto_clean, bool)
-        assert isinstance(self.no_platformio, bool)
         assert isinstance(self.debug, bool)
         assert isinstance(self.fast_debug, bool)
         assert isinstance(self.quick, bool)
@@ -102,7 +98,6 @@ class Args:
             f"only_compile={self.only_compile}, "
             f"profile={self.profile}, "
             f"disable_auto_clean={self.disable_auto_clean}, "
-            f"no_platformio={self.no_platformio}, "
             f"debug={self.debug}, "
             f"fast_debug={self.fast_debug}, "
             f"quick={self.quick}, "
@@ -162,12 +157,6 @@ def _parse_args(args: list[str] | None = None) -> Args:
         help="Disable auto clean before compilation",
     )
     parser.add_argument(
-        "--no-platformio",
-        action="store_true",
-        help="Disable PlatformIO and use direct emcc calls instead (default: True since PlatformIO is deprecated)",
-        default=True,  # Default to True since PlatformIO is deprecated
-    )
-    parser.add_argument(
         "--clear-ccache",
         action="store_true",
         help="Clear the ccache before compilation",
@@ -206,7 +195,6 @@ def _parse_args(args: list[str] | None = None) -> Args:
         only_compile=tmp.only_compile,
         profile=tmp.profile,
         disable_auto_clean=tmp.disable_auto_clean,
-        no_platformio=tmp.no_platformio,
         debug=tmp.debug,
         fast_debug=tmp.fast_debug,
         quick=tmp.quick,

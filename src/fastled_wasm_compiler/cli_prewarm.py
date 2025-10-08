@@ -164,7 +164,6 @@ def main() -> int:
             only_compile=False,
             profile=False,
             disable_auto_clean=False,
-            no_platformio=True,  # Force non-PlatformIO build since PlatformIO is deprecated
             debug=build == BuildMode.DEBUG,
             fast_debug=False,  # Fast debug mode not used in prewarm
             quick=build == BuildMode.QUICK,

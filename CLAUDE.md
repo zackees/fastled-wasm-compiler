@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FastLED WASM Compiler is a Python-based build system that compiles FastLED C++ code to WebAssembly (WASM). The system uses Emscripten toolchain and PlatformIO to cross-compile Arduino/FastLED sketches for web browsers.
+FastLED WASM Compiler is a Python-based build system that compiles FastLED C++ code to WebAssembly (WASM). The system uses the Emscripten toolchain to cross-compile Arduino/FastLED sketches for web browsers.
 
 ## Development Commands
 
@@ -70,7 +70,7 @@ The project includes Docker support:
 
 ## Package Configuration
 
-- `pyproject.toml` - Main package configuration with dependencies (platformio==6.1.18, fasteners==0.19, httpx>=0.28.1)
+- `pyproject.toml` - Main package configuration with dependencies (fasteners==0.19, httpx>=0.28.1)
 - Uses uv for dependency management
 - Python 3.10+ required
 - Entry points: `fastled-wasm-compiler` and `fastled-wasm-compiler-prewarm`

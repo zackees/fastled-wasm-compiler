@@ -38,7 +38,6 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
             shutil.copytree(item, js_src / item.name, dirs_exist_ok=True)
         else:
             print(f"Copying file: {item} -> {js_src / item.name}")
-            # No special file skipping needed - PlatformIO support removed
             shutil.copy2(item, js_src / item.name)
     if not found:
         warnings.warn(f"No files found in the mapped directory: {src_dir.absolute()}")
@@ -70,7 +69,6 @@ def process_compile(
     js_dir: Path,
     build_mode: BuildMode,
     auto_clean: bool,
-    no_platformio: bool,
     profile_build: bool,
 ) -> None:
     print("Starting compilation...")
@@ -78,7 +76,6 @@ def process_compile(
         compiler_root=js_dir,
         build_mode=build_mode,
         auto_clean=auto_clean,
-        no_platformio=no_platformio,
         profile_build=profile_build,
     )
     print(f"Compilation return code: {rtn}")
@@ -86,26 +83,6 @@ def process_compile(
         print("Compilation failed.")
         raise RuntimeError("Compilation failed.")
     print(banner("Compilation successful."))
-
-
-def _get_build_dir_platformio(build_mode: BuildMode, pio_dir: Path) -> Path:
-    # DEBUG - THIS HAS BEEN HACKED TO WORK WITH NON PIO BUILDS. PLEASE UPDATE.
-    if build_mode == BuildMode.DEBUG:
-        build_dir = pio_dir / "wasm-debug"
-    elif build_mode == BuildMode.RELEASE:
-        build_dir = pio_dir / "wasm-release"
-    else:
-        build_dir = pio_dir / "wasm-quick"
-    if not build_dir.exists():
-        raise RuntimeError(
-            f"Expected build directory {build_dir} to exist, but it does not."
-        )
-    sub_dirs = [d for d in build_dir.iterdir() if d.is_dir()]
-    if len(sub_dirs) != 1:
-        raise RuntimeError(
-            f"Expected exactly one subdirectory in {build_dir}, found {len(sub_dirs)}: {sub_dirs}"
-        )
-    return build_dir
 
 
 def run_compile(args: Args) -> int:
@@ -179,7 +156,6 @@ def run_compile(args: Args) -> int:
                 print("Transform to cpp and insert header operations completed.")
                 return 0
 
-        no_platformio: bool = args.no_platformio
         if do_compile:
             try:
                 # Determine build mode from args
@@ -202,34 +178,26 @@ def run_compile(args: Args) -> int:
                     js_dir=compiler_root,
                     build_mode=build_mode,
                     auto_clean=not args.disable_auto_clean,
-                    no_platformio=no_platformio,
                     profile_build=args.profile,
                 )
             except Exception as e:
                 print(f"Error: {str(e)}")
                 return 1
 
-            if no_platformio:
-                # The compile_sketch.py creates subdirectories based on build mode
-                from fastled_wasm_compiler.paths import BUILD_ROOT
+            # The compile_sketch.py creates subdirectories based on build mode
+            from fastled_wasm_compiler.paths import BUILD_ROOT
 
-                build_dir = BUILD_ROOT / build_mode.name.lower()
-                print(banner("No-PlatformIO build directory structure"))
-                print(f"✓ Using direct compilation build directory: {build_dir}")
-                print(f"✓ Build mode subdirectory: {build_mode.name.lower()}")
-                print("✓ Expected output files: fastled.js, fastled.wasm")
-                if not build_dir.exists():
-                    print(
-                        f"⚠️  Build directory {build_dir} does not exist yet (will be created during compilation)"
-                    )
-                else:
-                    print(f"✓ Build directory exists: {build_dir}")
-            else:
-                print(banner("PlatformIO build directory structure"))
-                build_dir = _get_build_dir_platformio(
-                    build_mode=build_mode, pio_dir=pio_build_dir
+            build_dir = BUILD_ROOT / build_mode.name.lower()
+            print(banner("Build directory structure"))
+            print(f"✓ Using direct compilation build directory: {build_dir}")
+            print(f"✓ Build mode subdirectory: {build_mode.name.lower()}")
+            print("✓ Expected output files: fastled.js, fastled.wasm")
+            if not build_dir.exists():
+                print(
+                    f"⚠️  Build directory {build_dir} does not exist yet (will be created during compilation)"
                 )
-                print(f"✓ Using PlatformIO build directory: {build_dir}")
+            else:
+                print(f"✓ Build directory exists: {build_dir}")
 
             # Copy output files and create manifest
             copy_output_files_and_create_manifest(
@@ -242,36 +210,30 @@ def run_compile(args: Args) -> int:
                 assets_modules=assets_modules,
             )
 
-            # Add summary for no-platformio builds
-            if no_platformio:
-                print(banner("No-PlatformIO Build Summary"))
-                print("✅ Compilation method: Direct emcc calls (bypassed PlatformIO)")
-                print(f"✅ Build mode: {build_mode.name}")
-                print(f"✅ Build directory: {build_dir}")
-                print(f"✅ Source directory: {src_dir}")
-                print(f"✅ Output directory: {fastled_js_out}")
+            # Add build summary
+            print(banner("Build Summary"))
+            print("✅ Compilation method: Direct emcc calls")
+            print(f"✅ Build mode: {build_mode.name}")
+            print(f"✅ Build directory: {build_dir}")
+            print(f"✅ Source directory: {src_dir}")
+            print(f"✅ Output directory: {fastled_js_out}")
 
-                # Check for expected output files
-                expected_files = ["fastled.js", "fastled.wasm"]
-                if build_mode == BuildMode.DEBUG:
-                    expected_files.append("fastled.wasm.dwarf")
+            # Check for expected output files
+            expected_files = ["fastled.js", "fastled.wasm"]
+            if build_mode == BuildMode.DEBUG:
+                expected_files.append("fastled.wasm.dwarf")
 
-                print(f"📁 Checking output files in {src_dir / fastled_js_out}:")
-                output_dir = src_dir / fastled_js_out
-                for file_name in expected_files:
-                    file_path = output_dir / file_name
-                    if file_path.exists():
-                        size = file_path.stat().st_size
-                        print(f"  ✅ {file_name} ({size} bytes)")
-                    else:
-                        print(f"  ❌ {file_name} (missing)")
+            print(f"📁 Checking output files in {src_dir / fastled_js_out}:")
+            output_dir = src_dir / fastled_js_out
+            for file_name in expected_files:
+                file_path = output_dir / file_name
+                if file_path.exists():
+                    size = file_path.stat().st_size
+                    print(f"  ✅ {file_name} ({size} bytes)")
+                else:
+                    print(f"  ❌ {file_name} (missing)")
 
-                print("🎯 Build completed using direct emscripten compilation")
-            else:
-                print(banner("PlatformIO Build Summary"))
-                print("✅ Compilation method: PlatformIO build system")
-                print(f"✅ Build mode: {build_mode.name}")
-                print(f"✅ Build directory: {build_dir}")
+            print("🎯 Build completed using direct emscripten compilation")
 
             # remove the pio_build_dir and sketch build directory.
             if not args.keep_files:

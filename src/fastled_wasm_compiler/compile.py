@@ -30,7 +30,6 @@ def compile(
     compiler_root: Path,
     build_mode: BuildMode,
     auto_clean: bool,
-    no_platformio: bool,
     profile_build: bool,
 ) -> int:
 
@@ -50,19 +49,6 @@ def compile(
             )
         )
 
-    # DEPRECATION: PlatformIO support has been removed
-    if not no_platformio:
-        print("⚠️  WARNING: PlatformIO build is deprecated and has been removed.")
-        print(
-            "⚠️  Automatically falling back to direct emcc compilation (--no-platformio mode)."
-        )
-        print("⚠️  Please update your build scripts to use --no-platformio explicitly.")
-        print("⚠️  This fallback behavior will be removed in a future version.")
-        no_platformio = True  # Force non-PlatformIO build
-
-    # PlatformIO support has been completely removed - using native compilation only
-
-    # Always use non-PlatformIO compilation now
     print(banner("Using direct emcc compilation"))
     print("✓ Using direct emscripten compiler calls")
     print(f"✓ Build mode: {build_mode.name}")
@@ -80,7 +66,6 @@ def compile(
     )
     assert process.stdout is not None
 
-    # Always use non-PlatformIO output handling (no timestamping since compile_sketch.py handles it)
     line: str
     for line in process.stdout:
         print(line.rstrip())
@@ -91,7 +76,6 @@ def compile(
         print("\nCompilation successful.\n")
         return 0
     else:
-        # raise subprocess.CalledProcessError(process.returncode, ["pio", "run"])
         print(banner(f"Compilation failed with return code {process.returncode}.\n"))
         print("Check the output above for details.")
         return process.returncode

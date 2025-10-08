@@ -402,7 +402,6 @@ class FullBuildTester(unittest.TestCase):
             "/mapped",
             # Optional arguments
             "--debug",
-            "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
             "--clear-ccache",  # Clear the ccache before compilation
         ]
@@ -511,7 +510,6 @@ class FullBuildTester(unittest.TestCase):
             "/mapped",
             # Optional arguments
             "--quick",
-            "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
         ]
 
@@ -623,7 +621,6 @@ class FullBuildTester(unittest.TestCase):
             "/mapped",
             # Optional arguments
             "--release",  # Use release mode for maximum optimization
-            "--no-platformio",  # Use direct emcc calls instead of platformio
             "--keep-files",  # Keep intermediate files for debugging
         ]
 
@@ -751,9 +748,6 @@ class FullBuildTester(unittest.TestCase):
                 "--quick",  # Use quick mode for faster testing
                 "--keep-files",  # Keep intermediate files for debugging
             ]
-
-            if not use_platformio:
-                cmd_list.append("--no-platformio")
 
             build_type = "PlatformIO" if use_platformio else "No-PlatformIO"
             print(f"\nCompiling sketch using {build_type} build...")
@@ -961,7 +955,6 @@ class FullBuildTester(unittest.TestCase):
                 "/mapped",
                 # Mode-specific arguments
                 f"--{mode}",
-                "--no-platformio",  # Use direct emcc calls to see PCH messages
                 "--keep-files",  # Keep intermediate files for verification
             ]
 
@@ -1372,7 +1365,6 @@ Check the detailed error output above for the exact exception and traceback.
             "/mapped",
             # Use quick mode (has PCH enabled)
             "--quick",
-            "--no-platformio",  # Use direct emcc calls to see PCH messages
             "--keep-files",  # Keep intermediate files for debugging
         ]
 
