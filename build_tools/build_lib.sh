@@ -72,33 +72,20 @@ for mode in "${UNIQUE_MODES[@]}"; do
   mkdir -p "$BUILD_DIR"
 
   # Use the native Python compiler
+  # Note: Paths come from environment variables (ENV_FASTLED_ROOT, ENV_BUILD_ROOT)
   case "$ARCHIVE_BUILD_MODE" in
     "thin")
-      python3 -m fastled_wasm_compiler.native_compile_lib \
-        --${mode} \
-        --thin \
-        --src "${FASTLED_ROOT}/src" \
-        --build-dir "$BUILD_DIR"
+      python3 -m fastled_wasm_compiler.native_compile_lib --${mode} --thin
       ;;
     "regular")
-      python3 -m fastled_wasm_compiler.native_compile_lib \
-        --${mode} \
-        --src "${FASTLED_ROOT}/src" \
-        --build-dir "$BUILD_DIR"
+      python3 -m fastled_wasm_compiler.native_compile_lib --${mode}
       ;;
     "both")
       # Build thin first
-      python3 -m fastled_wasm_compiler.native_compile_lib \
-        --${mode} \
-        --thin \
-        --src "${FASTLED_ROOT}/src" \
-        --build-dir "$BUILD_DIR"
+      python3 -m fastled_wasm_compiler.native_compile_lib --${mode} --thin
 
       # Then regular (reuses cached objects)
-      python3 -m fastled_wasm_compiler.native_compile_lib \
-        --${mode} \
-        --src "${FASTLED_ROOT}/src" \
-        --build-dir "$BUILD_DIR"
+      python3 -m fastled_wasm_compiler.native_compile_lib --${mode}
       ;;
   esac
 
