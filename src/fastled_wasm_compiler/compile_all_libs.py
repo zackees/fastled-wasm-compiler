@@ -1,10 +1,7 @@
-# compile the fastled library in all three modes
-# RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/debug --debug
-# RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/quick --quick
-# RUN python3 /misc/compile_lib.py --src /git/fastled/src --out /build/release --release
+# Compile the FastLED library in all three modes using native Python compiler
+# No CMake or Ninja dependencies required
 
 import argparse
-import subprocess
 import sys
 import time
 from collections import OrderedDict
@@ -20,20 +17,10 @@ class ArchiveType(Enum):
     BOTH = "both"
 
 
-def _get_cmd(build: str) -> list[str]:
-    """Get the command to run based on the build mode."""
-    assert build in ["debug", "quick", "release"], f"Invalid build mode: {build}"
-    cmd_list: list[str] = [
-        "/build/build_lib.sh",
-        f"--{build}",
-    ]
-    return cmd_list
-
-
 def _build_archives(
     build_mode: str, archive_type: ArchiveType = ArchiveType.THIN
 ) -> int:
-    """Build specified archive types for the given build mode.
+    """Build specified archive types for the given build mode using native Python compiler.
 
     Args:
         build_mode: One of "debug", "quick", "release"
@@ -42,74 +29,68 @@ def _build_archives(
     Returns:
         0 if successful, non-zero if any build failed
     """
-    import os
+    from fastled_wasm_compiler.native_compile_lib import build_library
+    from fastled_wasm_compiler.types import BuildMode
 
-    cmd = _get_cmd(build_mode)
+    # Map string to BuildMode enum
+    mode_map = {
+        "debug": BuildMode.DEBUG,
+        "quick": BuildMode.QUICK,
+        "release": BuildMode.RELEASE,
+    }
+    mode = mode_map[build_mode]
 
-    if archive_type == ArchiveType.THIN:
-        print(f"📦 Building thin archives for {build_mode}...")
-        env_thin = os.environ.copy()
-        env_thin["NO_THIN_LTO"] = "0"
+    try:
+        if archive_type == ArchiveType.THIN:
+            print(f"📦 Building thin archive for {build_mode}...")
+            archive_path = build_library(
+                build_mode=mode,
+                use_thin_archive=True,
+                max_workers=None,
+            )
+            print(f"✅ Thin archive built: {archive_path}")
+            return 0
 
-        result = subprocess.run(
-            cmd,
-            env=env_thin,
-            cwd="/git/fastled-wasm",
-            capture_output=False,  # Always show output in real-time
-            text=True,
-        )
-        if result.returncode != 0:
-            print(f"❌ Failed to build thin archives for {build_mode}")
-            return result.returncode
-        print(f"✅ Thin archives built successfully for {build_mode}")
+        elif archive_type == ArchiveType.REGULAR:
+            print(f"📦 Building regular archive for {build_mode}...")
+            archive_path = build_library(
+                build_mode=mode,
+                use_thin_archive=False,
+                max_workers=None,
+            )
+            print(f"✅ Regular archive built: {archive_path}")
+            return 0
 
-    elif archive_type == ArchiveType.REGULAR:
-        print(f"📦 Building regular archives for {build_mode}...")
-        env_regular = os.environ.copy()
-        env_regular["NO_THIN_LTO"] = "1"
+        elif archive_type == ArchiveType.BOTH:
+            print(f"🚀 Building both archive types for {build_mode}...")
+            print("⚡ Using compile-once-link-twice strategy")
 
-        result = subprocess.run(
-            cmd,
-            env=env_regular,
-            cwd="/git/fastled-wasm",
-            capture_output=False,  # Always show output in real-time
-            text=True,
-        )
-        if result.returncode != 0:
-            print(f"❌ Failed to build regular archives for {build_mode}")
-            return result.returncode
-        print(f"✅ Regular archives built successfully for {build_mode}")
+            # Build thin archive first
+            thin_path = build_library(
+                build_mode=mode,
+                use_thin_archive=True,
+                max_workers=None,
+            )
+            print(f"✅ Thin archive built: {thin_path}")
 
-    elif archive_type == ArchiveType.BOTH:
-        print(f"🚀 Building both archive types for {build_mode} mode...")
-        print("⚡ Using optimized compile-once-link-twice strategy")
+            # Build regular archive (will reuse object files from cache)
+            regular_path = build_library(
+                build_mode=mode,
+                use_thin_archive=False,
+                max_workers=None,
+            )
+            print(f"✅ Regular archive built: {regular_path}")
 
-        # The optimized build_lib.sh script now handles building both archive types
-        # in a single invocation using the compile-once-link-twice pattern:
-        # 1. Compile object files once (NO_LINK=ON)
-        # 2. Link thin archive (NO_BUILD=ON, NO_THIN_LTO=0)
-        # 3. Link regular archive (NO_BUILD=ON, NO_THIN_LTO=1)
+            print(f"🎉 Both archive types built successfully for {build_mode}")
+            print("✨ Object files compiled once, archives linked separately")
+            return 0
 
-        # No need to set NO_THIN_LTO here - the script manages it internally
-        env = os.environ.copy()
-        # Remove any existing NO_THIN_LTO to let the script control it
-        env.pop("NO_THIN_LTO", None)
+    except Exception as e:
+        print(f"❌ Native build failed for {build_mode}: {e}")
+        import traceback
 
-        result = subprocess.run(
-            cmd,
-            env=env,
-            cwd="/git/fastled-wasm",
-            capture_output=False,  # Always show output in real-time
-            text=True,
-        )
-        if result.returncode != 0:
-            print(f"❌ Failed to build archives for {build_mode}")
-            return result.returncode
-
-        print(f"🎉 Both archive types built successfully for {build_mode}")
-        print("✨ Object files compiled once, archives linked separately")
-
-    return 0
+        traceback.print_exc()
+        return 1
 
 
 @dataclass

@@ -23,7 +23,7 @@ RUN add-apt-repository ppa:apt-fast/stable -y && \
     apt-get update && \
     apt-get -y install apt-fast
 
-# Update apt and install required packages
+# Update apt and install required packages (CMake/Ninja removed - using native Python compiler)
 RUN apt-fast install -y \
     git \
     gawk \
@@ -36,8 +36,6 @@ RUN apt-fast install -y \
     wget \
     unzip \
     make \
-    cmake \
-    ninja-build \
     ccache \
     mold \
     zlib1g \
@@ -65,8 +63,7 @@ ENV UV_COMPILE_BYTECODE=1
 
 RUN pip install uv==0.7.3
 
-# Install tomli for TOML parsing in cmake_flags.cmake generation
-RUN uv pip install --system tomli>=2.2.1
+# Tomli installation removed - no longer needed without CMake
 
 
 # /git is the dst for the source code, but actually not git anymore
@@ -155,11 +152,8 @@ RUN /build/download_fastled.sh
 COPY ./src/fastled_wasm_compiler/__init__.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/__init__.py
 COPY ./src/fastled_wasm_compiler/build_flags.toml /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/build_flags.toml
 COPY ./src/fastled_wasm_compiler/compilation_flags.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.py
-COPY ./build_tools/generate_cmake_flags.py /tmp/fastled-wasm-compiler-install/build_tools/generate_cmake_flags.py
 
-# Now copy the CMakeLists.txt and the build_lib.sh script into the right place.
-COPY ./build_tools/CMakeLists.txt /git/fastled-wasm/CMakeLists.txt
-# NOTE: cmake_flags.cmake is NOT copied - it's regenerated from TOML by build_lib.sh
+# Copy build script (CMake files removed)
 COPY ./build_tools/build_lib.sh /build/build_lib.sh
 
 RUN chmod +x /build/build_lib.sh && \

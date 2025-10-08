@@ -1,6 +1,34 @@
 # ================================================================================================
 # FastLED WASM Compilation Flags Configuration
 # ================================================================================================
+
+# ================================================================================================
+# BUILD TOOLS CONFIGURATION
+# ================================================================================================
+# Specifies the compiler toolchain to use. For WASM builds, we use Emscripten.
+[tools]
+cpp_compiler = ["emcc"]
+c_compiler = ["emcc"]
+archiver = ["emar"]
+linker = ["emcc"]
+objcopy = ["llvm-objcopy"]
+nm = ["llvm-nm"]
+strip = ["llvm-strip"]
+ranlib = ["emranlib"]
+
+# ================================================================================================
+# ARCHIVE GENERATION SETTINGS
+# ================================================================================================
+# Archive flags for creating static libraries (.a files)
+# Standard flags: r=replace, c=create, s=index, D=deterministic
+[archive]
+flags = "rcsD"
+
+[archive.emscripten]
+# Emscripten-specific archive flags (may not support deterministic builds)
+flags = "rcs"
+
+# ================================================================================================
 # 
 # This file centralizes ALL compilation flags used by both sketch compilation and libfastled 
 # compilation to ensure they remain synchronized and compatible across the entire build system.
