@@ -6,13 +6,16 @@ This module bridges the gap between our TOML format and the
 BuildFlags class expected by native_compiler.Compiler.
 """
 
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 from pathlib import Path
-import tomllib
 
 from .native_compiler import (
+    ArchiveOptions,
     BuildFlags,
     BuildTools,
-    ArchiveOptions,
 )
 
 
@@ -45,8 +48,8 @@ def load_wasm_compiler_flags(
     if not tools_config:
         raise KeyError(
             "Missing [tools] section in build_flags.toml. "
-            "This section is required for native compilation. "
-            "Please add: [tools] with cpp_compiler, archiver, linker, etc."
+            + "This section is required for native compilation. "
+            + "Please add: [tools] with cpp_compiler, archiver, linker, etc."
         )
 
     tools = BuildTools(

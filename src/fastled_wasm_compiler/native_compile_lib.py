@@ -75,7 +75,7 @@ def find_emscripten_tool(tool_name: str) -> str:
 
     raise RuntimeError(
         f"{tool_name} not found. Please install emsdk or add it to PATH.\n"
-        f"Tried: PATH, ~/emsdk, /emsdk, $EMSDK"
+        + "Tried: PATH, ~/emsdk, /emsdk, $EMSDK"
     )
 
 
@@ -193,9 +193,16 @@ class NativeLibraryBuilder:
             relative_path = cpp_file.relative_to(self.fastled_src)
             path_str = str(relative_path)
 
-            # Exclude platform-specific files (except WASM)
+            # Exclude platform-specific files (except WASM, shared, and stub)
             if "platforms/" in path_str:
-                if "platforms/wasm" in path_str or "platforms\\wasm" in path_str:
+                if (
+                    "platforms/wasm" in path_str
+                    or "platforms\\wasm" in path_str
+                    or "platforms/shared" in path_str
+                    or "platforms\\shared" in path_str
+                    or "platforms/stub" in path_str
+                    or "platforms\\stub" in path_str
+                ):
                     wasm_cpp_files.append(cpp_file)
                 # Skip other platforms
             else:

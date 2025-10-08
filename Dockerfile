@@ -147,12 +147,12 @@ RUN /build/download_fastled.sh
 
 
 
-# BEGIN BUILDING STATIC libfastled.a
-# Copy the TOML configuration and generator FIRST for auto-regeneration
-COPY ./src/fastled_wasm_compiler/__init__.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/__init__.py
-COPY ./src/fastled_wasm_compiler/build_flags.toml /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/build_flags.toml
-COPY ./src/fastled_wasm_compiler/compilation_flags.py /tmp/fastled-wasm-compiler-install/src/fastled_wasm_compiler/compilation_flags.py
+# Install fastled-wasm-compiler BEFORE building libs
+COPY . /tmp/fastled-wasm-compiler-install/
+# Use uv to install globally
+RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 
+# BEGIN BUILDING STATIC libfastled.a
 # Copy build script (CMake files removed)
 COPY ./build_tools/build_lib.sh /build/build_lib.sh
 
@@ -162,11 +162,6 @@ RUN chmod +x /build/build_lib.sh && \
 RUN /build/build_lib.sh --all
 
 # END BUILDING STATIC libfastled.a
-
-
-COPY . /tmp/fastled-wasm-compiler-install/
-# Use uv to install globally
-RUN uv pip install --system /tmp/fastled-wasm-compiler-install
 
 # PlatformIO support has been removed - using direct emcc compilation only
 # RUN uv run -m fastled_wasm_compiler.cli_update_from_master

@@ -12,15 +12,18 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 import warnings
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from .fingerprint_cache import FingerprintCache
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
+from .fingerprint_cache import FingerprintCache
 
 _HERE = Path(__file__).parent
 
@@ -269,11 +272,11 @@ class BuildFlags:
         if "tools" not in config:
             raise RuntimeError(
                 f"FATAL ERROR: [tools] section missing from build_flags.toml at {toml_path}\n"
-                f"The [tools] section is required and must define all compiler tools.\n"
-                f"Example:\n"
-                f"[tools]\n"
-                f'compiler_command = ["uv", "run", "python", "-m", "ziglang", "c++"]\n'
-                f'c_compiler = "clang"'
+                + "The [tools] section is required and must define all compiler tools.\n"
+                + "Example:\n"
+                + "[tools]\n"
+                + 'compiler_command = ["uv", "run", "python", "-m", "ziglang", "c++"]\n'
+                + 'c_compiler = "clang"'
             )
 
         tools_config = config["tools"]
@@ -360,20 +363,20 @@ class BuildFlags:
         if "archive" not in config:
             raise RuntimeError(
                 f"CRITICAL: [archive] section missing from build_flags.toml at {toml_path}\n"
-                f"The [archive] section is required for deterministic builds.\n"
-                f"Example:\n"
-                f"[archive]\n"
-                f'flags = "rcsD"  # r=insert, c=create, s=symbol table, D=deterministic'
+                + "The [archive] section is required for deterministic builds.\n"
+                + "Example:\n"
+                + "[archive]\n"
+                + 'flags = "rcsD"  # r=insert, c=create, s=symbol table, D=deterministic'
             )
 
         archive_config = config["archive"]
         if "flags" not in archive_config:
             raise RuntimeError(
                 f"CRITICAL: archive.flags missing from build configuration TOML at {toml_path}\n"
-                f"Archive flags are required for proper static library creation.\n"
-                f"Example:\n"
-                f"[archive]\n"
-                f'flags = "rcs"  # r=insert, c=create, s=symbol table'
+                + "Archive flags are required for proper static library creation.\n"
+                + "Example:\n"
+                + "[archive]\n"
+                + 'flags = "rcs"  # r=insert, c=create, s=symbol table'
             )
 
         # Parse platform-specific archive configurations
@@ -843,11 +846,9 @@ class Compiler:
                 pch_output_path = pch_header_path.with_suffix(".hpp.pch")
 
             # Build PCH compilation command using TOML configuration
-            # Start with the compiler command, then add args from TOML
-            compiler_parts = self.settings.compiler.split()
-            cmd: list[str] = optimize_python_command(
-                compiler_parts + self.settings.compiler_args.copy()
-            )
+            # compiler_args already contains the full command (e.g., ["emcc", ...flags])
+            # No need to add compiler_parts since it would duplicate the compiler
+            cmd: list[str] = optimize_python_command(self.settings.compiler_args.copy())
 
             # Add PCH-specific flags (don't override std version - use what's in TOML)
             cmd.extend(
@@ -855,6 +856,7 @@ class Compiler:
                     "-x",
                     "c++-header",
                     f"-I{self.settings.include_path}",
+                    f"-I{self.settings.include_path}/platforms/wasm/compiler",
                 ]
             )
 
@@ -863,7 +865,9 @@ class Compiler:
                 for define in self.settings.defines:
                     cmd.append(f"-D{define}")
 
-            # Skip existing PCH flags to avoid conflicts, but keep everything else
+            # Skip incompatible flags for PCH generation
+            # - PCH flags: avoid conflicts with existing PCH usage
+            # - emit-llvm: PCH must be compiled headers (.gch), not LLVM bitcode
             skip_next = False
             final_cmd: List[str] = []
             for arg in cmd:
@@ -872,6 +876,9 @@ class Compiler:
                     continue
                 elif arg.startswith("-include-pch"):
                     skip_next = True  # Skip the PCH file path argument too
+                    continue
+                elif arg == "-emit-llvm":
+                    # Skip -emit-llvm: incompatible with PCH generation
                     continue
                 else:
                     final_cmd.append(arg)
@@ -2441,7 +2448,7 @@ def link_program_sync(
 def _get_default_settings() -> CompilerOptions:
     """Get default compiler settings with MANDATORY configuration-based stub platform defines."""
 
-    from ci.compiler.test_example_compilation import (
+    from ci.compiler.test_example_compilation import (  # type: ignore[import-not-found]
         extract_stub_platform_defines_from_toml,
         extract_stub_platform_include_paths_from_toml,
         load_build_flags_toml,
@@ -2455,7 +2462,7 @@ def _get_default_settings() -> CompilerOptions:
     if not toml_path.exists():
         raise RuntimeError(
             f"CRITICAL: build_unit.toml not found at {toml_path}. "
-            f"This file is MANDATORY for all compiler operations."
+            + "This file is MANDATORY for all compiler operations."
         )
 
     # Load configuration with strict error handling
@@ -2493,7 +2500,7 @@ def _get_default_build_flags() -> BuildFlags:
     if not toml_path.exists():
         raise RuntimeError(
             f"CRITICAL: build_unit.toml not found at {toml_path}. "
-            f"This file is MANDATORY for all compiler operations."
+            + "This file is MANDATORY for all compiler operations."
         )
 
     # Use BuildFlags.parse() method for proper type construction
@@ -2777,8 +2784,8 @@ def create_archive_sync(
             ok=False,
             stdout="",
             stderr="CRITICAL: No archiver provided to create_archive_sync(). "
-            "Archiver must be configured in [tools] section of build TOML file. "
-            "Auto-detection from environment is NOT ALLOWED.",
+            + "Archiver must be configured in [tools] section of build TOML file. "
+            + "Auto-detection from environment is NOT ALLOWED.",
             return_code=1,
         )
 
@@ -2802,14 +2809,14 @@ def create_archive_sync(
         else:
             raise RuntimeError(
                 "CRITICAL: No archiver configured in build_flags_config.tools.archiver. "
-                "Archiver fallbacks are NOT ALLOWED. "
-                "Please configure archiver in [tools] section of your build TOML file."
+                + "Archiver fallbacks are NOT ALLOWED. "
+                + "Please configure archiver in [tools] section of your build TOML file."
             )
     else:
         raise RuntimeError(
             "CRITICAL: No build_flags_config provided to create_archive_sync(). "
-            "Archive creation requires build configuration. "
-            "System tool fallbacks are NOT ALLOWED to prevent silent configuration errors."
+            + "Archive creation requires build configuration. "
+            + "System tool fallbacks are NOT ALLOWED to prevent silent configuration errors."
         )
 
     # Archive flags: MUST come from build configuration TOML - NO DEFAULTS
@@ -2820,7 +2827,7 @@ def create_archive_sync(
     ):
         raise RuntimeError(
             "CRITICAL: Archive flags not found in build configuration TOML. "
-            "Please ensure [archive] section with 'flags' is configured."
+            + "Please ensure [archive] section with 'flags' is configured."
         )
 
     # Get platform-specific archive flags if available
@@ -2998,18 +3005,18 @@ def create_compiler_options_from_toml(
     if not build_flags.tools.cpp_compiler:
         raise RuntimeError(
             f"CRITICAL: No compiler configured in [tools] section of {toml_path}. "
-            f'Please add: cpp_compiler = ["uv", "run", "python", "-m", "ziglang", "c++"] '
-            f"or similar compiler configuration. "
-            f"Default tool fallbacks are NOT ALLOWED."
+            + 'Please add: cpp_compiler = ["uv", "run", "python", "-m", "ziglang", "c++"] '
+            + "or similar compiler configuration. "
+            + "Default tool fallbacks are NOT ALLOWED."
         )
     compiler_tool = subprocess.list2cmdline(build_flags.tools.cpp_compiler)
     # STRICT: Archiver must be configured in TOML - NO DEFAULTS
     if not build_flags.tools.archiver:
         raise RuntimeError(
             f"CRITICAL: No archiver configured in [tools] section of {toml_path}. "
-            f'Please add: archiver = ["uv", "run", "python", "-m", "ziglang", "ar"] '
-            f"or similar archiver configuration. "
-            f"Default tool fallbacks are NOT ALLOWED."
+            + 'Please add: archiver = ["uv", "run", "python", "-m", "ziglang", "ar"] '
+            + "or similar archiver configuration. "
+            + "Default tool fallbacks are NOT ALLOWED."
         )
     archiver_tool = subprocess.list2cmdline(build_flags.tools.archiver)
 
@@ -3110,7 +3117,7 @@ def commands_json(
         if not config_path.exists():
             raise RuntimeError(
                 f"CRITICAL: Build flags TOML not found at {config_path}. "
-                f"This file is required."
+                + "This file is required."
             )
 
         # Single-source-of-truth configuration via BuildFlags.parse
@@ -3126,7 +3133,7 @@ def commands_json(
         if not build_flags.tools.cpp_compiler:
             raise RuntimeError(
                 f"CRITICAL: [tools].cpp_compiler missing in {config_path}. "
-                f"Please configure compiler tokens."
+                + "Please configure compiler tokens."
             )
 
         # Prepare output directory

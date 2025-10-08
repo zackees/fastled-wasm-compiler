@@ -19,6 +19,9 @@ wget -O "${FASTLED_ROOT}.zip" ${URL} && \
 # Temporarily disable FL_ALIGN_AS for Emscripten builds
 sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alignof(T))/#define FL_ALIGN_AS(T)/}' "${FASTLED_ROOT}/src/fl/align.h"
 
+# Fix FL_DBG compilation error in js_bindings.cpp (comment out problematic debug line)
+sed -i 's/FL_DBG("Canvas map data: " << jsonBuffer\.c_str());/\/\/ FL_DBG("Canvas map data: " << jsonBuffer.c_str());/g' "${FASTLED_ROOT}/src/platforms/wasm/js_bindings.cpp"
+
 
 # Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub or shared
 cd "${FASTLED_ROOT}/src/platforms"

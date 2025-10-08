@@ -6,7 +6,7 @@ set -e
 FASTLED_ROOT="${ENV_FASTLED_ROOT:-/git/fastled}"
 BUILD_ROOT_BASE="${ENV_BUILD_ROOT:-/build}"
 
-cd "${FASTLED_ROOT}-wasm"
+cd "${FASTLED_ROOT}"
 
 # ============================================================================
 # NATIVE PYTHON COMPILER - NO CMAKE/NINJA REQUIRED

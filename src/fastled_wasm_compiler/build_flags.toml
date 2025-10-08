@@ -72,13 +72,13 @@ defines = [
     "-DFASTLED_USE_PROGMEM=0",                   # Disable PROGMEM usage (not needed in WASM)
     "-DUSE_OFFSET_CONVERTER=0",                  # Disable offset converter optimization
     "-DGL_ENABLE_GET_PROC_ADDRESS=0",           # Disable OpenGL proc address lookup
-    
+
     # Threading and Concurrency Support
     "-D_REENTRANT=1",                           # Enable reentrant library functions
-    
+
     # Emscripten-Specific Configuration
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",    # Disable unbound type name reflection
-    
+
     # Feature Enablement
     "-DFASTLED_HAS_NETWORKING=1",               # Enable networking support
 ]
@@ -131,13 +131,12 @@ defines = [
 
 # Additional sketch-specific compiler flags
 compiler_flags = [
-    # Currently no additional sketch-specific compiler flags
-    # This section is ready for future sketch-specific compilation requirements
+    # No additional flags - removed -emit-llvm (causes LTO linking issues)
 ]
 
-[library] 
+[library]
 # ================================================================================================
-# LIBRARY-SPECIFIC COMPILATION FLAGS  
+# LIBRARY-SPECIFIC COMPILATION FLAGS
 # ================================================================================================
 # These flags are ONLY applied to libfastled compilation (the core FastLED library).
 # They enable LLVM bitcode generation and additional warnings for library builds.
@@ -150,7 +149,9 @@ defines = [
 
 # Library-specific compiler flags
 compiler_flags = [
-    "-emit-llvm",                              # Generate LLVM bitcode for library compilation
+    # Removed -emit-llvm: Forces LTO at link time (creates lto.tmp), causing slow builds
+    # and undefined symbol errors. For fast dev builds, use native wasm objects (Option A).
+    # For release builds with cross-module optimization, use -flto=thin + ThinLTO cache (Option B).
     "-Wall",                                   # Enable comprehensive warnings for library code
 ]
 
@@ -289,10 +290,13 @@ flags = [
 
 flags = [
     # Note: Linker selection is set dynamically: -fuse-ld={linker} (mold/lld)
-    
+
+    # LTO Control
+    "-fno-lto",                               # Disable Link-Time Optimization for faster builds
+
     # WebAssembly Configuration
     "-sWASM=1",                                # Generate WebAssembly output (not asm.js)
-    
+
     # Threading Support
     "-pthread",                               # Enable POSIX threads support
     "-sUSE_PTHREADS=1",                       # Use Emscripten's pthread implementation

@@ -62,6 +62,9 @@ class NativeCompilerImpl:
             pch_header_path = f"{build_dir}/fastled_pch.h"
             if os.path.exists(pch_header_path):
                 native_specific_flags.extend(["-include", pch_header_path])
+                print(
+                    f"🚀 PCH OPTIMIZATION: Using precompiled header {Path(pch_header_path).name}"
+                )
 
         return native_specific_flags + flags
 
