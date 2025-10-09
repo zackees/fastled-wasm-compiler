@@ -3,7 +3,9 @@
     "allow": [
       "Bash(uv run pytest:*)",
       "Bash(fastled-wasm-compiler:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Read(//c/js/**)",
+      "Read(//c/Users/niteris/dev/fastled-wasm-server/**)"
     ],
     "deny": [],
     "ask": []

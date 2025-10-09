@@ -20,6 +20,7 @@ class Args:
     release: bool
     clear_ccache: bool
     strict: bool
+    session_id: int | None = None  # Optional session ID for persistent builds
 
     @staticmethod
     def parse_args(args: list[str] | None = None) -> "Args":
@@ -46,6 +47,8 @@ class Args:
             "--clear-ccache" if self.clear_ccache else "",
             "--strict" if self.strict else "",
         ]
+        if self.session_id is not None:
+            args.extend(["--session-id", str(self.session_id)])
         return [arg for arg in args if arg]
 
     # equal
@@ -68,6 +71,7 @@ class Args:
             and self.release == other.release
             and self.clear_ccache == other.clear_ccache
             and self.strict == other.strict
+            and self.session_id == other.session_id
         )
 
     def __post_init__(self):
@@ -86,6 +90,7 @@ class Args:
         assert isinstance(self.release, bool)
         assert isinstance(self.clear_ccache, bool)
         assert isinstance(self.strict, bool)
+        assert self.session_id is None or isinstance(self.session_id, int)
 
     def __str__(self):
         return (
@@ -103,7 +108,8 @@ class Args:
             f"quick={self.quick}, "
             f"release={self.release}, "
             f"clear_ccache={self.clear_ccache}, "
-            f"strict={self.strict})"
+            f"strict={self.strict}, "
+            f"session_id={self.session_id})"
         )
 
 
@@ -166,6 +172,12 @@ def _parse_args(args: list[str] | None = None) -> Args:
         action="store_true",
         help="Treat all compiler warnings as errors",
     )
+    parser.add_argument(
+        "--session-id",
+        type=int,
+        help="Session ID for persistent build directories",
+        default=None,
+    )
 
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
@@ -201,4 +213,5 @@ def _parse_args(args: list[str] | None = None) -> Args:
         release=tmp.release,
         clear_ccache=True if tmp.clear_ccache else False,
         strict=True if tmp.strict else False,
+        session_id=tmp.session_id,
     )

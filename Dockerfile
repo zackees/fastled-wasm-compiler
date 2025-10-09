@@ -71,11 +71,13 @@ RUN pip install uv==0.7.3
 # /git/fastled/src is for the headers
 # /examples is for building the Blink example, needs to be cleaned up.
 # /js is the base build directory, named for historical reasons.
+# /sketch is for persistent session-based build directories
 RUN \
    mkdir -p /git && \
    mkdir -p /misc && \
    mkdir -p /examples && \
-   mkdir -p /js
+   mkdir -p /js && \
+   mkdir -p /sketch
 
 
 
@@ -105,6 +107,7 @@ ENV ENV_FASTLED_SOURCE_PATH="/git/fastled/src"
 ENV ENV_EMSDK_PATH="/emsdk"
 ENV ENV_SKETCH_ROOT="/js/src"
 ENV ENV_VOLUME_MAPPED_SRC="/host/fastled/src"
+ENV ENV_SKETCH_BUILD_ROOT="/sketch"
 
 # Create a custom print script
 RUN echo '#!/bin/sh' > /usr/bin/print && \

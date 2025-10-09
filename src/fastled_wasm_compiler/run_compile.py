@@ -94,9 +94,28 @@ def run_compile(args: Args) -> int:
     index_css_src = assets_dir / "index.css"
     index_js_src = assets_dir / "index.js"
 
-    compiler_root = args.compiler_root
+    # Determine directories based on session_id
+    if args.session_id is not None:
+        # Use session-based persistent directories
+        from fastled_wasm_compiler.session_directory_manager import (
+            get_session_directory_manager,
+        )
 
-    sketch_tmp = compiler_root / "src"
+        session_mgr = get_session_directory_manager()
+        session_mgr.ensure_session_structure(args.session_id)
+
+        # Override compiler_root to use session directory
+        compiler_root = session_mgr.get_session_dir(args.session_id)
+        sketch_tmp = session_mgr.get_session_src_dir(args.session_id)
+        print(f"Using session-based directory: {compiler_root}")
+        print(f"  Session ID: {args.session_id}")
+        print(f"  Sketch source: {sketch_tmp}")
+    else:
+        # Use traditional temporary directories
+        compiler_root = args.compiler_root
+        sketch_tmp = compiler_root / "src"
+        print(f"Using traditional compiler root: {compiler_root}")
+
     pio_build_dir = compiler_root / ".pio/build"
     assets_modules = assets_dir / "modules"
 
@@ -185,9 +204,21 @@ def run_compile(args: Args) -> int:
                 return 1
 
             # The compile_sketch.py creates subdirectories based on build mode
-            from fastled_wasm_compiler.paths import BUILD_ROOT
+            if args.session_id is not None:
+                # Use session-specific build directory
+                from fastled_wasm_compiler.session_directory_manager import (
+                    get_session_directory_manager,
+                )
 
-            build_dir = BUILD_ROOT / build_mode.name.lower()
+                session_mgr = get_session_directory_manager()
+                build_dir = session_mgr.get_session_build_dir(
+                    args.session_id, build_mode.name.lower()
+                )
+            else:
+                # Use global build directory
+                from fastled_wasm_compiler.paths import BUILD_ROOT
+
+                build_dir = BUILD_ROOT / build_mode.name.lower()
             print(banner("Build directory structure"))
             print(f"✓ Using direct compilation build directory: {build_dir}")
             print(f"✓ Build mode subdirectory: {build_mode.name.lower()}")

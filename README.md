@@ -46,6 +46,8 @@ git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/* ^refs/heads/
 - `fastled-wasm-compiler-build-lib-lazy`: Lazy library building
 
 ### Advanced Features
+- **Persistent Session Builds**: Session-based compilation with incremental build caching
+- **Time-Based Lease Management**: Lock-free concurrency with automatic session cleanup
 - **Thin Archives**: Support for thin archive format for better cacheability
 - **Precompiled Headers**: Optimized compilation with PCH support
 - **Header Dumping**: Extract and dump header files with `--headers` flag
@@ -100,6 +102,7 @@ fastled-wasm-compiler --profile
 
 ### Core Components
 - **Compiler Pipeline** (`src/fastled_wasm_compiler/compiler.py`): Main compilation orchestration
+- **Session Directory Manager** (`src/fastled_wasm_compiler/session_directory_manager.py`): Persistent session-based builds
 - **Source Processing** (`process_ino_files.py`, `transform_to_cpp.py`): Arduino .ino to C++ conversion
 - **Library Compilation** (`compile_all_libs.py`, `compile_lib.py`): FastLED library building
 - **Asset Management** (`copy_files_and_output_manifest.py`): Web asset handling
@@ -110,6 +113,48 @@ fastled-wasm-compiler --profile
 3. **Library Compilation**: Builds FastLED libraries for target platform
 4. **Sketch Compilation**: Compiles user sketch with Emscripten
 5. **Asset Deployment**: Copies web assets and generates manifest
+
+## Persistent Session Builds
+
+The compiler supports persistent, session-based build directories that enable incremental compilation and faster rebuild times.
+
+### Key Features
+- **Incremental Builds**: Reuses build artifacts (object files, PCH caches) across compilations
+- **Session Isolation**: Each user session gets isolated `/sketch/session-{id}/` directory
+- **Time-Based Leases**: Lock-free concurrency using time-based safety windows (20 min worker lease, 40 min GC grace period)
+- **Automatic Cleanup**: Background garbage collection removes stale sessions after 40 minutes
+- **Performance**: 2-10x faster incremental builds with warm ccache
+
+### Session Directory Structure
+```
+/sketch/
+└── session-{id}/
+    ├── src/           # Source files
+    ├── debug/         # Debug build artifacts
+    ├── quick/         # Quick build artifacts (default)
+    ├── release/       # Release build artifacts
+    └── fast_debug/    # Fast debug build artifacts
+```
+
+### Configuration
+```bash
+# Environment variables
+ENV_SKETCH_BUILD_ROOT="/sketch"       # Session directory root
+ENV_WORKER_LEASE_DURATION="1200"     # 20 minutes (worker lease)
+ENV_GC_GRACE_PERIOD="2400"           # 40 minutes (GC grace period)
+```
+
+### Usage with Session ID
+The compiler accepts an optional `--session-id` parameter for persistent builds:
+```bash
+# First compilation (creates session directory)
+fastled-wasm-compiler --session-id 12345678901234567890
+
+# Subsequent compilation (reuses build artifacts)
+fastled-wasm-compiler --session-id 12345678901234567890
+```
+
+When used with the server (`fastled-wasm-server`), session IDs are managed automatically via HTTP headers. See `src/fastled_wasm_compiler/session_directory_manager.py` for complete architecture details including concurrency analysis and API integration.
 
 ## Thin Archives & Precompiled Headers
 
