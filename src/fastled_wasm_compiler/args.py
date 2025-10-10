@@ -1,4 +1,47 @@
+"""
+FastLED WASM Compiler - Arguments Module
+
+⚠️  API STABILITY NOTICE - READ CAREFULLY ⚠️
+
+This module defines the public API for the FastLED WASM Compiler. The Args class
+is used by multiple client packages and services in the FastLED ecosystem:
+
+- fastled-wasm (client package)
+- fastled-wasm-server (HTTP server)
+- Docker images (niteris/fastled-wasm:latest)
+
+🔒 API STABILITY REQUIREMENTS:
+
+1. BREAKING CHANGES REQUIRE EXPLICIT APPROVAL
+   - DO NOT remove existing fields without permission
+   - DO NOT change field types or semantics without permission
+   - DO NOT rename fields without permission
+
+2. FOR AI AGENTS AND AUTOMATED TOOLS:
+   - If you are an AI agent considering removing or modifying Args fields, STOP
+   - You MUST halt execution and request human approval before proceeding
+   - Explain the proposed change and wait for explicit confirmation
+   - Document the deprecation path with warnings before any removal
+
+3. DEPRECATION PROTOCOL:
+   - Mark deprecated fields with type annotations and comments
+   - Emit runtime warnings when deprecated fields are used
+   - Maintain backward compatibility for at least 2 major versions
+   - Update all client packages before removing from API
+
+4. ADDING NEW FIELDS:
+   - New fields must have default values to maintain compatibility
+   - Document the purpose and usage in docstrings
+   - Add to all relevant methods (__eq__, __str__, to_cmd_args, etc.)
+
+Example of proper deprecation:
+    no_platformio: bool = False  # DEPRECATED: PlatformIO support removed in v1.2.0
+
+For questions about API changes, consult the maintainers before proceeding.
+"""
+
 import argparse
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,6 +64,11 @@ class Args:
     clear_ccache: bool
     strict: bool
     session_id: int | None = None  # Optional session ID for persistent builds
+
+    # DEPRECATED FIELDS - Kept for backward compatibility
+    no_platformio: bool = (
+        False  # DEPRECATED v1.2.0: PlatformIO support removed, this field is ignored
+    )
 
     @staticmethod
     def parse_args(args: list[str] | None = None) -> "Args":
@@ -72,6 +120,7 @@ class Args:
             and self.clear_ccache == other.clear_ccache
             and self.strict == other.strict
             and self.session_id == other.session_id
+            and self.no_platformio == other.no_platformio
         )
 
     def __post_init__(self):
@@ -91,6 +140,20 @@ class Args:
         assert isinstance(self.clear_ccache, bool)
         assert isinstance(self.strict, bool)
         assert self.session_id is None or isinstance(self.session_id, int)
+        assert isinstance(self.no_platformio, bool)
+
+        # Emit deprecation warning for no_platformio usage
+        if self.no_platformio:
+            warnings.warn(
+                (
+                    "The 'no_platformio' parameter is deprecated as of v1.2.0. "
+                    "PlatformIO support has been completely removed from fastled-wasm-compiler. "
+                    "This parameter is now ignored and will be removed in a future version. "
+                    "Please update your client code to remove this parameter."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     def __str__(self):
         return (
@@ -109,7 +172,8 @@ class Args:
             f"release={self.release}, "
             f"clear_ccache={self.clear_ccache}, "
             f"strict={self.strict}, "
-            f"session_id={self.session_id})"
+            f"session_id={self.session_id}, "
+            f"no_platformio={self.no_platformio})"
         )
 
 
