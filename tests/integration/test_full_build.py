@@ -12,6 +12,8 @@ from pathlib import Path
 
 from fastled_wasm_compiler.paths import CONTAINER_JS_ROOT
 
+from .functors.base import Functor
+
 # Enable Docker BuildKit for faster builds
 os.environ["DOCKER_BUILDKIT"] = "1"
 
@@ -30,9 +32,28 @@ IMAGE_NAME = "niteris/fastled-wasm-compiler:test"
 _IS_GITHUB = os.environ["CI"] == "true" if "CI" in os.environ else False
 _IS_LINUX = platform.system() == "Linux"
 
-_ENABLE = _IS_LINUX or not _IS_GITHUB
+# Docker integration tests only work properly on Linux due to path and volume mount differences
+# They are also skipped in GitHub CI to avoid resource usage
+_ENABLE = _IS_LINUX and not _IS_GITHUB
 
 _FULL_PURGE = False
+
+
+def to_docker_path(path: Path) -> str:
+    r"""Convert a Path to Docker-compatible volume mount format.
+
+    On Windows, Docker Desktop handles Windows paths natively.
+    We just need to convert backslashes to forward slashes.
+    On Unix systems, returns the path as-is.
+    """
+    if platform.system() == "Windows":
+        # Docker Desktop on Windows handles C:/Users/... format
+        path_str = str(path.absolute())
+        # Convert backslashes to forward slashes
+        path_str = path_str.replace("\\", "/")
+        return path_str
+    else:
+        return str(path.absolute())
 
 
 def check_docker_availability() -> None:
@@ -387,11 +408,11 @@ class FullBuildTester(unittest.TestCase):
             "fastled-compile-container",
             # Mount the test data directories
             "-v",
-            f"{MAPPED_DIR.absolute()}:/mapped",
+            f"{to_docker_path(MAPPED_DIR)}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
             "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
@@ -495,11 +516,11 @@ class FullBuildTester(unittest.TestCase):
             "fastled-compile-container",
             # Mount the test data directories
             "-v",
-            f"{MAPPED_DIR.absolute()}:/mapped",
+            f"{to_docker_path(MAPPED_DIR)}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
             "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
@@ -606,11 +627,11 @@ class FullBuildTester(unittest.TestCase):
             "fastled-compile-container",
             # Mount the test data directories
             "-v",
-            f"{MAPPED_DIR.absolute()}:/mapped",
+            f"{to_docker_path(MAPPED_DIR)}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
             "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
             IMAGE_NAME,
             # Required arguments
             "--compiler-root",
@@ -690,7 +711,7 @@ class FullBuildTester(unittest.TestCase):
         # In a real test, we might compare this to other build modes
         # or have a maximum size threshold, but for now we just report it
 
-    @unittest.skipIf(_IS_GITHUB, "Skipping test on GitHub CI")
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
     def test_platformio_vs_no_platformio_artifacts(self) -> None:
         """Test that PlatformIO and no-PlatformIO builds produce equivalent artifacts.
 
@@ -731,11 +752,11 @@ class FullBuildTester(unittest.TestCase):
                 "fastled-compare-container",
                 # Mount the test data directories
                 "-v",
-                f"{mapped_test_dir.absolute()}:/mapped",
+                f"{to_docker_path(mapped_test_dir)}:/mapped",
                 "-v",
-                f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+                f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
                 "-v",
-                f"{ASSETS_DIR.absolute()}:/assets",
+                f"{to_docker_path(ASSETS_DIR)}:/assets",
                 IMAGE_NAME,
                 # Required arguments
                 "--compiler-root",
@@ -940,11 +961,11 @@ class FullBuildTester(unittest.TestCase):
                 "fastled-pch-container",
                 # Mount the test data directories
                 "-v",
-                f"{mapped_test_dir.absolute()}:/mapped",
+                f"{to_docker_path(mapped_test_dir)}:/mapped",
                 "-v",
-                f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+                f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
                 "-v",
-                f"{ASSETS_DIR.absolute()}:/assets",
+                f"{to_docker_path(ASSETS_DIR)}:/assets",
                 IMAGE_NAME,
                 # Required arguments
                 "--compiler-root",
@@ -1349,9 +1370,9 @@ Check the detailed error output above for the exact exception and traceback.
             "-v",
             f"{mapped_test_dir.absolute()}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
             "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
             # CRITICAL: Disable volume mapping by setting ENV_VOLUME_MAPPED_SRC to non-existent path
             "-e",
             "ENV_VOLUME_MAPPED_SRC=/nonexistent/path",
@@ -1481,11 +1502,11 @@ Check the detailed error output above for the exact exception and traceback.
             "fastled-headers-emsdk-container",
             # Mount the test data directories
             "-v",
-            f"{MAPPED_DIR.absolute()}:/mapped",
+            f"{to_docker_path(MAPPED_DIR)}:/mapped",
             "-v",
-            f"{COMPILER_ROOT.absolute()}:{CONTAINER_JS_ROOT}",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
             "-v",
-            f"{ASSETS_DIR.absolute()}:/assets",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
             IMAGE_NAME,
             # Test the headers-emsdk flag with zip output
             "--headers-emsdk",
@@ -1562,6 +1583,150 @@ Check the detailed error output above for the exact exception and traceback.
             output_zip.unlink()
         else:
             print("Warning: Expected output zip file not found at {output_zip}")
+
+
+class QuickModeFunctorTest(unittest.TestCase):
+    """Single-run integration test using functor pattern for quick mode.
+
+    This test class demonstrates the functor-based approach from REFACTOR_INTEGRATION_TEST.md:
+    - Runs compilation ONCE in setUpClass
+    - Each test method runs a functor to validate different aspects
+    - Much faster than running compilation multiple times
+    """
+
+    # Class-level shared state
+    _output_lines: list[str] = []
+    _output_dir: Path | None = None
+    _build_mode: str = "quick"
+    _compilation_done: bool = False
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """ONE TIME: Run compilation and capture output."""
+        if not _ENABLE:
+            return
+
+        print(f"\n{'='*80}")
+        print(f"FUNCTOR-BASED TEST: Running {cls._build_mode} mode compilation ONCE")
+        print(f"{'='*80}\n")
+
+        # Remove any existing containers
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-functor-test-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        # Run compilation
+        cmd_list: list[str] = [
+            "docker",
+            "run",
+            "--name",
+            "fastled-functor-test-container",
+            "-v",
+            f"{to_docker_path(MAPPED_DIR)}:/mapped",
+            "-v",
+            f"{to_docker_path(COMPILER_ROOT)}:{CONTAINER_JS_ROOT}",
+            "-v",
+            f"{to_docker_path(ASSETS_DIR)}:/assets",
+            IMAGE_NAME,
+            "--compiler-root",
+            CONTAINER_JS_ROOT,
+            "--assets-dirs",
+            "/assets",
+            "--mapped-dir",
+            "/mapped",
+            f"--{cls._build_mode}",
+            "--keep-files",
+        ]
+
+        compile_proc = subprocess.Popen(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        assert compile_proc.stdout is not None
+
+        # Capture output
+        cls._output_lines = []
+        for line in compile_proc.stdout:
+            line_str = line.decode("utf-8", errors="replace").strip()
+            sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
+            cls._output_lines.append(line_str)
+
+        compile_proc.wait()
+        compile_proc.stdout.close()
+        compile_proc.terminate()
+
+        # Clean up container
+        subprocess.run(
+            ["docker", "rm", "-f", "fastled-functor-test-container"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if compile_proc.returncode != 0:
+            raise RuntimeError(
+                f"Compilation failed with code {compile_proc.returncode}"
+            )
+
+        cls._output_dir = MAPPED_DIR / "sketch" / "fastled_js"
+        cls._compilation_done = True
+
+        print(
+            f"\nCompilation complete. Captured {len(cls._output_lines)} output lines."
+        )
+        print(f"Output directory: {cls._output_dir}")
+        print("Now running functor-based validators...\n")
+
+    def _run_functor(self, functor: Functor) -> None:
+        """Run a test functor and assert it passes."""
+        if not _ENABLE:
+            self.skipTest("Integration tests disabled")
+
+        assert self._output_dir is not None, "Compilation was not run"
+        result = functor.check(self._output_lines, self._output_dir)
+        print(functor.report())
+        self.assertTrue(
+            result,
+            f"{functor.name} failed: {functor.error_message}",
+        )
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_pch_enabled_for_clean_files(self) -> None:
+        """Verify PCH works for files without #define."""
+        from .functors import PCHEnabledFunctor
+
+        self._run_functor(PCHEnabledFunctor())
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_pch_disabled_for_define_files(self) -> None:
+        """Verify PCH is disabled when #define present."""
+        from .functors import PCHDisabledFunctor
+
+        self._run_functor(PCHDisabledFunctor())
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_wasm_output_size(self) -> None:
+        """Verify WASM output exists and has reasonable size."""
+        from .functors import WASMFileSizeFunctor
+
+        self._run_functor(WASMFileSizeFunctor(min_size=1000))
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_manifest_file_exists(self) -> None:
+        """Verify manifest file was generated."""
+        from .functors import ManifestExistsFunctor
+
+        self._run_functor(ManifestExistsFunctor())
+
+    @unittest.skipIf(not _ENABLE, "Skipping test on non-Linux or GitHub CI")
+    def test_compilation_success(self) -> None:
+        """Verify compilation completed successfully."""
+        from .functors import CompilationSuccessFunctor
+
+        self._run_functor(CompilationSuccessFunctor())
 
 
 if __name__ == "__main__":

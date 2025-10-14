@@ -239,6 +239,50 @@ CXX = "/build_tools/ccache-emcxx.sh"
 # PCH now works transparently with include guards, no file modification required.
 
 
+def _has_defines_before_fastled(src_file: Path) -> bool:
+    """Check if source file has #define statements before FastLED.h or Arduino.h.
+
+    PCH cannot be used if there are #defines before FastLED headers because
+    those defines would change how FastLED is compiled, but PCH is pre-compiled.
+
+    Args:
+        src_file: Path to source file to analyze
+
+    Returns:
+        True if #defines found before FastLED/Arduino includes, False otherwise
+    """
+    try:
+        with open(src_file, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+
+        # Parse line by line
+        for line in content.splitlines():
+            stripped = line.strip()
+
+            # Skip empty lines and C++ style comments
+            if not stripped or stripped.startswith("//"):
+                continue
+
+            # Check for FastLED or Arduino includes
+            if "#include" in stripped and (
+                "FastLED.h" in stripped or "Arduino.h" in stripped
+            ):
+                # Once we see the include, we're done checking
+                break
+
+            # Check for #define before we've seen FastLED/Arduino includes
+            if stripped.startswith("#define"):
+                # Found a #define before FastLED/Arduino include
+                return True
+
+        return False
+
+    except Exception as e:
+        # If we can't read the file, assume no defines to be safe
+        print(f"Warning: Could not analyze {src_file} for #defines: {e}")
+        return False
+
+
 def compile_cpp_to_obj(
     src_file: Path,
     build_mode: str,
@@ -266,10 +310,16 @@ def compile_cpp_to_obj(
     # Get just the build mode flags for display
     mode_flags = flags_loader.get_build_mode_flags(build_mode)
     pch_file: Path | None = None
+    pch_skip_reason: str | None = None
 
     # Check if PCH is disabled via environment variable
     if os.environ.get("NO_PRECOMPILED_HEADERS") == "1":
         can_use_pch = False
+        pch_skip_reason = "disabled via NO_PRECOMPILED_HEADERS=1"
+    # Check if file has #defines before FastLED.h (PCH incompatible)
+    elif _has_defines_before_fastled(src_file):
+        can_use_pch = False
+        pch_skip_reason = "#define statements found before FastLED.h/Arduino.h"
     else:
         # Use PCH if available (no source file modification needed)
         # PCH works transparently with include guards - no need to modify source files
@@ -312,6 +362,7 @@ def compile_cpp_to_obj(
             except Exception:
                 pass  # Don't let logging failures break compilation
             can_use_pch = False
+            pch_skip_reason = "PCH file not found"
 
     # cmd = [CXX, "-o", obj_file.as_posix(), *flags, str(src_file)]
     cmd: list[str] = []
@@ -360,6 +411,8 @@ def compile_cpp_to_obj(
         final_output.append(
             "    🔒 Source files remain unmodified (include guards handle double inclusion)"
         )
+    elif pch_skip_reason:
+        final_output.append(f"⚠️  PCH DISABLED for {src_file.name}: {pch_skip_reason}")
 
     # 5. Compiler output only if there are errors or important messages
     has_compiler_output = (cp.stdout and cp.stdout.strip()) or (

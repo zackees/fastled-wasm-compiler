@@ -698,17 +698,23 @@ class Compiler:
             return self.settings.pch_header_content
 
         # Default PCH content based on common FastLED example includes
+        # This PCH is injected into ALL .cpp files in the sketch (not just .ino files)
+        # including auxiliary files in subdirectories
         default_content = """// FastLED PCH - Common headers for faster compilation
 #pragma once
 
-// Core headers that are used in nearly all FastLED examples
+// Core headers that are used in nearly all FastLED sketches and auxiliary files
 #include <Arduino.h>
 #include <FastLED.h>
 
-// Common C++ standard library headers
+// Common C++ standard library headers used in sketches and auxiliary files
 #include <string>
 #include <vector>
 #include <stdio.h>
+#include <cmath>
+#include <algorithm>
+#include <memory>
+#include <utility>
 """
         return default_content
 

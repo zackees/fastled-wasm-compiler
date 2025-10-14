@@ -5,7 +5,8 @@
       "Bash(fastled-wasm-compiler:*)",
       "Bash(uv run:*)",
       "Read(//c/js/**)",
-      "Read(//c/Users/niteris/dev/fastled-wasm-server/**)"
+      "Read(//c/Users/niteris/dev/fastled-wasm-server/**)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

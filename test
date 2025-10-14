@@ -2,9 +2,9 @@
 
 set -e
 
-# if not activate present, install it
-if ! command -v activate &> /dev/null; then
-    echo "activate could not be found, installing it"
+# if virtual environment not present, install it
+if [[ ! -d ".venv" ]] || [[ ! -f ".venv/pyvenv.cfg" ]]; then
+    echo "Virtual environment not found, installing it"
     bash install
 fi
 
