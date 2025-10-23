@@ -112,7 +112,7 @@ compiler_flags = [
 include_flags = [
     "-I.",                                    # Current directory
     # Note: FastLED source includes are added dynamically based on installation path
-    # Additional includes: -I{fastled_src_path} and -I{fastled_src_path}/platforms/wasm/compiler
+    # Additional includes: -I{fastled_src_path}, -I{fastled_src_path}/platforms/wasm, and -I{fastled_src_path}/platforms/wasm/compiler
 ]
 
 [sketch]

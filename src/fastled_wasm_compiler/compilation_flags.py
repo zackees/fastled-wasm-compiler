@@ -183,6 +183,7 @@ class CompilationFlags:
         flags.extend(
             [
                 f"-I{fastled_src_path}",
+                f"-I{fastled_src_path}/platforms/wasm",
                 f"-I{fastled_src_path}/platforms/wasm/compiler",
             ]
         )

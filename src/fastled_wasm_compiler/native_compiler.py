@@ -890,6 +890,7 @@ class Compiler:
                     "-x",
                     "c++-header",
                     f"-I{self.settings.include_path}",
+                    f"-I{self.settings.include_path}/platforms/wasm",
                     f"-I{self.settings.include_path}/platforms/wasm/compiler",
                 ]
             )

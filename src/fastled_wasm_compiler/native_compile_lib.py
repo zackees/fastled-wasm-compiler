@@ -126,7 +126,16 @@ class NativeLibraryBuilder:
         # Create compiler settings
         # IMPORTANT: compiler_args must start with the compiler command for native_compiler
         # It expects compiler_args to be the full command: ["emcc", ...flags]
-        compiler_args_with_cmd = [emcc_path] + self.build_flags.compiler_flags
+        compiler_args_with_cmd = (
+            [emcc_path]
+            + self.build_flags.compiler_flags
+            + self.build_flags.include_flags
+            + [
+                f"-I{self.fastled_src}",
+                f"-I{self.fastled_src}/platforms/wasm",
+                f"-I{self.fastled_src}/platforms/wasm/compiler",
+            ]
+        )
 
         self.settings = CompilerOptions(
             include_path=str(self.fastled_src),

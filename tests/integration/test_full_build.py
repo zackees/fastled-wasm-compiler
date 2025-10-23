@@ -34,7 +34,7 @@ _IS_LINUX = platform.system() == "Linux"
 
 # Docker integration tests only work properly on Linux due to path and volume mount differences
 # They are also skipped in GitHub CI to avoid resource usage
-_ENABLE = _IS_LINUX and not _IS_GITHUB
+_ENABLE = _IS_LINUX or not _IS_GITHUB  # IMPORTANT!!! DON'T CHANGE THIS!!
 
 _FULL_PURGE = False
 
