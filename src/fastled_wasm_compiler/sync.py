@@ -226,6 +226,10 @@ def _should_include_platforms_path(file_path: Path, src_dir: Path) -> bool:
         if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
             return True
 
+        # Allow specific files from platform-specific directories
+        if len(parts) >= 3 and parts[1] == "arduino" and parts[2] == "audio_input.hpp":
+            return True
+
         # Otherwise exclude (platforms/arduino/, platforms/esp32/, etc.)
         return False
     except ValueError:

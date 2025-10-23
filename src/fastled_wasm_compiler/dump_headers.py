@@ -269,31 +269,35 @@ class HeaderDumper:
         """
         print("🔌 Collecting Arduino compatibility headers...")
 
-        # Arduino compatibility headers are in the FastLED platforms/wasm/compiler directory
-        arduino_src = self.fastled_src / "platforms" / "wasm" / "compiler"
-
-        if not arduino_src.exists():
-            print(f"⚠️  Arduino compatibility headers not found at {arduino_src}")
-            return []
+        # Arduino compatibility headers are in multiple locations
+        arduino_sources = [
+            self.fastled_src / "platforms" / "wasm" / "compiler",
+            self.fastled_src / "platforms" / "arduino",
+        ]
 
         arduino_output = self.output_dir / "arduino"
         copied_files = []
 
-        # Find header files (and optionally source files) in Arduino compatibility directory
+        # Find header files (and optionally source files) in Arduino compatibility directories
         extensions = self.HEADER_EXTENSIONS.copy()
         if self.include_source:
             extensions.extend(self.SOURCE_EXTENSIONS)
 
-        header_files = self._find_files_in_directory(arduino_src, extensions)
-        print(f"   Found {len(header_files)} Arduino compatibility files")
+        for arduino_src in arduino_sources:
+            if not arduino_src.exists():
+                print(f"⚠️  Arduino headers not found at {arduino_src}")
+                continue
 
-        for header_file in header_files:
-            # Copy directly to arduino output directory
-            dest_path = arduino_output / header_file.name
-            shutil.copy2(header_file, dest_path)
-            copied_files.append(str(dest_path.relative_to(self.output_dir)))
+            header_files = self._find_files_in_directory(arduino_src, extensions)
+            print(f"   Found {len(header_files)} Arduino files in {arduino_src.name}/")
 
-        print(f"   Copied {len(copied_files)} Arduino files")
+            for header_file in header_files:
+                # Copy directly to arduino output directory
+                dest_path = arduino_output / header_file.name
+                shutil.copy2(header_file, dest_path)
+                copied_files.append(str(dest_path.relative_to(self.output_dir)))
+
+        print(f"   Copied {len(copied_files)} Arduino files total")
         return copied_files
 
     def _find_files_in_directory(

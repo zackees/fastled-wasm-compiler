@@ -10,6 +10,10 @@ import sys
 import unittest
 from pathlib import Path
 
+from fastled_wasm_compiler.docker_discovery import (
+    check_docker_availability,
+    find_docker_command,
+)
 from fastled_wasm_compiler.paths import CONTAINER_JS_ROOT
 
 from .functors.base import Functor
@@ -38,6 +42,9 @@ _ENABLE = _IS_LINUX or not _IS_GITHUB  # IMPORTANT!!! DON'T CHANGE THIS!!
 
 _FULL_PURGE = False
 
+# Cache for docker command path (discovered at runtime)
+_DOCKER_CMD: str | None = None
+
 
 def to_docker_path(path: Path) -> str:
     r"""Convert a Path to Docker-compatible volume mount format.
@@ -56,33 +63,17 @@ def to_docker_path(path: Path) -> str:
         return str(path.absolute())
 
 
-def check_docker_availability() -> None:
-    """Check if Docker is available and running, raise clear error if not."""
-    try:
-        # First check if docker command exists
-        result = subprocess.run(
-            ["docker", "--version"], capture_output=True, text=True, timeout=10
-        )
-        if result.returncode != 0:
-            raise RuntimeError("Docker command not found. Please install Docker.")
+def _get_docker_cmd() -> str:
+    """Get the docker command path, finding it if necessary.
 
-        # Then check if Docker daemon is running
-        result = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=10
-        )
-        if result.returncode != 0:
-            error_msg = "Docker is installed but not running. Please start Docker Desktop or Docker daemon."
-            if (
-                "cannot connect" in result.stderr.lower()
-                or "connection refused" in result.stderr.lower()
-            ):
-                error_msg += f"\nError details: {result.stderr.strip()}"
-            raise RuntimeError(error_msg)
-
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Docker command timed out. Docker may not be responding.")
-    except FileNotFoundError:
-        raise RuntimeError("Docker command not found. Please install Docker.")
+    Uses caching to avoid searching multiple times.
+    Returns:
+        str: The path to the docker executable
+    """
+    global _DOCKER_CMD
+    if _DOCKER_CMD is None:
+        _DOCKER_CMD = find_docker_command()
+    return _DOCKER_CMD
 
 
 class FullBuildTester(unittest.TestCase):
@@ -105,7 +96,7 @@ class FullBuildTester(unittest.TestCase):
 
             # Run docker compose build with streaming output
             compose_build_proc = subprocess.Popen(
-                ["docker", "compose", "build"],
+                [_get_docker_cmd(), "compose", "build"],
                 cwd=PROJECT_ROOT,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -127,14 +118,14 @@ class FullBuildTester(unittest.TestCase):
 
             # Remove any existing containers with the same name
             subprocess.run(
-                ["docker", "rm", "-f", "fastled-test-container"],
+                [_get_docker_cmd(), "rm", "-f", "fastled-test-container"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
 
             # Remove any existing image with the same tag
             subprocess.run(
-                ["docker", "rmi", "-f", IMAGE_NAME],
+                [_get_docker_cmd(), "rmi", "-f", IMAGE_NAME],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -147,7 +138,7 @@ class FullBuildTester(unittest.TestCase):
 
             # Build the Docker image with streaming output
             build_proc = subprocess.Popen(
-                ["docker", "build", "-t", IMAGE_NAME, "."],
+                [_get_docker_cmd(), "build", "-t", IMAGE_NAME, "."],
                 cwd=PROJECT_ROOT,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -171,20 +162,20 @@ class FullBuildTester(unittest.TestCase):
             print("\nCleaning up Docker resources...")
             # Remove the container
             subprocess.run(
-                ["docker", "rm", "-f", "fastled-test-container"],
+                [_get_docker_cmd(), "rm", "-f", "fastled-test-container"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
             # Remove the image
             subprocess.run(
-                ["docker", "rmi", "-f", IMAGE_NAME],
+                [_get_docker_cmd(), "rmi", "-f", IMAGE_NAME],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
             if _FULL_PURGE:
                 # Prune any dangling build artifacts
                 subprocess.run(
-                    ["docker", "system", "prune", "-f"],
+                    [_get_docker_cmd(), "system", "prune", "-f"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
@@ -215,7 +206,7 @@ class FullBuildTester(unittest.TestCase):
         print("\nRunning container with --help command...")
         run_proc = subprocess.Popen(
             [
-                "docker",
+                _get_docker_cmd(),
                 "run",
                 "-p",
                 "7012:80",
@@ -246,7 +237,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-printenv-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-printenv-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -254,7 +245,7 @@ class FullBuildTester(unittest.TestCase):
         print("\nRunning container with printenv command...")
         run_proc = subprocess.Popen(
             [
-                "docker",
+                _get_docker_cmd(),
                 "run",
                 "--name",
                 "fastled-printenv-container",
@@ -308,7 +299,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-printenv-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-printenv-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -319,7 +310,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-symbol-resolution-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-symbol-resolution-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -382,7 +373,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-symbol-resolution-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-symbol-resolution-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -393,7 +384,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -449,7 +440,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -501,7 +492,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -558,7 +549,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -612,7 +603,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -674,7 +665,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compile-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compile-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -723,7 +714,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-compare-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-compare-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -792,7 +783,7 @@ class FullBuildTester(unittest.TestCase):
 
             # Clean up the container
             subprocess.run(
-                ["docker", "rm", "-f", "fastled-compare-container"],
+                [_get_docker_cmd(), "rm", "-f", "fastled-compare-container"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -932,7 +923,7 @@ class FullBuildTester(unittest.TestCase):
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-pch-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-pch-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1002,7 +993,7 @@ class FullBuildTester(unittest.TestCase):
 
             # Clean up the container
             subprocess.run(
-                ["docker", "rm", "-f", "fastled-pch-container"],
+                [_get_docker_cmd(), "rm", "-f", "fastled-pch-container"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -1335,7 +1326,7 @@ Check the detailed error output above for the exact exception and traceback.
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-pch-staleness-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-pch-staleness-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1430,7 +1421,7 @@ Check the detailed error output above for the exact exception and traceback.
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-pch-staleness-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-pch-staleness-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1487,7 +1478,7 @@ Check the detailed error output above for the exact exception and traceback.
 
         # Remove any existing containers with the same name
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-headers-emsdk-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-headers-emsdk-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1537,7 +1528,7 @@ Check the detailed error output above for the exact exception and traceback.
 
         # Clean up the container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-headers-emsdk-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-headers-emsdk-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1612,7 +1603,7 @@ class QuickModeFunctorTest(unittest.TestCase):
 
         # Remove any existing containers
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-functor-test-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-functor-test-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -1661,7 +1652,7 @@ class QuickModeFunctorTest(unittest.TestCase):
 
         # Clean up container
         subprocess.run(
-            ["docker", "rm", "-f", "fastled-functor-test-container"],
+            [_get_docker_cmd(), "rm", "-f", "fastled-functor-test-container"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
