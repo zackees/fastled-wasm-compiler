@@ -1601,6 +1601,39 @@ class QuickModeFunctorTest(unittest.TestCase):
         print(f"FUNCTOR-BASED TEST: Running {cls._build_mode} mode compilation ONCE")
         print(f"{'='*80}\n")
 
+        # Ensure the Docker image exists by building it if necessary
+        print("Checking Docker image...")
+        check_result = subprocess.run(
+            [_get_docker_cmd(), "inspect", IMAGE_NAME],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if check_result.returncode != 0:
+            print(f"Image {IMAGE_NAME} not found. Building it now...")
+            # Build the Docker image
+            build_proc = subprocess.Popen(
+                [_get_docker_cmd(), "build", "-t", IMAGE_NAME, "."],
+                cwd=PROJECT_ROOT,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            assert build_proc.stdout is not None
+
+            for line in build_proc.stdout:
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                sys.stdout.buffer.write((line_str + "\n").encode("utf-8"))
+
+            build_proc.wait()
+            build_proc.stdout.close()
+
+            if build_proc.returncode != 0:
+                raise RuntimeError("Docker image build failed for QuickModeFunctorTest")
+            print(f"Successfully built image {IMAGE_NAME}")
+        else:
+            print(f"Image {IMAGE_NAME} already exists")
+
         # Remove any existing containers
         subprocess.run(
             [_get_docker_cmd(), "rm", "-f", "fastled-functor-test-container"],

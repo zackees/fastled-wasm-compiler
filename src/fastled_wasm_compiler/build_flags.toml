@@ -77,6 +77,7 @@ defines = [
 
     # Emscripten-Specific Configuration
     "-DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0",    # Disable unbound type name reflection
+    "-DEMSCRIPTEN_KEEP_ALIVE=__attribute__((used))",  # Define EMSCRIPTEN_KEEP_ALIVE for newer FastLED versions
 
     # Feature Enablement
     "-DFASTLED_HAS_NETWORKING=1",               # Enable networking support
@@ -333,7 +334,7 @@ flags = [
     "-sFILESYSTEM=0",                        # Disable filesystem support (not needed)
     
     # Optimization and Debugging
-    "-Wl,--gc-sections",                     # Remove unused code sections
+    # "-Wl,--gc-sections",                     # Remove unused code sections
     "--source-map-base=http://localhost:8000/", # Base URL for source map files
     
     # Asyncify Support (enables async/await style coding with delay() functions)
