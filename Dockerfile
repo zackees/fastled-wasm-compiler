@@ -220,9 +220,6 @@ COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN dos2unix /entrypoint.sh
 
-
-COPY ./build_tools_new/* /build_tools/
-
 ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["--help"]
