@@ -130,7 +130,7 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
     # Build find command with extension filters
     find_cmd = [find_executable, str(src_dir), "-type", "f"]
 
-    # Add extension filters using -name patterns FIRST (simpler, more reliable)
+    # Add extension filters using -name patterns
     if ALLOWED_EXTENSIONS:
         find_cmd.extend(["("])
         for i, ext in enumerate(ALLOWED_EXTENSIONS):
@@ -138,19 +138,6 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
                 find_cmd.append("-o")
             find_cmd.extend(["-name", ext])
         find_cmd.append(")")
-
-    # Add platforms directory filtering AFTER extension matching
-    # Exclude unwanted platform directories but keep everything else
-    # This is simpler and more reliable than the previous complex logic
-    find_cmd.extend(["-a", "("])
-    find_cmd.extend(["-not", "-path", "*/platforms/esp32/*"])
-    find_cmd.extend(["-a", "-not", "-path", "*/platforms/esp8266/*"])
-    find_cmd.extend(["-a", "-not", "-path", "*/platforms/avr/*"])
-    find_cmd.extend(["-a", "-not", "-path", "*/platforms/teensy/*"])
-    find_cmd.extend(["-a", "-not", "-path", "*/platforms/rp2040/*"])
-    # Include these platforms
-    # (everything not explicitly excluded above is included)
-    find_cmd.append(")")
 
     try:
         result = subprocess.run(find_cmd, capture_output=True, text=True, check=True)
@@ -208,29 +195,33 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
         return _find_files_python_fallback(src_dir)
 
 
-def _should_include_platforms_path(file_path: Path, src_dir: Path) -> bool:
-    """Check if a file in platforms directory should be included based on filtering rules."""
-    try:
-        rel_path = file_path.relative_to(src_dir)
-        parts = rel_path.parts
+def _should_sync_file(rel_path: Path) -> bool:
+    """
+    Front-end filter to determine if a file should be synced.
+    This is the single place where platform filtering happens for repo sync mode.
 
-        # If not in platforms directory, include it
-        if len(parts) == 0 or parts[0] != "platforms":
-            return True
+    Args:
+        rel_path: Relative path of the file from the source directory
 
-        # If directly in platforms/ (not in subdirectory), include it
-        if len(parts) == 2:  # platforms/filename
-            return True
+    Returns:
+        True if the file should be synced, False otherwise
+    """
+    parts = rel_path.parts
 
-        # If in allowed subdirectories, include it
-        if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
-            return True
-
-        # Otherwise exclude (platforms/arduino/, platforms/esp32/, etc.)
-        return False
-    except ValueError:
-        # File is not relative to src_dir, include it
+    # If not in platforms directory, sync it
+    if len(parts) == 0 or parts[0] != "platforms":
         return True
+
+    # If directly in platforms/ (not in subdirectory), sync it
+    if len(parts) == 2:  # platforms/filename
+        return True
+
+    # If in allowed subdirectories, sync it
+    if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
+        return True
+
+    # Otherwise exclude (platforms/esp32/, platforms/esp8266/, platforms/avr/, etc.)
+    return False
 
 
 def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResult:
@@ -395,14 +386,10 @@ def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
 
 
 def _find_files_python_fallback(src_dir: Path) -> list[Path]:
-    """Fallback Python implementation with platforms filtering when find command is not available."""
+    """Fallback Python implementation when find command is not available."""
     files = []
     for file_path in src_dir.rglob("*"):
         if file_path.is_file():
-            # Apply platforms directory filtering
-            if not _should_include_platforms_path(file_path, src_dir):
-                continue
-
             # Check if file matches any allowed extension
             for pattern in ALLOWED_EXTENSIONS:
                 if file_path.match(pattern):
@@ -436,6 +423,18 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
     # Convert to relative paths for comparison
     src_relative = {f.relative_to(src) for f in src_files}
     dst_relative = {f.relative_to(dst) for f in dst_files}
+
+    # Apply front-end filter to determine which files should be synced
+    # This is the single place where platform filtering happens
+    src_relative = {
+        rel_path for rel_path in src_relative if _should_sync_file(rel_path)
+    }
+    dst_relative = {
+        rel_path for rel_path in dst_relative if _should_sync_file(rel_path)
+    }
+    logger.info(
+        f"After filtering, {len(src_relative)} files remain for sync (from {len(src_files)} discovered)"
+    )
 
     # Create missing directories
     missing_parents_set: set[Path] = set()
