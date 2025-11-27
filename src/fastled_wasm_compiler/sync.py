@@ -252,6 +252,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         rsync_executable,
         "-av",
         "--delete",
+        "--chmod=ugo+w",  # Make destination files writable before updating
         "--include=*.js",
         "--include=*.mjs",
         "--include=*.css",
