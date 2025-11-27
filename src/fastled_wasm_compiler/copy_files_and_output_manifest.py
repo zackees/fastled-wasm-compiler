@@ -138,6 +138,19 @@ def copy_output_files_and_create_manifest(
         ignore=shutil.ignore_patterns(".*"),
     )  # Ignore hidden files
 
+    # Copy vendor directory if it exists
+    assets_vendor = assets_modules.parent / "vendor"
+    if assets_vendor.exists():
+        print(f"Copying vendor files from {assets_vendor} to {out_dir / 'vendor'}")
+        shutil.copytree(
+            src=assets_vendor,
+            dst=out_dir / "vendor",
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".*"),
+        )  # Ignore hidden files
+    else:
+        print(f"No vendor directory found at {assets_vendor}, skipping vendor copy")
+
     print("Copying index.js to output directory")
     shutil.copy2(index_js_src, out_dir / "index.js")
     optional_input_data_dir = src_dir / "data"
