@@ -23,11 +23,11 @@ sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alig
 sed -i 's/FL_DBG("Canvas map data: " << jsonBuffer\.c_str());/\/\/ FL_DBG("Canvas map data: " << jsonBuffer.c_str());/g' "${FASTLED_ROOT}/src/platforms/wasm/js_bindings.cpp"
 
 
-# Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub or shared
+# Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub, shared, posix, arm, or apollo3
 cd "${FASTLED_ROOT}/src/platforms"
 shopt -s extglob  # enable extended globing
 for d in */; do
-  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* && ! "$d" == *arm* ]]; then
+  if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* && ! "$d" == *arm* && ! "$d" == *apollo3* ]]; then
     rm -rf "$d"
   fi
 done
