@@ -24,11 +24,46 @@ sed -i 's/FL_DBG("Canvas map data: " << jsonBuffer\.c_str());/\/\/ FL_DBG("Canva
 
 
 # Now remove all files in ${FASTLED_ROOT}/src/platforms that isn't wasm, stub, shared, posix, arm, or apollo3
+# But keep is_*.h files and their local dependencies (needed by platforms/is_platform.h)
+# Also keep interface headers (i*.h) needed by shared/mock implementations
 cd "${FASTLED_ROOT}/src/platforms"
 shopt -s extglob  # enable extended globing
 for d in */; do
   if [[ ! "$d" == *wasm* && ! "$d" == *stub* && ! "$d" == *shared* && ! "$d" == *posix* && ! "$d" == *arm* && ! "$d" == *apollo3* ]]; then
+    # Before removing, copy any files that need to be preserved:
+    # 1. is_*.h - Platform detection headers included by platforms/is_platform.h
+    # 2. i*.h - Interface headers needed by shared/mock implementations (e.g., iuart_peripheral.h)
+    # 3. esp_version.h - Required by is_esp.h
+    tmp_dir="${d%/}_preserved_tmp"
+    mkdir -p "$tmp_dir"
+
+    # Find and copy all is_*.h and i*.h files recursively, preserving directory structure
+    # This handles both top-level and nested headers like esp/32/drivers/uart/iuart_peripheral.h
+    find "$d" -name 'is_*.h' -o -name 'i*.h' 2>/dev/null | while read -r f; do
+      if [ -f "$f" ]; then
+        rel_path="${f#$d}"
+        target_dir="$tmp_dir/$(dirname "$rel_path")"
+        mkdir -p "$target_dir"
+        cp "$f" "$target_dir/" 2>/dev/null || true
+      fi
+    done
+
+    # Copy esp_version.h if this is the esp platform (required by is_esp.h)
+    if [[ "$d" == "esp/" && -f "${d}esp_version.h" ]]; then
+      cp "${d}esp_version.h" "$tmp_dir/" 2>/dev/null || true
+    fi
+
+    # Check if we found any files to preserve
+    has_files=$(find "$tmp_dir" -type f 2>/dev/null | head -1)
+
     rm -rf "$d"
+
+    # Restore the preserved files
+    if [ -n "$has_files" ]; then
+      mkdir -p "$d"
+      cp -r "$tmp_dir"/* "$d" 2>/dev/null || true
+    fi
+    rm -rf "$tmp_dir" 2>/dev/null || true
   fi
 done
 

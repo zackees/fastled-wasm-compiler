@@ -220,6 +220,17 @@ def _should_sync_file(rel_path: Path) -> bool:
     if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
         return True
 
+    # Allow platform detection headers (is_*.h) from any platform directory
+    # These headers are included by platforms/is_platform.h for platform detection
+    filename = parts[-1]
+    if filename.startswith("is_") and filename.endswith(".h"):
+        return True
+
+    # Allow interface headers from platform subdirectories that are needed by shared/mock implementations
+    # E.g., platforms/esp/32/drivers/uart/iuart_peripheral.h is needed by shared/mock implementations
+    if filename.startswith("i") and filename.endswith(".h"):
+        return True
+
     # Otherwise exclude (platforms/esp32/, platforms/esp8266/, platforms/avr/, etc.)
     return False
 

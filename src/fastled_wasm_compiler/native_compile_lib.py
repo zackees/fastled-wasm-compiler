@@ -179,6 +179,12 @@ class NativeLibraryBuilder:
         Filters to include:
         - All .cpp files in src/ (except platform-specific)
         - WASM platform files (src/platforms/wasm/*.cpp)
+        - Shared platform files (src/platforms/shared/*.cpp)
+        - Stub platform files (src/platforms/stub/*.cpp)
+
+        Excludes:
+        - ESP-specific mock files (platforms/shared/mock/esp/)
+          These are for ESP32 target testing, not WASM builds
 
         Returns:
             List of .cpp files to compile
@@ -191,8 +197,13 @@ class NativeLibraryBuilder:
             relative_path = cpp_file.relative_to(self.fastled_src)
             path_str = str(relative_path)
 
+            # Exclude ESP-specific mock files from shared/mock/esp/
+            # These are for ESP32 target testing and require Arduino.h
+            if "shared/mock/esp" in path_str or "shared\\mock\\esp" in path_str:
+                continue
+
             # Exclude platform-specific files (except WASM, shared, and stub)
-            if "platforms/" in path_str:
+            if "platforms/" in path_str or "platforms\\" in path_str:
                 if (
                     "platforms/wasm" in path_str
                     or "platforms\\wasm" in path_str
