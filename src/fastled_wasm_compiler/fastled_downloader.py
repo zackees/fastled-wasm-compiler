@@ -108,78 +108,14 @@ class FastLEDDownloader:
                 )
 
     def cleanup_platforms(self) -> None:
-        """Remove unnecessary platform directories and files to match Docker setup."""
-        platforms_dir = self.fastled_src / "platforms"
-        if not platforms_dir.exists():
-            return
-
-        print("Cleaning up platforms directory...")
-
-        # Keep only wasm, stub, and shared directories
-        for item in platforms_dir.iterdir():
-            if item.is_dir():
-                if item.name not in ["wasm", "stub", "shared"]:
-                    print(f"Removing platform: {item.name}")
-                    self._safe_rmtree(item)
+        """Keep all platform directories (no cleanup needed for unity build)."""
+        # Unity build handles all platforms, so we keep everything
+        pass
 
     def cleanup_cpp_files(self) -> None:
-        """Remove *.cpp files but keep *.hpp.cpp files and essential WASM files to match Docker setup."""
-        print(
-            "Removing *.cpp files (but keeping *.hpp.cpp files and essential WASM platform files)..."
-        )
-
-        # Essential files that must be preserved for compilation
-        essential_files = {
-            # Core FastLED files needed for linking
-            "FastLED.cpp",
-            "bitswap.cpp",
-            "cled_controller.cpp",
-            "colorpalettes.cpp",
-            "crgb.cpp",
-            "hsv2rgb.cpp",
-            "lib8tion.cpp",
-            "noise.cpp",
-            "platforms.cpp",
-            "power_mgt.cpp",
-            "rgbw.cpp",
-            "simplex.cpp",
-            "transpose8x1_noinline.cpp",
-            "wiring.cpp",
-            # WASM platform files needed for linking
-            "js.cpp",
-            "active_strip_data.cpp",
-            "engine_listener.cpp",
-            "fastspi_wasm.cpp",
-            "fs_wasm.cpp",
-            "timer.cpp",
-            "ui.cpp",
-        }
-
-        files_to_remove = []
-        for cpp_file in self.fastled_src.rglob("*.cpp"):
-            if (
-                not cpp_file.name.endswith(".hpp.cpp")
-                and cpp_file.name not in essential_files
-            ):
-                files_to_remove.append(cpp_file)
-            elif cpp_file.name in essential_files:
-                print(
-                    f"Preserving essential file: {cpp_file.relative_to(self.fastled_src)}"
-                )
-
-        # Remove files in batches to handle potential locking issues
-        for cpp_file in files_to_remove:
-            try:
-                print(f"Removing: {cpp_file.relative_to(self.fastled_src)}")
-                # Make file writable on Windows
-                if os.name == "nt":
-                    try:
-                        cpp_file.chmod(0o777)
-                    except (OSError, PermissionError):
-                        pass
-                cpp_file.unlink()
-            except (OSError, PermissionError) as e:
-                print(f"Warning: Could not remove {cpp_file}: {e}")
+        """Keep all cpp files (no cleanup needed for unity build)."""
+        # Unity build handles cpp file inclusion automatically
+        pass
 
     def normalize_line_endings(self) -> None:
         """Normalize line endings to Unix format."""
