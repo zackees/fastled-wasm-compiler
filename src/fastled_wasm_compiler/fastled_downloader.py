@@ -147,7 +147,6 @@ class FastLEDDownloader:
             "wiring.cpp",
             # WASM platform files needed for linking
             "js.cpp",
-            "js_bindings.cpp",
             "active_strip_data.cpp",
             "engine_listener.cpp",
             "fastspi_wasm.cpp",
