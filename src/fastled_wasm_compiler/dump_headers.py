@@ -364,7 +364,8 @@ class HeaderDumper:
         return len(rel_path.parts) > 0 and rel_path.parts[0] == "platforms"
 
     def _is_allowed_platform_path(self, file_path: Path) -> bool:
-        """Check if a platform path should be included (following sync.py logic).
+        """Check if a platform path should be included.
+        Unity build handles all platforms, so we include everything.
 
         Args:
             file_path: File path to check
@@ -372,40 +373,8 @@ class HeaderDumper:
         Returns:
             True if the platform path should be included
         """
-        parts = file_path.parts
-
-        # Find platforms directory in path
-        platform_idx = None
-        for i, part in enumerate(parts):
-            if part == "platforms":
-                platform_idx = i
-                break
-
-        if platform_idx is None:
-            return True  # Not in platforms directory
-
-        # If directly in platforms/ (not in subdirectory), include it
-        if platform_idx + 2 >= len(parts):  # platforms/filename
-            return True
-
-        # If in allowed subdirectories, include it
-        if platform_idx + 1 < len(parts):
-            platform_subdir = parts[platform_idx + 1]
-            if platform_subdir in ["shared", "wasm", "stub", "posix", "arm"]:
-                return True
-
-        # Allow platform detection headers (is_*.h) from any platform directory
-        # These headers are included by platforms/is_platform.h for platform detection
-        filename = parts[-1]
-        if filename.startswith("is_") and filename.endswith(".h"):
-            return True
-
-        # Allow interface headers from platform subdirectories that are needed by shared/mock implementations
-        # E.g., platforms/esp/32/drivers/uart/iuart_peripheral.h is needed by shared/mock implementations
-        if filename.startswith("i") and filename.endswith(".h"):
-            return True
-
-        return False
+        # Unity build includes all platforms
+        return True
 
     def _write_manifest(self, manifest: Dict) -> None:
         """Write the manifest file.

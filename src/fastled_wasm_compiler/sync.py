@@ -198,7 +198,7 @@ def _find_files_with_extensions(src_dir: Path) -> list[Path]:
 def _should_sync_file(rel_path: Path) -> bool:
     """
     Front-end filter to determine if a file should be synced.
-    This is the single place where platform filtering happens for repo sync mode.
+    Unity build handles all platforms, so we sync everything.
 
     Args:
         rel_path: Relative path of the file from the source directory
@@ -206,33 +206,8 @@ def _should_sync_file(rel_path: Path) -> bool:
     Returns:
         True if the file should be synced, False otherwise
     """
-    parts = rel_path.parts
-
-    # If not in platforms directory, sync it
-    if len(parts) == 0 or parts[0] != "platforms":
-        return True
-
-    # If directly in platforms/ (not in subdirectory), sync it
-    if len(parts) == 2:  # platforms/filename
-        return True
-
-    # If in allowed subdirectories, sync it
-    if len(parts) >= 3 and parts[1] in ["shared", "wasm", "stub", "posix", "arm"]:
-        return True
-
-    # Allow platform detection headers (is_*.h) from any platform directory
-    # These headers are included by platforms/is_platform.h for platform detection
-    filename = parts[-1]
-    if filename.startswith("is_") and filename.endswith(".h"):
-        return True
-
-    # Allow interface headers from platform subdirectories that are needed by shared/mock implementations
-    # E.g., platforms/esp/32/drivers/uart/iuart_peripheral.h is needed by shared/mock implementations
-    if filename.startswith("i") and filename.endswith(".h"):
-        return True
-
-    # Otherwise exclude (platforms/esp32/, platforms/esp8266/, platforms/avr/, etc.)
-    return False
+    # Unity build includes all platforms - sync everything
+    return True
 
 
 def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResult:
