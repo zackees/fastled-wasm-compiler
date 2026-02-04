@@ -124,14 +124,14 @@ class TestHeaderDumper:
             is True
         )
 
-        # Disallowed platform subdirectories
+        # All platform subdirectories now allowed (unity build)
         assert (
             dumper._is_allowed_platform_path(Path("/src/platforms/arduino/test.h"))
-            is False
+            is True
         )
         assert (
             dumper._is_allowed_platform_path(Path("/src/platforms/esp32/test.h"))
-            is False
+            is True
         )
 
         # Files directly in platforms directory (allowed)

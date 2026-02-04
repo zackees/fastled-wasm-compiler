@@ -103,6 +103,12 @@ class ExtensionFilteringTester(unittest.TestCase):
                 "platforms/wasm/wasm_impl.cpp": "// wasm implementation",
                 "platforms/stub/stub_header.h": "#pragma once // stub",
                 "platforms/stub/stub_impl.cpp": "// stub implementation",
+                # Unity build now includes all platform subdirectories
+                "platforms/arduino/arduino_code.cpp": "// Arduino specific code",
+                "platforms/arduino/arduino_header.h": "#pragma once // arduino",
+                "platforms/esp32/esp32_code.cpp": "// ESP32 specific code",
+                "platforms/esp32/esp32_header.h": "#pragma once // esp32",
+                "platforms/unknown/unknown_code.cpp": "// Unknown platform code",
             }
 
             # Create files that should be excluded (no extension or disallowed extensions)
@@ -127,12 +133,6 @@ class ExtensionFilteringTester(unittest.TestCase):
                 "temp.tmp": "temporary file",
                 "log.log": "log entries",
                 "example.disabled": "disabled file",
-                # Files in excluded platform subdirectories (should be excluded even with good extensions)
-                "platforms/arduino/arduino_code.cpp": "// Arduino specific code",
-                "platforms/arduino/arduino_header.h": "#pragma once // arduino",
-                "platforms/esp32/esp32_code.cpp": "// ESP32 specific code",
-                "platforms/esp32/esp32_header.h": "#pragma once // esp32",
-                "platforms/unknown/unknown_code.cpp": "// Unknown platform code",
             }
 
             # Write allowed files to source directory
@@ -220,13 +220,12 @@ class ExtensionFilteringTester(unittest.TestCase):
                 f"   - {len(allowed_files)} files with allowed extensions were synced"
             )
             print(
-                f"   - {len(excluded_files)} files without proper extensions or in excluded platform dirs were excluded"
+                f"   - {len(excluded_files)} files without proper extensions were excluded"
             )
             print(
                 f"   - {len(platform_files_in_dst)} platform files synced: {platform_files_in_dst}"
             )
-            print("   - Allowed platform subdirectories: shared, wasm, stub")
-            print("   - Excluded platform subdirectories: arduino, esp32, unknown")
+            print("   - All platform subdirectories now included (unity build)")
             print(f"   - Allowed extensions: {ALLOWED_EXTENSIONS}")
 
 
