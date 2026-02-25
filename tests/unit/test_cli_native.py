@@ -38,7 +38,7 @@ class TestNativeCliModule(unittest.TestCase):
             [
                 sys.executable,
                 "-c",
-                "import pkg_resources; print('fastled-wasm-compiler-native' in [ep.name for ep in pkg_resources.iter_entry_points('console_scripts')])",
+                "from importlib.metadata import entry_points; print('fastled-wasm-compiler-native' in [ep.name for ep in entry_points(group='console_scripts')])",
             ],
             capture_output=True,
             text=True,

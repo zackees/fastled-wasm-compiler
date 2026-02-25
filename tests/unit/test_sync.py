@@ -70,9 +70,9 @@ class ExtensionFilteringTester(unittest.TestCase):
             (src_dir / "platforms" / "shared").mkdir()
             (src_dir / "platforms" / "wasm").mkdir()
             (src_dir / "platforms" / "stub").mkdir()
-            (src_dir / "platforms" / "arduino").mkdir()  # Should be excluded
-            (src_dir / "platforms" / "esp32").mkdir()  # Should be excluded
-            (src_dir / "platforms" / "unknown").mkdir()  # Should be excluded
+            (src_dir / "platforms" / "arduino").mkdir()  # Included (unity build)
+            (src_dir / "platforms" / "esp32").mkdir()  # Included (unity build)
+            (src_dir / "platforms" / "unknown").mkdir()  # Included (unity build)
 
             # Create files with allowed extensions (should be synced)
             allowed_files = {
@@ -299,10 +299,8 @@ class SyncTester(unittest.TestCase):
             (SYNC_DATA_DST / "fastled" / "examples" / "Blink").exists(),
             "Expected fastled/examples/Blink directory",
         )
-        self.assertFalse(
-            (SYNC_DATA_DST / "fastled" / "src" / "platforms" / "arm").exists(),
-            "Expected arm directory to be excluded",
-        )
+        # Unity build includes all platform directories
+        # arm directory should now be synced if present in source
         self.assertTrue(
             (
                 SYNC_DATA_DST / "fastled" / "src" / "platforms" / "assert_defs.h"

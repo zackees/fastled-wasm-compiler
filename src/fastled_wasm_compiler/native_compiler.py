@@ -670,6 +670,7 @@ class Compiler:
                 "-x",
                 "c++",  # Force C++ compilation of .ino files
                 f"-I{self.settings.include_path}",  # FastLED include path
+                f"-I{self.settings.include_path}/platforms/wasm/compiler",  # Arduino.h stub
             ]
         )
 

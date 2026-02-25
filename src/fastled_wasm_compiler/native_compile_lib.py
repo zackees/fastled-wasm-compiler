@@ -176,55 +176,21 @@ class NativeLibraryBuilder:
         """
         Discover all FastLED source files to compile.
 
-        Filters to include:
-        - All .cpp files in src/ (except platform-specific)
-        - WASM platform files (src/platforms/wasm/*.cpp)
-        - Shared platform files (src/platforms/shared/*.cpp)
-        - Stub platform files (src/platforms/stub/*.cpp)
-
-        Excludes:
-        - ESP-specific mock files (platforms/shared/mock/esp/)
-          These are for ESP32 target testing, not WASM builds
+        Includes all .cpp files in src/ without platform filtering.
+        Unity build handles file inclusion automatically via _build.cpp files.
 
         Returns:
             List of .cpp files to compile
         """
         all_cpp_files = list(self.fastled_src.rglob("*.cpp"))
 
-        # Filter logic
-        wasm_cpp_files = []
-        for cpp_file in all_cpp_files:
-            relative_path = cpp_file.relative_to(self.fastled_src)
-            path_str = str(relative_path)
-
-            # Exclude ESP-specific mock files from shared/mock/esp/
-            # These are for ESP32 target testing and require Arduino.h
-            if "shared/mock/esp" in path_str or "shared\\mock\\esp" in path_str:
-                continue
-
-            # Exclude platform-specific files (except WASM, shared, and stub)
-            if "platforms/" in path_str or "platforms\\" in path_str:
-                if (
-                    "platforms/wasm" in path_str
-                    or "platforms\\wasm" in path_str
-                    or "platforms/shared" in path_str
-                    or "platforms\\shared" in path_str
-                    or "platforms/stub" in path_str
-                    or "platforms\\stub" in path_str
-                ):
-                    wasm_cpp_files.append(cpp_file)
-                # Skip other platforms
-            else:
-                # Include all non-platform files
-                wasm_cpp_files.append(cpp_file)
-
-        print(f"📂 Discovered {len(wasm_cpp_files)} source files:")
-        for f in sorted(wasm_cpp_files)[:10]:  # Show first 10
+        print(f"📂 Discovered {len(all_cpp_files)} source files:")
+        for f in sorted(all_cpp_files)[:10]:  # Show first 10
             print(f"   - {f.relative_to(self.fastled_src)}")
-        if len(wasm_cpp_files) > 10:
-            print(f"   ... and {len(wasm_cpp_files) - 10} more")
+        if len(all_cpp_files) > 10:
+            print(f"   ... and {len(all_cpp_files) - 10} more")
 
-        return wasm_cpp_files
+        return all_cpp_files
 
     def _compile_all_sources(
         self, source_files: List[Path]
