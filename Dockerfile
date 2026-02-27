@@ -82,6 +82,14 @@ RUN \
 
 
 
+# Add EMSDK's bundled Node.js to PATH (required for Vite frontend build)
+# The emsdk image includes Node.js under /emsdk/node/<version>/bin/
+RUN EMSDK_NODE_DIR=$(ls -d /emsdk/node/*/bin 2>/dev/null | head -1) && \
+    echo "EMSDK Node.js found at: $EMSDK_NODE_DIR" && \
+    ln -s "$EMSDK_NODE_DIR/node" /usr/local/bin/node && \
+    ln -s "$EMSDK_NODE_DIR/npm" /usr/local/bin/npm && \
+    ln -s "$EMSDK_NODE_DIR/npx" /usr/local/bin/npx
+
 # Add Python and Emscripten to PATH
 ENV PATH="/container/bin:/usr/local/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:${PATH}"
 ENV CCACHE_DIR=/ccache
@@ -144,8 +152,10 @@ RUN chmod +x /build/download_fastled.sh && \
     dos2unix /build/download_fastled.sh
 RUN /build/download_fastled.sh
 
-
-
+# Build Vite frontend (TypeScript -> browser-ready JS)
+RUN cd /git/fastled/src/platforms/wasm/compiler && \
+    npm install && \
+    npx vite build
 
 
 

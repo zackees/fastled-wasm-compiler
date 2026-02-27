@@ -76,22 +76,19 @@ def copy_output_files_and_create_manifest(
     build_dir: Path,
     src_dir: Path,
     fastled_js_out: str,
-    index_html: Path,
-    index_css_src: Path,
-    index_js_src: Path,
-    assets_modules: Path,
+    assets_dir: Path,
 ) -> None:
     """
     Copy all output files to the destination directory and create manifest.
+
+    Copies Vite-built frontend from assets_dir/dist/ and fastled.* build
+    artifacts from build_dir.
 
     Args:
         build_dir: Path to the build directory containing compiled artifacts
         src_dir: Path to the source directory
         fastled_js_out: Name of the output directory
-        index_html: Path to the index.html file
-        index_css_src: Path to the index.css file
-        index_js_src: Path to the index.js file
-        assets_modules: Path to the modules directory
+        assets_dir: Path to the compiler assets directory (containing dist/)
     """
     print(banner("Copying output files..."))
     out_dir: Path = src_dir / fastled_js_out
@@ -103,56 +100,24 @@ def copy_output_files_and_create_manifest(
         print(f"Copying {file_path} to {_dst}")
         shutil.copy2(file_path, _dst)
 
-    # # must exist fastled.wasm file
-    # must_exist = "fastled.wasm"
-    # for file_path in artifact_files:
-    #     if file_path.name == must_exist:
-    #         break
-    # else:
+    # Copy Vite build output from dist/
+    dist_dir = assets_dir / "dist"
+    if not dist_dir.exists():
+        raise RuntimeError(
+            f"Vite build output not found at {dist_dir}. "
+            + f"Run 'npm install && npx vite build' in {assets_dir}"
+        )
 
-    #     print(banner("ERROR! COULD NOT FIND fastled.wasm!!!"))
-    #     # print("Printing out all files")
-    #     # print("in the root directory /")
-    #     # for file_path in find_all_files_from_root_js():
-    #     #     print(f"  {file_path}")
+    print(f"Copying Vite build output from {dist_dir} to {out_dir}")
+    for item in dist_dir.iterdir():
+        dest = out_dir / item.name
+        if item.is_dir():
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
 
-    #     raise FileNotFoundError(
-    #         f"fastled.wasm not found in {build_dir} after compilation"
-    #     )
-
-    # Copy static files.
-    print(f"Copying {index_html} to output directory")
-    shutil.copy2(index_html, out_dir / "index.html")
-    print(f"Copying {index_css_src} to output directory")
-    shutil.copy2(index_css_src, out_dir / "index.css")
-
-    # copy all js files in _FASTLED_COMPILER_DIR to output directory
-    Path(out_dir / "modules").mkdir(parents=True, exist_ok=True)
-
-    # Recursively copy all non-hidden files and directories
-    print(f"Copying files from {assets_modules} to {out_dir / 'modules'}")
-    shutil.copytree(
-        src=assets_modules,
-        dst=out_dir / "modules",
-        dirs_exist_ok=True,
-        ignore=shutil.ignore_patterns(".*"),
-    )  # Ignore hidden files
-
-    # Copy vendor directory if it exists
-    assets_vendor = assets_modules.parent / "vendor"
-    if assets_vendor.exists():
-        print(f"Copying vendor files from {assets_vendor} to {out_dir / 'vendor'}")
-        shutil.copytree(
-            src=assets_vendor,
-            dst=out_dir / "vendor",
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns(".*"),
-        )  # Ignore hidden files
-    else:
-        print(f"No vendor directory found at {assets_vendor}, skipping vendor copy")
-
-    print("Copying index.js to output directory")
-    shutil.copy2(index_js_src, out_dir / "index.js")
     optional_input_data_dir = src_dir / "data"
     output_data_dir = out_dir / optional_input_data_dir.name
 

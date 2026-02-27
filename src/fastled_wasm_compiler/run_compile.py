@@ -26,6 +26,7 @@ from fastled_wasm_compiler.copy_files_and_output_manifest import (
 from fastled_wasm_compiler.print_banner import banner
 from fastled_wasm_compiler.process_ino_files import process_ino_files
 from fastled_wasm_compiler.types import BuildMode
+from fastled_wasm_compiler.vite_build import ensure_vite_built
 
 
 def copy_files(src_dir: Path, js_src: Path) -> None:
@@ -90,10 +91,6 @@ def run_compile(args: Args) -> int:
 
     assert assets_dir.exists(), f"Assets directory {assets_dir} does not exist."
 
-    index_html = assets_dir / "index.html"
-    index_css_src = assets_dir / "index.css"
-    index_js_src = assets_dir / "index.js"
-
     # Determine directories based on session_id
     if args.session_id is not None:
         # Use session-based persistent directories
@@ -117,18 +114,11 @@ def run_compile(args: Args) -> int:
         print(f"Using traditional compiler root: {compiler_root}")
 
     pio_build_dir = compiler_root / ".pio/build"
-    assets_modules = assets_dir / "modules"
 
-    # _OUTPUT_FILES = ["fastled.js", "fastled.wasm"]
-
-    # _MAX_COMPILE_ATTEMPTS = 1  # Occasionally the compiler fails for unknown reasons, but disabled because it increases the build time on failure.
     fastled_js_out = "fastled_js"
 
     check_paths: list[Path] = [
         compiler_root,
-        index_html,
-        index_css_src,
-        index_js_src,
         assets_dir,
     ]
     missing_paths = [p for p in check_paths if not p.exists()]
@@ -230,15 +220,15 @@ def run_compile(args: Args) -> int:
             else:
                 print(f"✓ Build directory exists: {build_dir}")
 
+            # Ensure Vite frontend is built (builds if dist/ is missing)
+            ensure_vite_built(assets_dir)
+
             # Copy output files and create manifest
             copy_output_files_and_create_manifest(
                 build_dir=build_dir,
                 src_dir=src_dir,
                 fastled_js_out=fastled_js_out,
-                index_html=index_html,
-                index_css_src=index_css_src,
-                index_js_src=index_js_src,
-                assets_modules=assets_modules,
+                assets_dir=assets_dir,
             )
 
             # Add build summary

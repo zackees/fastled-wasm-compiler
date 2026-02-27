@@ -32,11 +32,12 @@ class StaleCacheTest(unittest.TestCase):
         self.sketch_dir.mkdir(parents=True)
         self.assets_dir.mkdir(parents=True)
 
-        # Create required asset files
-        (self.assets_dir / "index.html").write_text("<html></html>")
-        (self.assets_dir / "index.css").write_text("body {}")
-        (self.assets_dir / "index.js").write_text("console.log('test');")
-        (self.assets_dir / "modules").mkdir()
+        # Create required asset files (Vite dist/ output structure)
+        dist_dir = self.assets_dir / "dist"
+        dist_dir.mkdir()
+        (dist_dir / "index.html").write_text("<html></html>")
+        (dist_dir / "index.css").write_text("body {}")
+        (dist_dir / "index.js").write_text("console.log('test');")
 
         # Create initial sketch file
         self.sketch_file = self.sketch_dir / "test.ino"

@@ -43,6 +43,7 @@ ALLOWED_EXTENSIONS = [
     "*.txt",  # Text files
     "*.js",
     "*.mjs",  # JavaScript files
+    "*.ts",  # TypeScript files
     "*.html",  # HTML files
     "*.css",  # CSS files
     "*.ini",  # Configuration files
@@ -70,6 +71,7 @@ LIBRARY_AFFECTING_EXTENSIONS = [
 ASSET_ONLY_EXTENSIONS = [
     "*.js",
     "*.mjs",  # JavaScript files
+    "*.ts",  # TypeScript files
     "*.html",  # HTML files
     "*.css",  # CSS files
 ]
@@ -241,6 +243,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         "--chmod=ugo+w",  # Make destination files writable before updating
         "--include=*.js",
         "--include=*.mjs",
+        "--include=*.ts",
         "--include=*.css",
         "--include=*.html",
         "--include=*/",  # Include directories
@@ -276,7 +279,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
                     # Check if this is a file with one of our extensions
                     if any(
                         line.endswith(ext.replace("*", ""))
-                        for ext in ["*.js", "*.mjs", "*.css", "*.html"]
+                        for ext in ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]
                     ):
                         changed_file = dst / line
                         if changed_file.exists():
@@ -287,7 +290,7 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         else:
             print(f"[DRY RUN] Would rsync web assets from {src} to {dst}")
             # In dry run mode, scan for all web assets as potential changes
-            for pattern in ["*.js", "*.mjs", "*.css", "*.html"]:
+            for pattern in ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]:
                 changed_files.extend(dst.rglob(pattern))
 
         return SyncResult(
@@ -316,7 +319,7 @@ def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
         if not dryrun:
             dst.mkdir(parents=True, exist_ok=True)
 
-    web_extensions = ["*.js", "*.mjs", "*.css", "*.html"]
+    web_extensions = ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]
     changed_files = []
 
     # Find all web asset files in source
@@ -633,7 +636,7 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
                 rel_path = file_path.relative_to(dst)
                 if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
                     file_path.match(pattern)
-                    for pattern in ["*.js", "*.mjs", "*.css", "*.html"]
+                    for pattern in ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]
                 ):
                     # Skip - this was handled by rsync
                     continue
@@ -648,7 +651,7 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
                 rel_path = file_path.relative_to(dst)
                 if rel_path.parts[:3] == ("platforms", "wasm", "compiler") and any(
                     file_path.match(pattern)
-                    for pattern in ["*.js", "*.mjs", "*.css", "*.html"]
+                    for pattern in ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]
                 ):
                     # Skip - this was handled by rsync
                     continue
