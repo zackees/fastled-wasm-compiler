@@ -1,6 +1,33 @@
-# TASK: Migrate Frontend Assets to TypeScript/Vite Build System
+# TASK: Rebuild Docker Image + Complete Vite Migration
 
-## Summary
+## IMMEDIATE: Rebuild Docker Image
+
+**Status:** BLOCKED — Docker image is stale, compilation fails.
+
+The local code (commit `b085d44`) already fixes `run_compile.py` to remove the `index.js` check, but the Docker image `niteris/fastled-wasm:latest` still has the old version. **The image must be rebuilt and pushed.**
+
+```bash
+cd ~/dev/fastled-wasm-compiler
+docker build -t niteris/fastled-wasm:latest .
+docker push niteris/fastled-wasm:latest
+# Then remove the stale container:
+docker rm -f fastled-wasm-container
+# Verify:
+cd ~/dev/fastled9
+fastled --just-compile examples/wasm
+```
+
+**Error reproduced from `fastled --just-compile examples/wasm`:**
+```
+FileNotFoundError: Missing required paths: src/platforms/wasm/compiler/index.js
+```
+
+**Docker container version** (`run_compile.py` line ~98): Still checks for `index_js_src = assets_dir / "index.js"`
+**Local checkout version** (`run_compile.py` line 120): Fixed — only checks `[compiler_root, assets_dir]`
+
+---
+
+## Summary (Full Migration)
 
 The upstream FastLED repo has migrated its WASM frontend from raw JavaScript to TypeScript + Vite. The `copy_output_files_and_create_manifest()` function in `src/fastled_wasm_compiler/copy_files_and_output_manifest.py` copies raw source files that are now `.ts` (not browser-executable). It must be updated to use Vite-built output from `dist/`.
 

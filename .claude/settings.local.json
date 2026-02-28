@@ -9,5 +9,19 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-integration-tests.py\"",
+            "timeout": 900
+          }
+        ]
+      }
+    ]
   }
 }
