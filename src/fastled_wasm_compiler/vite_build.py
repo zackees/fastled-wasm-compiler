@@ -22,7 +22,11 @@ def ensure_vite_built(compiler_dir: Path) -> Path:
     """
     dist_dir = compiler_dir / "dist"
     if dist_dir.exists():
-        return dist_dir
+        # Verify dist/ has essential files, not just orphaned .map files
+        essential_files = ["index.html", "index.js"]
+        if all((dist_dir / f).exists() for f in essential_files):
+            return dist_dir
+        print("Vite dist/ directory is incomplete, rebuilding...")
 
     npx = shutil.which("npx")
     if not npx:

@@ -241,6 +241,8 @@ def _sync_web_assets_with_rsync(src: Path, dst: Path, dryrun: bool) -> SyncResul
         "-av",
         "--delete",
         "--chmod=ugo+w",  # Make destination files writable before updating
+        "--exclude=dist/",  # Protect pre-built Vite output
+        "--exclude=node_modules/",  # Protect npm dependencies
         "--include=*.js",
         "--include=*.mjs",
         "--include=*.ts",
@@ -320,12 +322,19 @@ def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
             dst.mkdir(parents=True, exist_ok=True)
 
     web_extensions = ["*.js", "*.mjs", "*.ts", "*.css", "*.html"]
+    # Directories to exclude from sync (build outputs that must be preserved)
+    excluded_dirs = {"dist", "node_modules"}
     changed_files = []
+
+    def _is_excluded(file_path: Path, base: Path) -> bool:
+        """Check if a file is under an excluded directory."""
+        rel = file_path.relative_to(base)
+        return any(part in excluded_dirs for part in rel.parts)
 
     # Find all web asset files in source
     src_web_files = []
     for pattern in web_extensions:
-        src_web_files.extend(src.rglob(pattern))
+        src_web_files.extend(f for f in src.rglob(pattern) if not _is_excluded(f, src))
 
     # Convert to relative paths for tracking
     src_relative = {f.relative_to(src) for f in src_web_files}
@@ -334,7 +343,9 @@ def _sync_web_assets_manual(src: Path, dst: Path, dryrun: bool) -> SyncResult:
     dst_web_files = []
     if dst.exists():
         for pattern in web_extensions:
-            dst_web_files.extend(dst.rglob(pattern))
+            dst_web_files.extend(
+                f for f in dst.rglob(pattern) if not _is_excluded(f, dst)
+            )
 
     dst_relative = {f.relative_to(dst) for f in dst_web_files}
 
