@@ -1,6 +1,74 @@
-# TASK: Rebuild Docker Image + Complete Vite Migration
+# TASK: Fix Vite Worker URL Paths + Rebuild Docker Image
 
-## IMMEDIATE: Rebuild Docker Image
+## URGENT: Fix `download_fastled.sh` file extension whitelist
+
+**Status:** MUST FIX before Docker rebuild.
+
+The file `build_tools/download_fastled.sh` has a `find` command (around line 25)
+that deletes all files not matching a whitelisted set of extensions. The whitelist
+is missing extensions required by the Vite TypeScript build:
+
+| Missing ext | Required by |
+|-------------|-------------|
+| `.ts`       | TypeScript source files (`fastled_background_worker.ts`, `index.ts`, etc.) |
+| `.mts`      | TypeScript config (`vite.config.mts`) |
+| `.json`     | `package.json`, `tsconfig.json`, `package-lock.json` |
+| `.ttf`      | Font files (`RobotoCondensed-Light.ttf`) |
+
+Without these, the Vite build at Dockerfile line 156 (`npm install && npx vite build`)
+will fail because `package.json`, `vite.config.mts`, and all `.ts` source files
+are deleted before the build runs.
+
+**Fix:** Add the missing extensions to the `find` whitelist in `build_tools/download_fastled.sh`:
+
+```bash
+find . -type f ! \( \
+  -name "*.cpp"  -o \
+  -name "*.hpp"  -o \
+  -name "*.h"    -o \
+  -name "*.c"    -o \
+  -name "*.sh"   -o \
+  -name "*.js"   -o \
+  -name "*.mjs"  -o \
+  -name "*.css"  -o \
+  -name "*.txt"  -o \
+  -name "*.html" -o \
+  -name "*.toml" -o \
+  -name "*.ts"   -o \
+  -name "*.mts"  -o \
+  -name "*.json" -o \
+  -name "*.ttf"  \
+\) -delete
+```
+
+## URGENT: Vite worker URL path regression
+
+**Status:** Fixed in FastLED main repo, needs Docker rebuild to pick up.
+
+The FastLED main repo fixed a Vite migration regression in
+`src/platforms/wasm/compiler/modules/core/fastled_background_worker.ts`.
+After Vite bundling, the background worker is output at root level alongside
+`fastled.js` and `fastled.wasm`. Three relative URLs used `../../` (correct
+for the pre-bundle source location at `modules/core/`) but wrong after bundling.
+
+**Changed from `../../` to `./`:**
+1. `fastledScriptPath` — fetches `fastled.js` for dynamic eval in worker
+2. `mainScriptUrlOrBlob` — tells Emscripten where to find `fastled.js` for pthreads
+3. `locateFile` for `.wasm` — resolves `fastled.wasm` path
+
+Without this fix, the WASM worker fails to load `fastled.js`/`fastled.wasm`,
+causing silent initialization failure in the browser.
+
+**Verify after rebuild:**
+```bash
+grep 'new URL(' <output_dir>/fastled_background_worker.js
+# Should show: new URL("./fastled.js", ...)
+# NOT:         new URL("../../fastled.js", ...)
+```
+
+---
+
+## Rebuild Docker Image
 
 **Status:** BLOCKED — Docker image is stale, compilation fails.
 

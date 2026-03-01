@@ -33,7 +33,11 @@ find . -type f ! \( \
   -name "*.css"  -o \
   -name "*.txt"  -o \
   -name "*.html" -o \
-  -name "*.toml" \
+  -name "*.toml" -o \
+  -name "*.ts"   -o \
+  -name "*.mts"  -o \
+  -name "*.json" -o \
+  -name "*.ttf"  \
 \) -delete
 
 # now normalize all file endings that remain

@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \"$CLAUDE_PROJECT_DIR/.claude/hooks/run-integration-tests.py\"",
+            "command": "uv run python \"$(git rev-parse --show-toplevel)/.claude/hooks/run-integration-tests.py\"",
             "timeout": 900
           }
         ]
