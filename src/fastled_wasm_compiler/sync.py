@@ -106,6 +106,15 @@ def _is_asset_only_file(file_path: Path) -> bool:
     return False
 
 
+def _is_under(rel_path: Path, prefix: Path) -> bool:
+    """Check if rel_path is under the given prefix directory."""
+    try:
+        rel_path.relative_to(prefix)
+        return True
+    except ValueError:
+        return False
+
+
 def _find_files_with_extensions(src_dir: Path) -> list[Path]:
     """Use Unix find command to quickly discover files with allowed extensions and apply platforms filtering."""
     if not src_dir.exists():
@@ -399,7 +408,9 @@ def _find_files_python_fallback(src_dir: Path) -> list[Path]:
     return files
 
 
-def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
+def _sync_directory(
+    src: Path, dst: Path, dryrun: bool, exclude_paths: list[str] | None = None
+) -> SyncResult:
     """Sync a directory using fast Unix find command for file discovery."""
     assert src.is_dir(), f"Source {src} is not a directory"
 
@@ -433,6 +444,20 @@ def _sync_directory(src: Path, dst: Path, dryrun: bool) -> SyncResult:
     dst_relative = {
         rel_path for rel_path in dst_relative if _should_sync_file(rel_path)
     }
+    # Exclude paths managed by other sync mechanisms (e.g., rsync for web assets)
+    if exclude_paths:
+        exclude_prefixes = [Path(ep) for ep in exclude_paths]
+        src_relative = {
+            r
+            for r in src_relative
+            if not any(_is_under(r, ep) for ep in exclude_prefixes)
+        }
+        dst_relative = {
+            r
+            for r in dst_relative
+            if not any(_is_under(r, ep) for ep in exclude_prefixes)
+        }
+
     logger.info(
         f"After filtering, {len(src_relative)} files remain for sync (from {len(src_files)} discovered)"
     )
@@ -635,7 +660,12 @@ def _sync_fastled_src(src: Path, dst: Path, dryrun: bool = False) -> SyncResult:
         )
 
         # Sync everything else using regular sync
-        sync_result = _sync_directory(src, dst, dryrun)
+        # These directories are managed by rsync above — exclude from regular sync
+        exclude_paths = [
+            "platforms/wasm/compiler/dist",
+            "platforms/wasm/compiler/node_modules",
+        ]
+        sync_result = _sync_directory(src, dst, dryrun, exclude_paths=exclude_paths)
 
         # Merge results, but avoid double-counting web asset files
         # Remove web asset files from the regular sync result to avoid duplicates

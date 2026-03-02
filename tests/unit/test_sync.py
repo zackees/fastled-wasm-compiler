@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 
-from fastled_wasm_compiler.sync import ALLOWED_EXTENSIONS, sync_fastled
+from fastled_wasm_compiler.sync import ALLOWED_EXTENSIONS, _sync_directory, sync_fastled
 
 HERE = Path(__file__).parent
 SYNC_DATA = HERE / ".sync_data"
@@ -227,6 +227,116 @@ class ExtensionFilteringTester(unittest.TestCase):
             )
             print("   - All platform subdirectories now included (unity build)")
             print(f"   - Allowed extensions: {ALLOWED_EXTENSIONS}")
+
+
+class ExcludePathsTester(unittest.TestCase):
+    """Test that _sync_directory with exclude_paths preserves dist/ and node_modules/."""
+
+    def setUp(self) -> None:
+        import sys
+
+        if sys.platform == "win32":
+            return
+
+        find_cmd = shutil.which("find")
+        if not find_cmd:
+            self.skipTest(
+                "Unix find command not available - file sync will use Python fallback"
+            )
+
+    def test_sync_directory_preserves_excluded_dist(self) -> None:
+        """Test that dist/ files in destination are NOT deleted when excluded."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src_dir = Path(tmpdir) / "src"
+            dst_dir = Path(tmpdir) / "dst"
+            src_dir.mkdir()
+            dst_dir.mkdir()
+
+            # Source has a .cpp file and a web asset, but NO dist/
+            (src_dir / "FastLED.h").write_text("#pragma once")
+            compiler_src = src_dir / "platforms" / "wasm" / "compiler"
+            compiler_src.mkdir(parents=True)
+            (compiler_src / "index.ts").write_text("// src ts")
+
+            # Destination already has dist/ (simulating Docker image build)
+            compiler_dst = dst_dir / "platforms" / "wasm" / "compiler"
+            dist_dir = compiler_dst / "dist"
+            dist_dir.mkdir(parents=True)
+            (dist_dir / "index.html").write_text("<html></html>")
+            (dist_dir / "index.js").write_text("// built js")
+            (dist_dir / "index.css").write_text("/* built css */")
+
+            # Also pre-populate node_modules with a .js file
+            nm_dir = compiler_dst / "node_modules" / "vite" / "dist"
+            nm_dir.mkdir(parents=True)
+            (nm_dir / "node" / "index.js").parent.mkdir(parents=True)
+            (nm_dir / "node" / "index.js").write_text("// vite")
+
+            # Sync WITH exclude_paths — dist/ and node_modules/ should be preserved
+            exclude_paths = [
+                "platforms/wasm/compiler/dist",
+                "platforms/wasm/compiler/node_modules",
+            ]
+            _sync_directory(src_dir, dst_dir, dryrun=False, exclude_paths=exclude_paths)
+
+            # Verify dist/ files survived
+            self.assertTrue(
+                (dist_dir / "index.html").exists(),
+                "dist/index.html should be preserved",
+            )
+            self.assertTrue(
+                (dist_dir / "index.js").exists(),
+                "dist/index.js should be preserved",
+            )
+            self.assertTrue(
+                (dist_dir / "index.css").exists(),
+                "dist/index.css should be preserved",
+            )
+
+            # Verify node_modules survived
+            self.assertTrue(
+                (nm_dir / "node" / "index.js").exists(),
+                "node_modules/vite/dist/node/index.js should be preserved",
+            )
+
+            # Verify regular files were still synced
+            self.assertTrue(
+                (dst_dir / "FastLED.h").exists(),
+                "FastLED.h should be synced",
+            )
+            self.assertTrue(
+                (compiler_dst / "index.ts").exists(),
+                "index.ts should be synced",
+            )
+
+    def test_sync_directory_without_exclude_deletes_dist(self) -> None:
+        """Test that WITHOUT exclude_paths, dist/ files ARE deleted (the bug scenario)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src_dir = Path(tmpdir) / "src"
+            dst_dir = Path(tmpdir) / "dst"
+            src_dir.mkdir()
+            dst_dir.mkdir()
+
+            # Source has no dist/
+            (src_dir / "FastLED.h").write_text("#pragma once")
+
+            # Destination has dist/ with .html and .js (matched by ALLOWED_EXTENSIONS)
+            dist_dir = dst_dir / "platforms" / "wasm" / "compiler" / "dist"
+            dist_dir.mkdir(parents=True)
+            (dist_dir / "index.html").write_text("<html></html>")
+            (dist_dir / "index.js").write_text("// built js")
+
+            # Sync WITHOUT exclude_paths — dist/ files should be deleted
+            _sync_directory(src_dir, dst_dir, dryrun=False)
+
+            self.assertFalse(
+                (dist_dir / "index.html").exists(),
+                "dist/index.html should be deleted without exclude_paths",
+            )
+            self.assertFalse(
+                (dist_dir / "index.js").exists(),
+                "dist/index.js should be deleted without exclude_paths",
+            )
 
 
 class SyncTester(unittest.TestCase):
