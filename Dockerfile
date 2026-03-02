@@ -90,6 +90,10 @@ RUN EMSDK_NODE_DIR=$(ls -d /emsdk/node/*/bin 2>/dev/null | head -1) && \
     ln -s "$EMSDK_NODE_DIR/npm" /usr/local/bin/npm && \
     ln -s "$EMSDK_NODE_DIR/npx" /usr/local/bin/npx
 
+# Install vite globally so it's always available even if node_modules is wiped
+# (e.g., after cli_update_from_master re-downloads the FastLED repo)
+RUN npm install -g vite
+
 # Add Python and Emscripten to PATH
 ENV PATH="/container/bin:/usr/local/bin:/usr/bin:/emsdk:/emsdk/upstream/emscripten:${PATH}"
 ENV CCACHE_DIR=/ccache
@@ -143,7 +147,7 @@ RUN echo 'export LANG=en_US.UTF-8' >> /etc/profile && \
 ENV NO_CCACHE=1
 
 # changing this number forces a code re-update.
-RUN echo "update build 67"
+RUN echo "update build 68"
 # The NO_PLATFORMIO env var is now set at the top of the file
 
 # Prune platforms we don't use and normalize line endings.

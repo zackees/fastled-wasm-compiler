@@ -1,5 +1,7 @@
 import logging
 import platform
+import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -100,6 +102,14 @@ def main() -> int:
 
                 timestamp_manager = get_timestamp_manager()
                 timestamp_manager.update_source_timestamp()
+
+            # Restore npm dependencies if sync wiped node_modules
+            compiler_dir = dst / "platforms" / "wasm" / "compiler"
+            if compiler_dir.exists() and not (compiler_dir / "node_modules").exists():
+                npm = shutil.which("npm")
+                if npm:
+                    logger.info("Restoring npm dependencies in compiler directory...")
+                    subprocess.run([npm, "install"], cwd=compiler_dir, check=True)
         logger.info("Source update completed successfully")
     return 0
 

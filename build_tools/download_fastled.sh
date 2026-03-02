@@ -13,7 +13,7 @@ URL=https://github.com/FastLED/FastLED/archive/refs/heads/${FASTLED_VERSION}.zip
 # Download latest, unzip move into position and clean up.
 wget -O "${FASTLED_ROOT}.zip" ${URL} && \
     unzip "${FASTLED_ROOT}.zip" -d "$(dirname "${FASTLED_ROOT}")" && \
-    mv "$(dirname "${FASTLED_ROOT}")/FastLED-master" "${FASTLED_ROOT}" && \
+    mv "$(dirname "${FASTLED_ROOT}")/FastLED-${FASTLED_VERSION}" "${FASTLED_ROOT}" && \
     rm "${FASTLED_ROOT}.zip"
 
 # Temporarily disable FL_ALIGN_AS for Emscripten builds
