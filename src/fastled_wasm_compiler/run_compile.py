@@ -157,9 +157,18 @@ def run_compile(args: Args) -> int:
             if args.only_copy:
                 return 0
 
-        # Always run header insertion when compiling to ensure .ino files are transformed
-        # This prevents stale .ino.cpp files from being used
-        if do_insert_header or do_compile:
+        # Check if we can delegate to FastLED's ci/wasm_build.py for compilation.
+        # wasm_build.py uses Meson+Ninja with command capture/caching for fast
+        # incremental rebuilds and handles .ino processing internally.
+        from fastled_wasm_compiler.wasm_build_delegate import has_wasm_build_system
+
+        use_wasm_build = do_compile and has_wasm_build_system()
+
+        # .ino processing: skip when delegating to wasm_build (handles it internally),
+        # unless the user explicitly requested only_insert_header.
+        if use_wasm_build and not args.only_insert_header:
+            pass  # wasm_build.py handles .ino processing internally
+        elif do_insert_header or do_compile:
             process_ino_files(sketch_tmp)
             if args.only_insert_header:
                 print("Transform to cpp and insert header operations completed.")
@@ -178,40 +187,63 @@ def run_compile(args: Args) -> int:
                     # Default to QUICK mode if neither debug nor release specified
                     build_mode = BuildMode.QUICK
 
-                print(
-                    banner(
-                        f"Starting compilation process with mode: {build_mode}\n  js_dir: {compiler_root}\n  profile_build: {args.profile}"
+                # Determine build directory
+                if args.session_id is not None:
+                    from fastled_wasm_compiler.session_directory_manager import (
+                        get_session_directory_manager,
                     )
-                )
-                process_compile(
-                    js_dir=compiler_root,
-                    build_mode=build_mode,
-                    auto_clean=not args.disable_auto_clean,
-                    profile_build=args.profile,
-                )
+
+                    session_mgr = get_session_directory_manager()
+                    build_dir = session_mgr.get_session_build_dir(
+                        args.session_id, build_mode.name.lower()
+                    )
+                else:
+                    from fastled_wasm_compiler.paths import BUILD_ROOT
+
+                    build_dir = BUILD_ROOT / build_mode.name.lower()
+
+                if use_wasm_build:
+                    # Preferred path: delegate to FastLED's ci/wasm_build.py
+                    from fastled_wasm_compiler.wasm_build_delegate import (
+                        compile_via_wasm_build,
+                    )
+
+                    print(
+                        banner(
+                            f"Delegating to FastLED build system (mode: {build_mode})"
+                        )
+                    )
+                    rtn = compile_via_wasm_build(
+                        sketch_dir=sketch_tmp,
+                        build_dir=build_dir,
+                        build_mode=build_mode.name.lower(),
+                    )
+                    if rtn != 0:
+                        print(f"Error: FastLED build system failed with code {rtn}")
+                        return 1
+                    compilation_method = "FastLED ci/wasm_build.py (Meson+Ninja)"
+                else:
+                    # Fallback: use existing standalone compilation pipeline
+                    print(
+                        banner(
+                            f"Starting compilation process with mode: {build_mode}\n  js_dir: {compiler_root}\n  profile_build: {args.profile}"
+                        )
+                    )
+                    process_compile(
+                        js_dir=compiler_root,
+                        build_mode=build_mode,
+                        auto_clean=not args.disable_auto_clean,
+                        profile_build=args.profile,
+                    )
+                    compilation_method = "Direct emcc calls"
             except Exception as e:
                 print(f"Error: {str(e)}")
                 return 1
 
-            # The compile_sketch.py creates subdirectories based on build mode
-            if args.session_id is not None:
-                # Use session-specific build directory
-                from fastled_wasm_compiler.session_directory_manager import (
-                    get_session_directory_manager,
-                )
-
-                session_mgr = get_session_directory_manager()
-                build_dir = session_mgr.get_session_build_dir(
-                    args.session_id, build_mode.name.lower()
-                )
-            else:
-                # Use global build directory
-                from fastled_wasm_compiler.paths import BUILD_ROOT
-
-                build_dir = BUILD_ROOT / build_mode.name.lower()
             print(banner("Build directory structure"))
-            print(f"✓ Using direct compilation build directory: {build_dir}")
+            print(f"✓ Using build directory: {build_dir}")
             print(f"✓ Build mode subdirectory: {build_mode.name.lower()}")
+            print(f"✓ Compilation method: {compilation_method}")
             print("✓ Expected output files: fastled.js, fastled.wasm")
             if not build_dir.exists():
                 print(
@@ -233,7 +265,7 @@ def run_compile(args: Args) -> int:
 
             # Add build summary
             print(banner("Build Summary"))
-            print("✅ Compilation method: Direct emcc calls")
+            print(f"✅ Compilation method: {compilation_method}")
             print(f"✅ Build mode: {build_mode.name}")
             print(f"✅ Build directory: {build_dir}")
             print(f"✅ Source directory: {src_dir}")
@@ -254,7 +286,7 @@ def run_compile(args: Args) -> int:
                 else:
                     print(f"  ❌ {file_name} (missing)")
 
-            print("🎯 Build completed using direct emscripten compilation")
+            print(f"🎯 Build completed using {compilation_method}")
 
             # remove the pio_build_dir and sketch build directory.
             if not args.keep_files:
