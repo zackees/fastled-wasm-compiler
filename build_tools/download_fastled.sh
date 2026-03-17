@@ -16,8 +16,10 @@ wget -O "${FASTLED_ROOT}.zip" ${URL} && \
     mv "$(dirname "${FASTLED_ROOT}")/FastLED-${FASTLED_VERSION}" "${FASTLED_ROOT}" && \
     rm "${FASTLED_ROOT}.zip"
 
-# Temporarily disable FL_ALIGN_AS for Emscripten builds
-sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alignof(T))/#define FL_ALIGN_AS(T)/}' "${FASTLED_ROOT}/src/fl/align.h"
+# Temporarily disable FL_ALIGN_AS for Emscripten builds (if file still exists)
+if [ -f "${FASTLED_ROOT}/src/fl/align.h" ]; then
+  sed -i '/^#ifdef __EMSCRIPTEN__/,/^#endif/{s/#define FL_ALIGN_AS(T) alignas(alignof(T))/#define FL_ALIGN_AS(T)/}' "${FASTLED_ROOT}/src/fl/align.h"
+fi
 
 # Every file that is NOT *.cpp, *.hpp, *.h, *.c, *.sh, *.js, *.mjs, *.css, *.txt, *.html... get's removed.
 # Gets removed

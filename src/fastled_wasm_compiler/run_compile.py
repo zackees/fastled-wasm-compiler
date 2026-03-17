@@ -273,8 +273,6 @@ def run_compile(args: Args) -> int:
 
             # Check for expected output files
             expected_files = ["fastled.js", "fastled.wasm"]
-            if build_mode == BuildMode.DEBUG:
-                expected_files.append("fastled.wasm.dwarf")
 
             print(f"📁 Checking output files in {src_dir / fastled_js_out}:")
             output_dir = src_dir / fastled_js_out

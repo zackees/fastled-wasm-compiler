@@ -16,7 +16,7 @@ if ! command -v uv &> /dev/null; then
   fi
 fi
 
-uv venv --python 3.11 --seed
+uv venv --python 3.11 --seed --clear
 uv pip install -e .
 
 # If requirements.testing.txt exists, then install it
